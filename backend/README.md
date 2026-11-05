@@ -9,7 +9,7 @@ Each module is a direct sub-package of `com.groupcollections`. Spring Modulith v
 | Package | Responsibility | Status |
 | --- | --- | --- |
 | `ledger` | Money type, postings, derived balances | `Money` only |
-| `contribution` | Contribution state machine, provider callbacks | Not started |
+| `contribution` | Fee calculator, contribution state machine, provider callbacks | Fee calculator only |
 | `payments` | Partner client, signature checks, reconciliation | Not started |
 | `goal` | Groups, goals, templates, settings | Not started |
 | `identity` | Phone OTP, sessions, roles | Not started |

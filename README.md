@@ -46,4 +46,4 @@ infra/                  docker-compose.yml for local PostgreSQL and Redis
 
 ## Status
 
-Backend scaffold. FEAT-001 is Ready and its plan and tasks are drafted; no criterion is implemented yet. `make check` passes with JDK 21 and the committed Gradle wrapper; `make trace` lists the 25 pending criteria.
+Backend scaffold. FEAT-001 is Ready and its plan and tasks are drafted. AC-CONTRIB-017 (platform fee) is implemented; 24 criteria remain pending. `make check` passes with JDK 21 and the committed Gradle wrapper.
