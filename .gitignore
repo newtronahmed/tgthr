@@ -1,0 +1,24 @@
+# Build output
+backend/build/
+backend/.gradle/
+backend/bin/
+web/node_modules/
+web/.next/
+web/out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc

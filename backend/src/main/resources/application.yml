@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: collections-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/collections}
+    username: ${DATABASE_USER:collections}
+    password: ${DATABASE_PASSWORD:collections}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  servlet:
+    context-path: /v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

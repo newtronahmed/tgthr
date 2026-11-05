@@ -1,0 +1,6 @@
+# Replace OWNER with the repository owner's GitHub handle before pushing.
+*                                                        @OWNER
+/specs/                                                  @OWNER
+/docs/adr/                                               @OWNER
+/backend/src/main/java/com/groupcollections/ledger/      @OWNER
+/backend/src/main/java/com/groupcollections/payments/    @OWNER

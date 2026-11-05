@@ -1,0 +1,34 @@
+# Backend
+
+Spring Boot 3, Java 21, Gradle (Kotlin DSL), PostgreSQL, Flyway. One modular monolith (ADR 0001).
+
+## Module layout
+
+Each module is a direct sub-package of `com.groupcollections`. Spring Modulith verifies in `ModularityTests` that modules only reach each other through their public API.
+
+| Package | Responsibility | Status |
+| --- | --- | --- |
+| `ledger` | Money type, postings, derived balances | `Money` only |
+| `contribution` | Contribution state machine, provider callbacks | Not started |
+| `payments` | Partner client, signature checks, reconciliation | Not started |
+| `goal` | Groups, goals, templates, settings | Not started |
+| `identity` | Phone OTP, sessions, roles | Not started |
+| `payout` | Payout requests, hold window, approvals | Not started |
+| `notification` | Push and SMS channel selection | Not started |
+
+## Commands
+
+```
+./gradlew test           # unit and property tests
+./gradlew spotlessApply  # format
+./gradlew check          # tests, coverage gates, format check
+```
+
+If `./gradlew` is missing, generate the wrapper once with `gradle wrapper` and commit it.
+
+## Testing notes
+
+- Tag every test with `@Criterion("ID")` from `com.groupcollections.support`.
+- Pending criteria are `@Disabled` tests. Enable one, see it fail, then implement.
+- Integration tests use Testcontainers with PostgreSQL, so Docker must be running.
+- Tests never call the real payment provider.

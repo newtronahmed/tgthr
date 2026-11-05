@@ -1,0 +1,302 @@
+openapi: 3.0.3
+info:
+  title: Group Collections API
+  version: 0.2.0
+  description: |
+    Contract for the Group Collections backend. This file is the single source of truth for HTTP
+    behavior (Constitution Article II.4). Amounts are integer pesewas (GHS minor unit).
+servers:
+  - url: http://localhost:8080/v1
+    description: Local development
+tags:
+  - name: Public
+    description: No login required
+  - name: Webhooks
+    description: Called by the payment partner, never by clients
+paths:
+  /public/goals/{slug}:
+    get:
+      tags: [Public]
+      operationId: getPublicGoal
+      summary: Read the public view of a goal
+      parameters:
+        - $ref: '#/components/parameters/GoalSlug'
+      responses:
+        '200':
+          description: The goal as shown on the public page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicGoal'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /public/goals/{slug}/contributions:
+    post:
+      tags: [Public]
+      operationId: createContribution
+      summary: Start a contribution and request the MoMo prompt
+      parameters:
+        - $ref: '#/components/parameters/GoalSlug'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Client-generated key; a retry with the same key returns the original contribution.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContribution'
+      responses:
+        '202':
+          description: Contribution accepted; the prompt was requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContributionStatus'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /public/contributions/{id}:
+    get:
+      tags: [Public]
+      operationId: getContribution
+      summary: Read a contribution's state, with the receipt once confirmed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current state of the contribution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContributionStatus'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /webhooks/momo:
+    post:
+      tags: [Webhooks]
+      operationId: receiveMomoCallback
+      summary: Receive a payment result from the partner
+      parameters:
+        - name: X-Signature
+          in: header
+          required: true
+          description: Signature over the raw body, verified before any processing.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderCallback'
+      responses:
+        '204':
+          description: Callback accepted (also returned for a repeated callback)
+        '401':
+          $ref: '#/components/responses/Problem'
+components:
+  parameters:
+    GoalSlug:
+      name: slug
+      in: path
+      required: true
+      description: Unguessable goal slug from the share link
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 64
+  responses:
+    Problem:
+      description: Error in RFC 9457 problem format
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    PublicGoal:
+      type: object
+      required: [slug, title, template, targetType, raisedPesewas, contributorCount, status, payoutRules, feed]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        template:
+          type: string
+          enum: [TRIP, WEDDING, FUNERAL, RENT, COMMUNITY, GIFT, PARTY]
+        targetType:
+          type: string
+          enum: [FIXED, OPEN]
+        fixedAmountPesewas:
+          type: integer
+          format: int64
+          nullable: true
+          description: Present when targetType is FIXED
+        targetAmountPesewas:
+          type: integer
+          format: int64
+          nullable: true
+        raisedPesewas:
+          type: integer
+          format: int64
+        contributorCount:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [OPEN, CLOSED, FROZEN]
+        payoutRules:
+          $ref: '#/components/schemas/PayoutRules'
+        feed:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedItem'
+    PayoutRules:
+      type: object
+      description: Settings that affect contributors' money, shown on the public page (Constitution V.5)
+      required: [destinationType, secondApprover, holdWindowMinutes, surplusRule]
+      properties:
+        destinationType:
+          type: string
+          enum: [BENEFICIARY_MOMO, ADMIN_MOMO]
+        secondApprover:
+          type: string
+          enum: [OFF, ABOVE_THRESHOLD, ALWAYS]
+        holdWindowMinutes:
+          type: integer
+        surplusRule:
+          type: string
+          enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
+    FeedItem:
+      type: object
+      required: [anonymous, amountPesewas, at]
+      properties:
+        displayName:
+          type: string
+          nullable: true
+          description: Null when anonymous
+        anonymous:
+          type: boolean
+        amountPesewas:
+          type: integer
+          format: int64
+        at:
+          type: string
+          format: date-time
+    CreateContribution:
+      type: object
+      required: [amountPesewas, momoNumber, network]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+          minimum: 1
+        displayName:
+          type: string
+          maxLength: 80
+        anonymous:
+          type: boolean
+          default: false
+        momoNumber:
+          type: string
+          description: Payer's mobile money number. Accepted on input, never returned by any endpoint.
+          pattern: '^0[0-9]{9}$'
+        network:
+          type: string
+          enum: [MTN, TELECEL, AT]
+    ContributionStatus:
+      type: object
+      required: [id, state, amountPesewas, processingFeePesewas, platformFeePesewas, feePesewas, totalPesewas]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [INITIATED, PENDING, CONFIRMED, FAILED, EXPIRED, REFUNDED]
+        amountPesewas:
+          type: integer
+          format: int64
+          description: The contribution amount that counts toward the goal.
+        processingFeePesewas:
+          type: integer
+          format: int64
+          description: Paystack's processing fee, borne by the contributor.
+        platformFeePesewas:
+          type: integer
+          format: int64
+          description: The platform service fee, 1.5% of amountPesewas rounded up to the nearest pesewa.
+        feePesewas:
+          type: integer
+          format: int64
+          deprecated: true
+          description: Deprecated. The sum of processingFeePesewas and platformFeePesewas.
+        totalPesewas:
+          type: integer
+          format: int64
+          description: amountPesewas plus processingFeePesewas plus platformFeePesewas.
+        receipt:
+          allOf:
+            - $ref: '#/components/schemas/Receipt'
+          nullable: true
+          description: Present only when state is CONFIRMED
+    Receipt:
+      type: object
+      required: [reference, confirmedAt]
+      properties:
+        reference:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+    ProviderCallback:
+      type: object
+      required: [providerReference, status, amountPesewas, occurredAt]
+      properties:
+        providerReference:
+          type: string
+        status:
+          type: string
+          enum: [SUCCESS, FAILED]
+        amountPesewas:
+          type: integer
+          format: int64
+        occurredAt:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+          description: Stable machine-readable code such as AMOUNT_NOT_ALLOWED or GOAL_NOT_ACCEPTING

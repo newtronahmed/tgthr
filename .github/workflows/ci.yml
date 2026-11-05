@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  specs:
+    name: Specs and API contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Spec to test traceability
+        run: python3 tools/check_traceability.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Lint OpenAPI
+        run: npx --yes @stoplight/spectral-cli lint specs/api/openapi.yaml --ruleset specs/api/.spectral.yaml
+
+  backend:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Format check, tests and coverage gates
+        run: ./gradlew spotlessCheck check
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/build/reports/jacoco
