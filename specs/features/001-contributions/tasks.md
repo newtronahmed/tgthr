@@ -21,9 +21,9 @@ Criteria: AC-CONTRIB-003, AC-CONTRIB-014, AC-CONTRIB-017
 - [x] T011 Implement `FeeCalculator` platform-fee calculation until T010 is green
 - [x] T012 Write the failing property test for AC-CONTRIB-014: total equals amount plus both fees
 - [x] T013 Implement processing-fee and total gross-up; keep integer arithmetic
-- [ ] T014 Write the failing `GoalRulesTest` for AC-CONTRIB-003: open-goal minimum is 1,000 pesewas
-- [ ] T015 Implement the goal amount policy until T014 is green
-- [ ] T016 Refactor the fee and policy code; keep the suite green
+- [x] T014 Write the failing `GoalRulesTest` for AC-CONTRIB-003: open-goal minimum is 1,000 pesewas
+- [x] T015 Implement the goal amount policy until T014 is green
+- [x] T016 Refactor the fee and policy code; keep the suite green
 
 ## Slice 2 (P1): Create, prompt and public goal
 

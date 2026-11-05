@@ -30,13 +30,6 @@ class ContributionCriteriaTest {
 
   @Test
   @Disabled("pending: write the failing test first")
-  @Criterion("AC-CONTRIB-003")
-  void openGoalRejectsAmountBelowMinimum() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: write the failing test first")
   @Criterion("AC-CONTRIB-004")
   void duplicateSuccessCallbackPostsOnce() {
     fail("not implemented");
