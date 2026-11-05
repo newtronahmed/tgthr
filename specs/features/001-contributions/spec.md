@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Feature ID | FEAT-001 |
-| Status | Draft |
+| Status | Ready |
 | Owner | Ahmed Zubairu |
 | Area code | CONTRIB |
 | Created | 2026-11-04 |
@@ -140,4 +140,4 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 - [x] No open question blocks a P1 story (decisions recorded 2026-11-05)
 - [x] Failure modes each map to a criterion or an explicit gap
 - [x] API impact is reflected in `openapi.yaml`
-- [ ] Constitution articles touched are named in the plan (plan not yet written)
+- [x] Constitution articles touched are named in the plan

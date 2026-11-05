@@ -21,6 +21,6 @@ Everything built here starts as a spec in this folder.
 
 | Spec | Status | Blocking questions |
 | --- | --- | --- |
-| features/001-contributions | Draft | None; decisions recorded 2026-11-05, including the 1.5% platform fee. Plan and tasks not yet written. |
+| features/001-contributions | Ready | None. Plan and tasks drafted 2026-11-05. |
 | domain/ledger | Draft | None; settlement model, payout fee bearer and PLATFORM_FEE decided in ADRs 0006 and 0007. |
 | domain/contribution-state-machine | Draft | None; late-success transitions added 2026-11-05. |
