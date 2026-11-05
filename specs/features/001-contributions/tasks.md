@@ -19,8 +19,8 @@ Criteria: AC-CONTRIB-003, AC-CONTRIB-014, AC-CONTRIB-017
 
 - [x] T010 Write the failing `FeeCalculatorTest` for AC-CONTRIB-017: 1.5% rounded up, charged on top, goal unchanged (`3458785`)
 - [x] T011 Implement `FeeCalculator` platform-fee calculation until T010 is green
-- [ ] T012 Write the failing property test for AC-CONTRIB-014: total equals amount plus both fees
-- [ ] T013 Implement processing-fee and total gross-up; keep integer arithmetic
+- [x] T012 Write the failing property test for AC-CONTRIB-014: total equals amount plus both fees
+- [x] T013 Implement processing-fee and total gross-up; keep integer arithmetic
 - [ ] T014 Write the failing `GoalRulesTest` for AC-CONTRIB-003: open-goal minimum is 1,000 pesewas
 - [ ] T015 Implement the goal amount policy until T014 is green
 - [ ] T016 Refactor the fee and policy code; keep the suite green

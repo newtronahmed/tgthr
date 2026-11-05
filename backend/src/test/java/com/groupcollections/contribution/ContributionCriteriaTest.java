@@ -107,13 +107,6 @@ class ContributionCriteriaTest {
 
   @Test
   @Disabled("pending: write the failing test first")
-  @Criterion("AC-CONTRIB-014")
-  void feeAndLedgerEntriesBalanceForEveryAllowedAmount() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: write the failing test first")
   @Criterion("AC-CONTRIB-015")
   void retriedRequestWithSameKeyReturnsOriginal() {
     fail("not implemented");
