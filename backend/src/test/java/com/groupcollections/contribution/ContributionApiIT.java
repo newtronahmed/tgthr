@@ -40,6 +40,9 @@ class ContributionApiIT {
   static void partnerProperties(DynamicPropertyRegistry registry) {
     registry.add("collections.payments.paystack.base-url", PAYSTACK::baseUrl);
     registry.add("collections.payments.paystack.secret-key", () -> "test-secret");
+    registry.add(
+        "collections.security.payer-phone-key",
+        () -> "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
   }
 
   @Autowired TestRestTemplate rest;
@@ -73,7 +76,7 @@ class ContributionApiIT {
 
     ResponseEntity<Map<String, Object>> response =
         rest.exchange(
-            "/v1/public/goals/{slug}/contributions",
+            "/public/goals/{slug}/contributions",
             HttpMethod.POST,
             new HttpEntity<>(request, headers),
             new ParameterizedTypeReference<>() {},

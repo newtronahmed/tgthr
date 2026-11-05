@@ -78,7 +78,7 @@ CREATE INDEX idx_contributions_pending_created_at
 CREATE TABLE contribution_events (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     contribution_id UUID NOT NULL REFERENCES contributions (id),
-    from_state TEXT NOT NULL,
+    from_state TEXT,
     to_state TEXT NOT NULL,
     event TEXT NOT NULL,
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -85,17 +85,15 @@ public final class FakePaystackServer implements AutoCloseable {
   }
 
   private void handleVerify(HttpExchange exchange) throws IOException {
-    String reference = exchange.getRequestURI().getPath().substring("/transaction/verify/".length());
+    String reference =
+        exchange.getRequestURI().getPath().substring("/transaction/verify/".length());
     String scenario = scenarioByReference.getOrDefault(reference, "SUCCESS");
     String status = "DECLINED".equals(scenario) ? "failed" : "success";
     respond(
         exchange,
         200,
         Map.of(
-            "status",
-            true,
-            "data",
-            Map.of("reference", reference, "status", status, "amount", 0)));
+            "status", true, "data", Map.of("reference", reference, "status", status, "amount", 0)));
   }
 
   private static Map<String, Object> accepted(String reference) {
