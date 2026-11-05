@@ -50,6 +50,12 @@ public final class FakePaystackServer implements AutoCloseable {
     return chargeBodies.size();
   }
 
+  /** Clears recorded prompts and scenario state between tests. */
+  public void reset() {
+    chargeBodies.clear();
+    scenarioByReference.clear();
+  }
+
   public List<String> chargeBodies() {
     return List.copyOf(chargeBodies);
   }

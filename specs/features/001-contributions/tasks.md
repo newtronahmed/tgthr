@@ -32,8 +32,8 @@ Criteria: AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-011, AC-CONTRIB-012, AC-CON
 - [x] T020 Write `V1__goal_and_contribution.sql`: goals, contributions, contribution_events, indexes, unique idempotency key and provider reference
 - [x] T021 Write the failing integration test for AC-CONTRIB-001 against the fake Paystack server
 - [x] T022 Implement the public goal read and contribution creation until T021 is green
-- [ ] T023 Write the failing integration test for AC-CONTRIB-002: fixed goal rejects a different amount with 422
-- [ ] T024 Implement the fixed-amount rule until T023 is green
+- [x] T023 Write the failing integration test for AC-CONTRIB-002: fixed goal rejects a different amount with 422
+- [x] T024 Implement the fixed-amount rule until T023 is green
 - [ ] T025 Write the failing integration test for AC-CONTRIB-012: closed, frozen and past-deadline goals return 409
 - [ ] T026 Implement goal acceptance checks until T025 is green
 - [ ] T027 Write the failing integration test for AC-CONTRIB-015: same Idempotency-Key returns the original and sends one prompt

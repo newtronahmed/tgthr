@@ -6,6 +6,7 @@ import com.groupcollections.support.Criterion;
 import com.groupcollections.support.FakePaystackServer;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,6 +48,11 @@ class ContributionApiIT {
 
   @Autowired TestRestTemplate rest;
   @Autowired JdbcTemplate jdbc;
+
+  @BeforeEach
+  void resetFakePartner() {
+    PAYSTACK.reset();
+  }
 
   @Test
   @Criterion("AC-CONTRIB-001")
@@ -107,6 +113,48 @@ class ContributionApiIT {
             Integer.class,
             stored.get("id"));
     assertThat(transitions).isEqualTo(1);
+  }
+
+  @Test
+  @Criterion("AC-CONTRIB-002")
+  void fixedGoalRejectsADifferentAmount() {
+    UUID goalId = UUID.randomUUID();
+    String slug = "fixed-" + goalId;
+    jdbc.update(
+        """
+        insert into goals
+            (id, slug, title, template, target_type, fixed_amount_pesewas, destination_type,
+             second_approver, hold_window_minutes, surplus_rule)
+        values (?, ?, 'Rent support', 'RENT', 'FIXED', 5_000, 'BENEFICIARY_MOMO', 'OFF', 0,
+                'PAY_BENEFICIARY')
+        """,
+        goalId,
+        slug);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("Idempotency-Key", "idem-" + goalId);
+    Map<String, Object> request =
+        Map.of("amountPesewas", 4_000, "momoNumber", "0240000001", "network", "MTN");
+
+    ResponseEntity<Map<String, Object>> response =
+        rest.exchange(
+            "/public/goals/{slug}/contributions",
+            HttpMethod.POST,
+            new HttpEntity<>(request, headers),
+            new ParameterizedTypeReference<>() {},
+            slug);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(response.getHeaders().getContentType())
+        .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+    assertThat(response.getBody()).containsEntry("code", "AMOUNT_NOT_ALLOWED");
+
+    Integer stored =
+        jdbc.queryForObject(
+            "select count(*) from contributions where goal_id = ?", Integer.class, goalId);
+    assertThat(stored).isZero();
+    assertThat(PAYSTACK.promptCount()).isZero();
   }
 
   private static FakePaystackServer startFakeServer() {
