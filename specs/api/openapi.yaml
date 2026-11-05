@@ -95,10 +95,10 @@ paths:
       operationId: receiveMomoCallback
       summary: Receive a payment result from the partner
       parameters:
-        - name: X-Signature
+        - name: x-paystack-signature
           in: header
           required: true
-          description: Signature over the raw body, verified before any processing.
+          description: HMAC-SHA512 of the raw request body using the Paystack secret key.
           schema:
             type: string
       requestBody:
@@ -106,7 +106,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProviderCallback'
+              $ref: '#/components/schemas/PaystackWebhook'
       responses:
         '204':
           description: Callback accepted (also returned for a repeated callback)
@@ -270,21 +270,34 @@ components:
         confirmedAt:
           type: string
           format: date-time
-    ProviderCallback:
+    PaystackWebhook:
       type: object
-      required: [providerReference, status, amountPesewas, occurredAt]
+      required: [event, data]
+      description: The subset of Paystack's charge webhook that the adapter reads.
       properties:
-        providerReference:
+        event:
           type: string
-        status:
-          type: string
-          enum: [SUCCESS, FAILED]
-        amountPesewas:
-          type: integer
-          format: int64
-        occurredAt:
-          type: string
-          format: date-time
+          enum: [charge.success, charge.failed]
+        data:
+          type: object
+          required: [reference, status, amount, paid_at]
+          properties:
+            reference:
+              type: string
+            status:
+              type: string
+              enum: [success, failed]
+            amount:
+              type: integer
+              format: int64
+              description: Amount charged in pesewas.
+            currency:
+              type: string
+              enum: [GHS]
+            paid_at:
+              type: string
+              format: date-time
+              nullable: true
     Problem:
       type: object
       required: [type, title, status, code]

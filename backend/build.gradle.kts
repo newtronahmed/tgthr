@@ -48,6 +48,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Integration tests (*IT) run in the same task until a separate source set is needed.
+    include("**/*Test.class", "**/*IT.class")
     finalizedBy(tasks.jacocoTestReport)
 }
 

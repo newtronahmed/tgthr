@@ -7,8 +7,8 @@ Order is test-first: for each criterion, the failing test comes before the code.
 - [x] T001 Initialize git and commit the scaffold (`b14bb99`)
 - [x] T002 Generate and commit the Gradle wrapper; install/select JDK 21; run `make check` (`cd21ecc`)
 - [x] T003 Fix `tools/check_traceability.py` so the Javadoc example in `support/Criterion.java` is not counted as a test (`cd21ecc`)
-- [ ] T004 Update `specs/api/openapi.yaml`: Paystack `x-paystack-signature` header and callback payload, keeping `POST /webhooks/momo`
-- [ ] T005 Add configuration keys: `PAYSTACK_SECRET_KEY`, `PAYSTACK_BASE_URL`, `PAYER_PHONE_KEY`, `PLATFORM_FEE_BPS=150`, `PAYSTACK_FEE_BPS=195`, `CONTRIBUTION_TIMEOUT=PT5M`; no secrets in the repository
+- [x] T004 Update `specs/api/openapi.yaml`: Paystack `x-paystack-signature` header and callback payload, keeping `POST /webhooks/momo`
+- [x] T005 Add configuration keys: `PAYSTACK_SECRET_KEY`, `PAYSTACK_BASE_URL`, `PAYER_PHONE_KEY`, `PLATFORM_FEE_BPS=150`, `PAYSTACK_FEE_BPS=195`, `CONTRIBUTION_TIMEOUT=PT5M`; no secrets in the repository
 - [ ] T006 Build the in-process `FakePaystackServer` with success, declined, timeout, duplicate, late, bad signature, wrong amount, request rejected and status lookup scenarios
 - [ ] T007 Add the three missing failure-table criteria (prompt request failure, unknown provider reference, amount mismatch) before implementing those paths
 - [ ] T008 Update the implementation plan and spec with any decision changed during setup

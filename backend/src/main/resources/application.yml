@@ -9,6 +9,18 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+collections:
+  payments:
+    paystack:
+      base-url: ${PAYSTACK_BASE_URL:https://api.paystack.co}
+      secret-key: ${PAYSTACK_SECRET_KEY:}
+  security:
+    payer-phone-key: ${PAYER_PHONE_KEY:}
+  contribution:
+    platform-fee-bps: ${PLATFORM_FEE_BPS:150}
+    paystack-fee-bps: ${PAYSTACK_FEE_BPS:195}
+    timeout: ${CONTRIBUTION_TIMEOUT:PT5M}
+
 server:
   servlet:
     context-path: /v1
