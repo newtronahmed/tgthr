@@ -29,7 +29,7 @@ Criteria: AC-CONTRIB-003, AC-CONTRIB-014, AC-CONTRIB-017
 
 Criteria: AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-011, AC-CONTRIB-012, AC-CONTRIB-015
 
-- [ ] T020 Write `V1__goal_and_contribution.sql`: goals, contributions, contribution_events, indexes, unique idempotency key and provider reference
+- [x] T020 Write `V1__goal_and_contribution.sql`: goals, contributions, contribution_events, indexes, unique idempotency key and provider reference
 - [ ] T021 Write the failing integration test for AC-CONTRIB-001 against the fake Paystack server
 - [ ] T022 Implement the public goal read and contribution creation until T021 is green
 - [ ] T023 Write the failing integration test for AC-CONTRIB-002: fixed goal rejects a different amount with 422
