@@ -1,9 +1,9 @@
 package com.groupcollections.ledger;
 
 /**
- * A non-negative amount in integer pesewas (the GHS minor unit). Floating point never touches
- * money (Constitution I.3, INV-LEDGER-005). Posted ledger entries must be strictly positive; use
- * {@link #isPositive()} to check.
+ * A non-negative amount in integer pesewas (the GHS minor unit). Floating point never touches money
+ * (Constitution I.3, INV-LEDGER-005). Posted ledger entries must be strictly positive; use {@link
+ * #isPositive()} to check.
  */
 public record Money(long pesewas) {
 

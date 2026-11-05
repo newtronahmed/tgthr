@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Invariants from specs/domain/contribution-state-machine.md.
  *
- * <p>Each test is pending: remove {@code @Disabled}, watch it fail, then implement (Constitution III.1).
+ * <p>Each test is pending: remove {@code @Disabled}, watch it fail, then implement (Constitution
+ * III.1).
  */
 class ContributionStateMachineTest {
 

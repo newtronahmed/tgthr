@@ -27,7 +27,7 @@ Open a pull request that edits `specs/constitution.md`, adds an ADR, and bumps t
 
 ## Local setup
 
-Requirements: JDK 21, Docker, Python 3.10 or later, Node 20 or later (for API linting and, later, the web app).
+Requirements: JDK 21 (set `JAVA_HOME` to it), Docker, Python 3.10 or later, Node 20 or later (for API linting and, later, the web app).
 
 ```
 make up      # PostgreSQL and Redis

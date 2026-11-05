@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Acceptance criteria for FEAT-001, specs/features/001-contributions/spec.md.
  *
- * <p>Each test is pending: remove {@code @Disabled}, watch it fail, then implement (Constitution III.1).
+ * <p>Each test is pending: remove {@code @Disabled}, watch it fail, then implement (Constitution
+ * III.1).
  */
 class ContributionCriteriaTest {
 

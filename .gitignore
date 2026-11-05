@@ -1,6 +1,7 @@
 # Build output
 backend/build/
 backend/.gradle/
+backend/.jqwik-database
 backend/bin/
 web/node_modules/
 web/.next/

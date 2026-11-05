@@ -46,4 +46,4 @@ infra/                  docker-compose.yml for local PostgreSQL and Redis
 
 ## Status
 
-Scaffold only. FEAT-001 (guest contribution) decisions are recorded, including Paystack fees and a 1.5% platform fee; the spec is ready for a plan. No plan or tasks exist yet and no criterion is implemented. `make trace` lists the pending criteria.
+Backend scaffold. FEAT-001 is Ready and its plan and tasks are drafted; no criterion is implemented yet. `make check` passes with JDK 21 and the committed Gradle wrapper; `make trace` lists the 25 pending criteria.

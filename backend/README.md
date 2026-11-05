@@ -18,13 +18,13 @@ Each module is a direct sub-package of `com.groupcollections`. Spring Modulith v
 
 ## Commands
 
+Requires JDK 21. Set `JAVA_HOME` to a JDK 21 installation before running Gradle; the build does not auto-download toolchains. The Gradle wrapper is committed.
+
 ```
 ./gradlew test           # unit and property tests
 ./gradlew spotlessApply  # format
 ./gradlew check          # tests, coverage gates, format check
 ```
-
-If `./gradlew` is missing, generate the wrapper once with `gradle wrapper` and commit it.
 
 ## Testing notes
 

@@ -20,7 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ID = r"(?:AC|INV)-[A-Z]+-\d{3}"
 
 SPEC_ROW = re.compile(rf"^\|\s*({ID})\s*\|", re.M)
-JAVA_REF = re.compile(r"@Criterion\(([^)]*)\)")
+JAVA_REF = re.compile(r"^\s*@Criterion\(([^)]*)\)", re.M)
 TS_REF = re.compile(rf"criterion\(\s*[\"']({ID})[\"']")
 ID_RE = re.compile(ID)
 
