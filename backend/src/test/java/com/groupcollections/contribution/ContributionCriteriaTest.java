@@ -125,11 +125,4 @@ class ContributionCriteriaTest {
   void lateSuccessAfterExpiryOrFailureConfirmsWithAlert() {
     fail("not implemented");
   }
-
-  @Test
-  @Disabled("pending: write the failing test first")
-  @Criterion("AC-CONTRIB-017")
-  void platformFeeIsOneAndAHalfPercentRoundedUpOnTop() {
-    fail("not implemented");
-  }
 }
