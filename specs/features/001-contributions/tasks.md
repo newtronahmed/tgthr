@@ -36,8 +36,8 @@ Criteria: AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-011, AC-CONTRIB-012, AC-CON
 - [x] T024 Implement the fixed-amount rule until T023 is green
 - [x] T025 Write the failing integration test for AC-CONTRIB-012: closed, frozen and past-deadline goals return 409
 - [x] T026 Implement goal acceptance checks until T025 is green
-- [ ] T027 Write the failing integration test for AC-CONTRIB-015: same Idempotency-Key returns the original and sends one prompt
-- [ ] T028 Implement the database-backed idempotency path until T027 is green
+- [x] T027 Write the failing integration test for AC-CONTRIB-015: same Idempotency-Key returns the original and sends one prompt
+- [x] T028 Implement the database-backed idempotency path until T027 is green
 - [ ] T029 Write the failing contract test for AC-CONTRIB-011: no phone number in any public response
 - [ ] T030 Make the public DTOs phone-free until T029 is green
 - [ ] T031 Refactor the create path; keep the suite green

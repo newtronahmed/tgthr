@@ -1,12 +1,36 @@
 package com.groupcollections.contribution;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class ContributionRepository {
+
+  private static final String STATUS_COLUMNS =
+      """
+      select id, state, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
+             total_pesewas
+      from contributions
+      """;
+
+  private static final RowMapper<ContributionStatus> STATUS_MAPPER =
+      (resultSet, rowNumber) -> {
+        long processing = resultSet.getLong("processing_fee_pesewas");
+        long platform = resultSet.getLong("platform_fee_pesewas");
+        return new ContributionStatus(
+            resultSet.getObject("id", UUID.class),
+            ContributionState.valueOf(resultSet.getString("state")),
+            resultSet.getLong("amount_pesewas"),
+            processing,
+            platform,
+            processing + platform,
+            resultSet.getLong("total_pesewas"));
+      };
 
   private final JdbcTemplate jdbc;
 
@@ -56,26 +80,13 @@ public class ContributionRepository {
   }
 
   public ContributionStatus status(UUID id) {
-    return jdbc.queryForObject(
-        """
-        select id, state, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-               total_pesewas
-        from contributions
-        where id = ?
-        """,
-        (resultSet, rowNumber) -> {
-          long processing = resultSet.getLong("processing_fee_pesewas");
-          long platform = resultSet.getLong("platform_fee_pesewas");
-          return new ContributionStatus(
-              resultSet.getObject("id", UUID.class),
-              ContributionState.valueOf(resultSet.getString("state")),
-              resultSet.getLong("amount_pesewas"),
-              processing,
-              platform,
-              processing + platform,
-              resultSet.getLong("total_pesewas"));
-        },
-        id);
+    return jdbc.queryForObject(STATUS_COLUMNS + "where id = ?", STATUS_MAPPER, id);
+  }
+
+  public Optional<ContributionStatus> findByIdempotencyKey(String idempotencyKey) {
+    List<ContributionStatus> rows =
+        jdbc.query(STATUS_COLUMNS + "where idempotency_key = ?", STATUS_MAPPER, idempotencyKey);
+    return rows.stream().findFirst();
   }
 
   private void transition(UUID id, ContributionState to, String event) {

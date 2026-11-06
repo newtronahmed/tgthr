@@ -7,7 +7,9 @@ import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.Money;
 import com.groupcollections.payments.PaystackClient;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,6 +36,11 @@ public class ContributionService {
 
   public ContributionStatus create(
       String slug, String idempotencyKey, CreateContributionRequest request) {
+    Optional<ContributionStatus> original = contributions.findByIdempotencyKey(idempotencyKey);
+    if (original.isPresent()) {
+      return original.get();
+    }
+
     Goal goal = goals.findBySlug(slug).orElseThrow(() -> new GoalNotFoundException(slug));
     if (!goal.acceptsContributions(Instant.now())) {
       throw new GoalNotAcceptingException(slug);
@@ -43,7 +50,11 @@ public class ContributionService {
 
     FeeBreakdown breakdown = fees.calculate(amount);
     UUID id = UUID.randomUUID();
-    contributions.insertInitiated(id, goal.id(), breakdown, request, phones, idempotencyKey);
+    try {
+      contributions.insertInitiated(id, goal.id(), breakdown, request, phones, idempotencyKey);
+    } catch (DuplicateKeyException race) {
+      return contributions.findByIdempotencyKey(idempotencyKey).orElseThrow(() -> race);
+    }
 
     boolean accepted =
         paystack.initiateCharge(

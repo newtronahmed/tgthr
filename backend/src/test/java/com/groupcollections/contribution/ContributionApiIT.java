@@ -161,6 +161,33 @@ class ContributionApiIT {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-015")
+  void retryingWithTheSameIdempotencyKeyReturnsTheOriginalContribution() {
+    String slug = insertGoal("open", "OPEN", null);
+    String idempotencyKey = "retry-" + UUID.randomUUID();
+
+    ResponseEntity<Map<String, Object>> first =
+        createContribution(slug, 5_000, "0240000001", idempotencyKey);
+    ResponseEntity<Map<String, Object>> retry =
+        createContribution(slug, 5_000, "0240000001", idempotencyKey);
+
+    assertThat(first.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(retry.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(first.getBody()).isNotNull();
+    String originalId = (String) first.getBody().get("id");
+    assertThat(retry.getBody().get("id")).isEqualTo(originalId);
+
+    assertThat(PAYSTACK.promptCount()).isEqualTo(1);
+
+    Integer stored =
+        jdbc.queryForObject(
+            "select count(*) from contributions where goal_id = (select id from goals where slug = ?)",
+            Integer.class,
+            slug);
+    assertThat(stored).isEqualTo(1);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-012")
   void closedFrozenAndPastDeadlineGoalsRejectContributions() {
     String closed = insertGoal("closed", "CLOSED", null);
@@ -209,9 +236,14 @@ class ContributionApiIT {
 
   private ResponseEntity<Map<String, Object>> createContribution(
       String slug, long amountPesewas, String momoNumber) {
+    return createContribution(slug, amountPesewas, momoNumber, "idem-" + UUID.randomUUID());
+  }
+
+  private ResponseEntity<Map<String, Object>> createContribution(
+      String slug, long amountPesewas, String momoNumber, String idempotencyKey) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("Idempotency-Key", "idem-" + UUID.randomUUID());
+    headers.set("Idempotency-Key", idempotencyKey);
     Map<String, Object> request =
         Map.of("amountPesewas", amountPesewas, "momoNumber", momoNumber, "network", "MTN");
     return rest.exchange(
