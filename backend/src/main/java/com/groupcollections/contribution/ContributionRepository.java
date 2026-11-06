@@ -71,12 +71,12 @@ public class ContributionRepository {
 
   @Transactional
   public void markPending(UUID id) {
-    transition(id, ContributionState.PENDING, "PROMPT_SENT");
+    transition(id, ContributionState.INITIATED, ContributionState.PENDING, "PROMPT_SENT");
   }
 
   @Transactional
   public void markFailed(UUID id) {
-    transition(id, ContributionState.FAILED, "PROMPT_REJECTED");
+    transition(id, ContributionState.INITIATED, ContributionState.FAILED, "PROMPT_REJECTED");
   }
 
   public ContributionStatus status(UUID id) {
@@ -89,10 +89,10 @@ public class ContributionRepository {
     return rows.stream().findFirst();
   }
 
-  private void transition(UUID id, ContributionState to, String event) {
+  private void transition(UUID id, ContributionState from, ContributionState to, String event) {
     jdbc.update(
         "update contributions set state = ?, updated_at = now() where id = ?", to.name(), id);
-    appendHistory(id, ContributionState.INITIATED, to, event);
+    appendHistory(id, from, to, event);
   }
 
   private void appendHistory(

@@ -40,13 +40,13 @@ Criteria: AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-011, AC-CONTRIB-012, AC-CON
 - [x] T028 Implement the database-backed idempotency path until T027 is green
 - [x] T029 Write the failing contract test for AC-CONTRIB-011: no phone number in any public response
 - [x] T030 Make the public DTOs phone-free until T029 is green
-- [ ] T031 Refactor the create path; keep the suite green
+- [x] T031 Refactor the create path; keep the suite green
 
 ## Slice 3 (P1): Callbacks, state machine and ledger
 
 Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CONTRIB-016, INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004, INV-LEDGER-006, INV-STATE-001, INV-STATE-002, INV-STATE-003
 
-- [ ] T040 Write `V2__ledger.sql`: ledger_entries, posting-set balance trigger, append-only triggers
+- [x] T040 Write `V2__ledger.sql`: ledger_entries, posting-set balance trigger, append-only triggers
 - [ ] T041 Write the failing `ContributionStateMachineTest` for INV-STATE-001 and INV-STATE-003
 - [ ] T042 Implement the transition table and history append until T041 is green
 - [ ] T043 Add duplicate, declined and bad-signature scenarios to the fake server
