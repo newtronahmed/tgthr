@@ -96,5 +96,5 @@ Criteria: AC-CONTRIB-009, AC-CONTRIB-010
 - [ ] T094 Update the spec status to Implemented
 - [ ] T095 Scaffold `web/` and implement the public goal, checkout and receipt pages after the backend slice is green
 - [ ] T096 Run the manual Paystack sandbox suite before the first live payment
-- [ ] T097 Provider hardening: bounded Paystack HTTP timeouts, callback currency and event whitelist, raw-byte signature verification, replay-window decision
-- [ ] T098 Remaining hardening: goal-acceptance lock, UUID/randomness seams, production role grants, prompt-timeout coverage with T097, reconciliation and alerts for stuck or starved PENDING rows and stale INITIATED rows
+- [ ] T097 Provider hardening: bounded Paystack HTTP timeouts, callback currency/event/status validation, verify amount/currency validation, raw-byte signature verification, replay-window decision
+- [ ] T098 Remaining hardening: goal-acceptance lock, UUID/randomness seams, production role grants, prompt-timeout coverage with T097, re-polling EXPIRED/FAILED, duplicate-poll claim semantics, concurrency test barriers, contributor-count semantics decision, reconciliation and alerts for stuck or starved PENDING rows and stale INITIATED rows

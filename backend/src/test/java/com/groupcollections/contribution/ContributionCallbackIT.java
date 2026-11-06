@@ -9,6 +9,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 class ContributionCallbackIT extends ApiIntegrationTest {
 
@@ -170,9 +177,26 @@ class ContributionCallbackIT extends ApiIntegrationTest {
 
   @Test
   void malformedSignedWebhookReturnsProblemWithoutChange() {
-    int status = PAYSTACK.sendRawCallback(webhookUrl(), "{\"event\":", true);
+    ResponseEntity<Map<String, Object>> malformed = postRaw("{\"event\":");
+    assertThat(malformed.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(malformed.getHeaders().getContentType())
+        .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+    assertThat(malformed.getBody()).containsEntry("code", "INVALID_WEBHOOK");
 
-    assertThat(status).isEqualTo(422);
+    ResponseEntity<Map<String, Object>> missingData = postRaw("{\"event\":\"charge.success\"}");
+    assertThat(missingData.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(missingData.getBody()).containsEntry("code", "INVALID_WEBHOOK");
+  }
+
+  private ResponseEntity<Map<String, Object>> postRaw(String body) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("x-paystack-signature", PAYSTACK.signature(body));
+    return rest.exchange(
+        webhookUrl(),
+        HttpMethod.POST,
+        new HttpEntity<>(body, headers),
+        new ParameterizedTypeReference<>() {});
   }
 
   @Test
@@ -268,6 +292,12 @@ class ContributionCallbackIT extends ApiIntegrationTest {
 
     assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), expiredId, expiredTotal)).isEqualTo(204);
     assertConfirmedOnce(UUID.fromString(expiredId));
+
+    assertThat(
+            RecordingAlertPublisher.alerts().stream()
+                .filter(alert -> alert.type() == Alert.AlertType.LATE_SUCCESS)
+                .count())
+        .isEqualTo(2);
   }
 
   private void assertConfirmedOnce(UUID id) {

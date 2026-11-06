@@ -91,6 +91,10 @@ public final class FakePaystackServer implements AutoCloseable {
     return post(webhookUrl, body, validSignature ? sign(body) : "not-a-signature");
   }
 
+  public String signature(String body) {
+    return sign(body);
+  }
+
   private int sendCallback(
       String webhookUrl, String outcome, String reference, long amount, boolean validSignature) {
     String event = "success".equals(outcome) ? "charge.success" : "charge.failed";

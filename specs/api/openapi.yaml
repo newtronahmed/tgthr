@@ -135,7 +135,7 @@ components:
   schemas:
     PublicGoal:
       type: object
-      required: [slug, title, template, targetType, raisedPesewas, contributorCount, status, payoutRules, feed]
+      required: [slug, title, template, targetType, minimumAmountPesewas, raisedPesewas, contributorCount, status, payoutRules, feed]
       properties:
         slug:
           type: string
@@ -156,11 +156,16 @@ components:
           type: integer
           format: int64
           nullable: true
+        minimumAmountPesewas:
+          type: integer
+          format: int64
+          description: Smallest amount an open goal accepts.
         raisedPesewas:
           type: integer
           format: int64
         contributorCount:
           type: integer
+          description: Number of confirmed contributions (not distinct people).
         deadline:
           type: string
           format: date-time
@@ -172,6 +177,7 @@ components:
           $ref: '#/components/schemas/PayoutRules'
         feed:
           type: array
+          description: Up to 20 confirmed contributions, newest first.
           items:
             $ref: '#/components/schemas/FeedItem'
     PayoutRules:

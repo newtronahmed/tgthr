@@ -85,6 +85,32 @@ class ContributionApiIT extends ApiIntegrationTest {
                 UUID.fromString(retriedId)))
         .isEqualTo("PENDING");
     assertThat(PAYSTACK.promptCount()).isEqualTo(2);
+    assertThat(PAYSTACK.chargeBodies()).hasSize(2);
+    assertThat(PAYSTACK.chargeBodies().get(0)).isNotEqualTo(PAYSTACK.chargeBodies().get(1));
+    Integer rows =
+        jdbc.queryForObject(
+            "select count(*) from contributions where goal_id = (select id from goals where slug = ?)",
+            Integer.class,
+            slug);
+    assertThat(rows).isEqualTo(2);
+
+    String expiredSlug = insertGoal("retry-expired", "OPEN", null);
+    ResponseEntity<Map<String, Object>> expired =
+        createContribution(expiredSlug, 5_000, "0240000001");
+    assertThat(expired.getBody()).isNotNull();
+    UUID expiredId = UUID.fromString((String) expired.getBody().get("id"));
+    jdbc.update("update contributions set state = 'EXPIRED' where id = ?", expiredId);
+
+    ResponseEntity<Map<String, Object>> afterExpiry =
+        createContribution(expiredSlug, 5_000, "0240000001");
+    assertThat(afterExpiry.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(afterExpiry.getBody()).isNotNull();
+    assertThat(afterExpiry.getBody().get("state")).isEqualTo("PENDING");
+    assertThat(afterExpiry.getBody().get("id")).isNotEqualTo(expiredId.toString());
+    assertThat(
+            jdbc.queryForObject(
+                "select state from contributions where id = ?", String.class, expiredId))
+        .isEqualTo("EXPIRED");
   }
 
   @Test
@@ -123,6 +149,12 @@ class ContributionApiIT extends ApiIntegrationTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     assertThat(response.getBody()).containsEntry("code", "INVALID_REQUEST");
     assertThat(PAYSTACK.promptCount()).isZero();
+
+    ResponseEntity<Map<String, Object>> atLimit =
+        createContribution(slug, 10_000_000, "0240000001");
+    assertThat(atLimit.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(atLimit.getBody()).isNotNull();
+    assertThat(atLimit.getBody().get("state")).isEqualTo("PENDING");
   }
 
   @Test

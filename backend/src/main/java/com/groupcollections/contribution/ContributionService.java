@@ -74,6 +74,12 @@ public class ContributionService {
     } catch (DuplicateKeyException race) {
       return contributions.findByIdempotencyKey(idempotencyKey).orElseThrow(() -> race);
     }
+    meters.counter("contributions.created").increment();
+    log.info(
+        "event=contribution_created contributionId={} goalId={} amountPesewas={}",
+        id,
+        goal.id(),
+        amount.pesewas());
 
     boolean accepted =
         paystack.initiateCharge(

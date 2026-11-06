@@ -39,6 +39,10 @@ class PublicContractTest extends ApiIntegrationTest {
             "/public/contributions/{id}", HttpMethod.GET, null, String.class, contributionId);
     assertThat(status.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(status.getBody()).doesNotContain(PAYER_PHONE);
+
+    ResponseEntity<String> goal = rest.getForEntity("/public/goals/{slug}", String.class, slug);
+    assertThat(goal.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(goal.getBody()).doesNotContain(PAYER_PHONE);
   }
 
   @Test
@@ -82,6 +86,77 @@ class PublicContractTest extends ApiIntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(named.get("displayName")).isEqualTo("Kofi");
+    assertThat(named.get("amountPesewas")).isEqualTo(5_000);
+
+    assertThat(goal)
+        .containsKeys(
+            "slug",
+            "title",
+            "template",
+            "targetType",
+            "minimumAmountPesewas",
+            "raisedPesewas",
+            "contributorCount",
+            "status",
+            "payoutRules",
+            "feed");
+    assertThat(goal.get("minimumAmountPesewas")).isEqualTo(1_000);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> payoutRules = (Map<String, Object>) goal.get("payoutRules");
+    assertThat(payoutRules)
+        .containsKeys("destinationType", "secondApprover", "holdWindowMinutes", "surplusRule");
+
+    ResponseEntity<String> raw = rest.getForEntity("/public/goals/{slug}", String.class, slug);
+    assertThat(raw.getBody()).doesNotContain("Ama");
+    assertThat(raw.getBody()).doesNotContain(PAYER_PHONE);
+
+    createContribution(slug, 5_000, "0240000001");
+    createContribution(slug, 5_000, "0240000002");
+
+    ResponseEntity<Map<String, Object>> afterPendingAndFailed =
+        rest.exchange(
+            "/public/goals/{slug}",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<>() {},
+            slug);
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> unchangedFeed =
+        (List<Map<String, Object>>) afterPendingAndFailed.getBody().get("feed");
+    assertThat(unchangedFeed).hasSize(2);
+    assertThat(afterPendingAndFailed.getBody().get("raisedPesewas")).isEqualTo(10_000);
+    assertThat(afterPendingAndFailed.getBody().get("contributorCount")).isEqualTo(2);
+  }
+
+  @Test
+  void reversalEntriesReduceTheRaisedTotal() {
+    String slug = insertGoal("reversal", "OPEN", null);
+    Map<String, Object> contribution = createContributionWithName(slug, "Ama", true);
+    confirm(contribution);
+    UUID contributionId = UUID.fromString((String) contribution.get("id"));
+    UUID postingSet = UUID.randomUUID();
+
+    jdbc.update(
+        """
+        insert into ledger_entries
+            (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas)
+        values (?, ?, 'GOAL_POOL', 'REVERSAL', 'DEBIT', 5000),
+               (?, ?, 'PARTNER_HELD', 'REVERSAL', 'CREDIT', 5000)
+        """,
+        postingSet,
+        contributionId,
+        postingSet,
+        contributionId);
+
+    ResponseEntity<Map<String, Object>> goal =
+        rest.exchange(
+            "/public/goals/{slug}",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<>() {},
+            slug);
+    assertThat(goal.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(goal.getBody().get("raisedPesewas")).isEqualTo(0);
   }
 
   private Map<String, Object> createContributionWithName(

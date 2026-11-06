@@ -12,6 +12,7 @@ public record PublicGoalView(
     String targetType,
     Long fixedAmountPesewas,
     Long targetAmountPesewas,
+    long minimumAmountPesewas,
     long raisedPesewas,
     long contributorCount,
     Instant deadline,

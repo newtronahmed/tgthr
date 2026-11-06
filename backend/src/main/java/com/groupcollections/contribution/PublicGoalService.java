@@ -4,6 +4,8 @@ import com.groupcollections.goal.Goal;
 import com.groupcollections.goal.GoalNotFoundException;
 import com.groupcollections.goal.GoalRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PublicGoalService {
@@ -18,6 +20,7 @@ public class PublicGoalService {
     this.contributions = contributions;
   }
 
+  @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   public PublicGoalView get(String slug) {
     Goal goal = goals.findBySlug(slug).orElseThrow(() -> new GoalNotFoundException(slug));
     return new PublicGoalView(
@@ -27,6 +30,7 @@ public class PublicGoalService {
         goal.targetType().name(),
         goal.fixedAmount() == null ? null : goal.fixedAmount().pesewas(),
         goal.targetAmount() == null ? null : goal.targetAmount().pesewas(),
+        goal.minimumAmount().pesewas(),
         contributions.goalRaised(goal.id()).pesewas(),
         contributions.confirmedCount(goal.id()),
         goal.deadline(),

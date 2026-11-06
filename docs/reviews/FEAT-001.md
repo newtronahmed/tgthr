@@ -92,3 +92,33 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 - AC-CONTRIB-009: retry after a terminal contribution creates a new contribution; the old row is unchanged; two prompts for two attempts.
 - AC-CONTRIB-010: `GET /public/goals/{slug}` now returns the public goal with raised total, contributor count, payout rules and a 20-item feed; anonymous items omit the display name, named items keep it.
 - Traceability: 29 active / 1 pending (INV-LEDGER-003 is payout scope, FEAT-002).
+
+## 2026-11-06 — slice 5 boundary (hardening, retry, public goal feed)
+
+- Range: `ce7c93d..HEAD`
+- Reviewers: two fresh-context read-only subagents (money/timeout and contract/privacy). The first money prompt returned empty on the first attempt; a narrower retry completed.
+- Verdict: **blocked** on one privacy-evidence gap and one latent money gap; both fixed. Remaining items are scheduled.
+
+### Findings
+
+| Severity | Location | Finding | Reference | Action |
+| --- | --- | --- | --- | --- |
+| Blocker | `PublicContractTest` | AC-011's test never called the new `GET /public/goals/{slug}`, so "any public endpoint" was not proven for the most likely leak site. | AC-CONTRIB-011; Article V.3 | **Fixed**: the test now fetches the public goal and asserts no phone. |
+| Blocker | `ContributionRepository.goalRaised` | The public raised total summed CONTRIBUTION credits only; `REVERSAL` debits would inflate it once refunds exist. | Domain ledger; Article I.1 | **Fixed**: raised nets REVERSAL debits; synthetic reversal test added. |
+| Should-fix | `PublicContractTest` | AC-010 did not prove the anonymous name was absent from the raw body, did not include PENDING/FAILED rows to prove filtering, and did not assert the named amount. | AC-CONTRIB-010 | **Fixed**: raw-body assertion, non-confirmed rows added, amount asserted. |
+| Should-fix | `ContributionApiIT` | AC-009 covered only FAILED, not EXPIRED; did not assert two rows or distinct provider references. | AC-CONTRIB-009 | **Fixed**: EXPIRED retry, row count and distinct charge bodies asserted. |
+| Should-fix | `ContributionCallbackIT` | AC-016 did not assert the late-success alert, nor the malformed-webhook problem code. | AC-CONTRIB-016; T091 | **Fixed**: alert count = 2 and `INVALID_WEBHOOK`/problem content type asserted, including missing `data`. |
+| Should-fix | `ContributionService`, `ContributionConfirmationService` | The promised `contributions.created` counter was missing; the confirmed metric/log fired before commit. | T091; Article IX.1 | **Fixed**: created counter added; confirmed metric/log moved to after-commit. |
+| Should-fix | `application.yml` | Correlation IDs reached the response/MDC but not the log pattern. | T091; Article IX.1 | **Fixed**: console pattern includes `%X{correlationId}`. |
+| Should-fix | `PublicGoalView`, `PublicGoalService`, OpenAPI | The public goal omitted the goal's minimum amount; required fields/payout keys were not contract-tested; three reads could straddle commits. | Spec rule 3; Article II.4 | **Fixed**: `minimumAmountPesewas` added, contract fields asserted, service reads in a repeatable-read transaction; feed order/limit and contributor-count semantics documented. |
+| Should-fix | `PublicContractTest`, `ContributionApiIT` | Amount cap boundary was only tested on rejection. | Spec resolved decision | **Fixed**: 10,000,000 pesewas accepted test added. |
+| Should-fix | `PaystackWebhookMapper` | Missing/unknown `event`, missing reference/amount, currency and status are not validated; a signed malformed event can fail a pending contribution. | T097; AC-CONTRIB-005/006 | Open as **T097** (event/status/currency validation before state change). |
+| Should-fix | timeout job | Verify amount/currency is not checked; EXPIRED/FAILED rows are never re-polled; the SKIP LOCKED claim does not survive the statement. | T097/T098 | Open; duplicate polling is safe because resolution is idempotent (comment corrected). |
+| Note | `contributorCount` | Counts confirmed contributions, not distinct people; ambiguous name, documented in OpenAPI, decision folded into T098. | OpenAPI | T098 decision. |
+| Note | tests | 23 `@Disabled` placeholders remain; traceability is active-if-any-test. | Article III.2 | T093. |
+
+### Follow-ups
+
+- T097: provider timeouts, event/status/currency validation, verify amount/currency, raw-byte signature, replay decision.
+- T098: re-poll EXPIRED/FAILED, claim semantics, concurrency barriers, contributor-count decision, stale INITIATED, grants.
+- T093/T094/T096: remove placeholders, mark the spec Implemented, run the sandbox suite.

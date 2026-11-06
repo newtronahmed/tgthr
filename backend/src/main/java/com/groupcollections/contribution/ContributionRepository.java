@@ -159,10 +159,16 @@ public class ContributionRepository {
     Long sum =
         jdbc.queryForObject(
             """
-            select coalesce(sum(le.amount_pesewas), 0)
+            select coalesce(sum(case
+                       when le.entry_type = 'CONTRIBUTION' and le.direction = 'CREDIT'
+                           then le.amount_pesewas
+                       when le.entry_type = 'REVERSAL' and le.direction = 'DEBIT'
+                           then -le.amount_pesewas
+                       else 0
+                   end), 0)
             from ledger_entries le
             join contributions c on c.id = le.contribution_id
-            where c.goal_id = ? and le.entry_type = 'CONTRIBUTION' and le.direction = 'CREDIT'
+            where c.goal_id = ?
             """,
             Long.class,
             goalId);
@@ -200,7 +206,10 @@ public class ContributionRepository {
         limit);
   }
 
-  /** Locks PENDING contributions past the cutoff; concurrent instances skip locked rows. */
+  /**
+   * Selects PENDING contributions past the cutoff. SKIP LOCKED avoids blocking on rows another
+   * transaction is changing; duplicate polling is safe because resolution is idempotent.
+   */
   public List<ContributionPending> lockPendingDue(Instant cutoff, int limit) {
     return jdbc.query(
         """

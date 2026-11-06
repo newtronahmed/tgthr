@@ -44,29 +44,36 @@ public class ContributionConfirmationService {
         ContributionPosting.confirmation(
             payment.id(), payment.amount(), payment.processingFee(), payment.platformFee());
     ledger.post(payment.id(), posting);
-    meters.counter("contributions.confirmed").increment();
-    log.info(
-        "event=contribution_confirmed contributionId={} from={}", payment.id(), transition.from());
+    afterCommit(
+        () -> {
+          meters.counter("contributions.confirmed").increment();
+          log.info(
+              "event=contribution_confirmed contributionId={} from={}",
+              payment.id(),
+              transition.from());
+        });
     if (isLateSuccess(transition.from())) {
-      publishAfterCommit(
-          new Alert(
-              Alert.AlertType.LATE_SUCCESS,
-              payment.id().toString(),
-              "confirmed from " + transition.from()));
+      afterCommit(
+          () ->
+              alerts.publish(
+                  new Alert(
+                      Alert.AlertType.LATE_SUCCESS,
+                      payment.id().toString(),
+                      "confirmed from " + transition.from())));
     }
   }
 
-  private void publishAfterCommit(Alert alert) {
+  private void afterCommit(Runnable action) {
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-              alerts.publish(alert);
+              action.run();
             }
           });
     } else {
-      alerts.publish(alert);
+      action.run();
     }
   }
 

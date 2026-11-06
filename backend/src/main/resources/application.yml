@@ -21,6 +21,10 @@ collections:
     paystack-fee-bps: ${PAYSTACK_FEE_BPS:195}
     timeout: ${CONTRIBUTION_TIMEOUT:PT5M}
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
+
 server:
   servlet:
     context-path: /v1
