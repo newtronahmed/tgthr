@@ -127,6 +127,46 @@ class ContributionCallbackIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-004")
+  void duplicateSuccessCallbackPostsOnce() {
+    String slug = insertGoal("duplicate", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    assertThat(created).isNotNull();
+    String contributionId = (String) created.get("id");
+    UUID id = UUID.fromString(contributionId);
+    long total = ((Number) created.get("totalPesewas")).longValue();
+
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total)).isEqualTo(204);
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total)).isEqualTo(204);
+
+    String state =
+        jdbc.queryForObject("select state from contributions where id = ?", String.class, id);
+    assertThat(state).isEqualTo("CONFIRMED");
+
+    Integer entries =
+        jdbc.queryForObject(
+            "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
+    assertThat(entries).isEqualTo(4);
+
+    Integer postingSets =
+        jdbc.queryForObject(
+            "select count(distinct posting_set_id) from ledger_entries where contribution_id = ?",
+            Integer.class,
+            id);
+    assertThat(postingSets).isEqualTo(1);
+
+    Integer confirmedEvents =
+        jdbc.queryForObject(
+            """
+            select count(*) from contribution_events
+            where contribution_id = ? and to_state = 'CONFIRMED'
+            """,
+            Integer.class,
+            id);
+    assertThat(confirmedEvents).isEqualTo(1);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-006")
   void failedCallbackMarksTheContributionFailedAndWritesNoLedgerEntries() {
     String slug = insertGoal("failed", "OPEN", null);

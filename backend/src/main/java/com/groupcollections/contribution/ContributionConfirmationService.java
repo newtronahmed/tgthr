@@ -21,7 +21,9 @@ public class ContributionConfirmationService {
 
   @Transactional
   public void confirm(ContributionPayment payment) {
-    contributions.apply(payment.id(), ContributionEvent.PAYMENT_SUCCEEDED);
+    if (!contributions.apply(payment.id(), ContributionEvent.PAYMENT_SUCCEEDED)) {
+      return;
+    }
     PostingSet posting =
         ContributionPosting.confirmation(
             payment.id(), payment.amount(), payment.processingFee(), payment.platformFee());
