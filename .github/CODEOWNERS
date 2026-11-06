@@ -1,6 +1,5 @@
-# Replace OWNER with the repository owner's GitHub handle before pushing.
-*                                                        @OWNER
-/specs/                                                  @OWNER
-/docs/adr/                                               @OWNER
-/backend/src/main/java/com/groupcollections/ledger/      @OWNER
-/backend/src/main/java/com/groupcollections/payments/    @OWNER
+*                                                        @newtronahmed
+/specs/                                                  @newtronahmed
+/docs/adr/                                               @newtronahmed
+/backend/src/main/java/com/groupcollections/ledger/      @newtronahmed
+/backend/src/main/java/com/groupcollections/payments/    @newtronahmed
