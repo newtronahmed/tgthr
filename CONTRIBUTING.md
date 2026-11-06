@@ -13,7 +13,8 @@ Every pull request:
 - links the spec it implements or amends;
 - lists the criterion IDs it covers;
 - passes `make check`;
-- changes the spec in the same pull request if behavior changed.
+- changes the spec in the same pull request if behavior changed;
+- links the independent review record in `docs/reviews/FEAT-<id>.md` and its verdict.
 
 Changes under `specs/` and `backend/src/main/java/com/groupcollections/ledger/` need a CODEOWNER review.
 
