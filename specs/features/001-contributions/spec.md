@@ -104,7 +104,8 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 
 ## API impact
 
-- Added: `GET /public/goals/{slug}`, `POST /public/goals/{slug}/contributions`, `GET /public/contributions/{id}`, `POST /webhooks/momo`.
+- Added: `GET /public/goals/{slug}`, `POST /public/goals/{slug}/contribution-quote`, `POST /public/goals/{slug}/contributions`, `GET /public/contributions/{id}`, `POST /webhooks/momo`.
+- The quote endpoint exists so the checkout can show the exact fee breakdown without duplicating money rules in the browser.
 - `ContributionStatus` adds `processingFeePesewas` and `platformFeePesewas`; `feePesewas` remains as their sum for compatibility.
 - Backward compatibility: additive fields, no existing clients.
 - Follow-up: the webhook header and payload in `openapi.yaml` are placeholders and must be replaced with Paystack's `x-paystack-signature` and callback payload in the adapter pull request (ADR 0006).

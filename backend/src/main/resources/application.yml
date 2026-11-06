@@ -32,6 +32,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
 
 server:
+  forward-headers-strategy: framework
   servlet:
     context-path: /v1
 

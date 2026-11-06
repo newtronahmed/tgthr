@@ -32,3 +32,9 @@ Requires JDK 21. Set `JAVA_HOME` to a JDK 21 installation before running Gradle;
 - Pending criteria are `@Disabled` tests. Enable one, see it fail, then implement.
 - Integration tests use Testcontainers with PostgreSQL, so Docker must be running.
 - Tests never call the real payment provider.
+
+## Running behind the web app
+
+The Next.js server proxies browser calls and sets `X-Forwarded-For`; the backend uses
+`server.forward-headers-strategy=framework` so per-client rate limits see the guest IP. The API
+must never be publicly reachable in that topology; trust forwarded headers only from the web tier.

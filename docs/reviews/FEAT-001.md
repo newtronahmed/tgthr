@@ -142,3 +142,34 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 - Rate limiting: in-memory fixed window per client IP and per hashed phone; 429 `RATE_LIMITED`; unit and integration tests.
 - Secrets/redaction: no committed database password default; the request `toString` omits the phone number.
 - Traceability 29 active / 1 pending (INV-LEDGER-003, FEAT-002). Remaining delivery: T095 web, T096 sandbox, CODEOWNER review.
+
+## 2026-11-06 — web slice (public goal, checkout, receipt)
+
+- Range: `dc1de62..HEAD`
+- Reviewer: one fresh-context read-only subagent (contract, privacy, money display, UX, Next.js).
+- Verdict: **blocked** on three findings; all fixed.
+
+### Findings
+
+| Severity | Location | Finding | Reference | Action |
+| --- | --- | --- | --- | --- |
+| Blocker | `web/components/checkout.tsx` | The quote stayed visible while the amount changed, so Pay could be pressed while the screen showed the previous total. | AC-CONTRIB-022; ADR 0007 | **Fixed**: `quoteMatches` gates the total and the Pay button; submit refuses a stale quote. |
+| Blocker | `web/components/checkout.tsx` | A create response of `CONFIRMED` (early callback) was treated as an error and the guest was invited to retry, risking a second payment. | AC-CONTRIB-018; Article I.5 | **Fixed**: `PENDING` and `CONFIRMED` both navigate to the receipt. |
+| Blocker | `web/lib/proxy.ts`, rate limits | The proxy dropped the client IP, so all guests shared the Next server's IP and the 30/min limit became global. | AC-CONTRIB-001/022 | **Fixed**: proxies forward `X-Forwarded-For`; Spring uses forwarded headers; quotes are also per-IP. The API must stay private. |
+| Should-fix | `web/lib/money.ts` | The parser silently transformed `-100`, `1e3`, `10,50` and extra decimals. | ADR 0007; Article I.3 | **Fixed**: strict `^\d+(\.\d{1,2})?$`, integer formatting, unit tests; link parsing handles query/hash. |
+| Should-fix | `web/components/checkout.tsx` | The idempotency key was reset on every failure and lost on reload. | AC-CONTRIB-015 | **Fixed**: `{key, signature}` in sessionStorage per goal; kept on 5xx/network, cleared on 4xx and after a terminal result. |
+| Should-fix | `web/app/c/[id]/page.tsx` | FAILED/EXPIRED said "nothing was charged" although a late SUCCESS can still confirm. | AC-CONTRIB-016 | **Fixed**: copy says no successful payment is recorded yet and offers "Check again"; REFUNDED has its own branch; the pending page no longer links back to a new payment. |
+| Should-fix | `web/app/g/[slug]/page.tsx` | Checkout appeared for past-deadline goals because only `status` was checked. | AC-CONTRIB-012 | **Fixed**: deadline is evaluated server-side before rendering checkout. |
+| Should-fix | `web/app/**`, `web/components/**` | Small low-contrast text, an unnamed switch, colour-only chip selection, 14px inputs (iOS zoom), motion ignored reduced-motion. | Article VI.2; WCAG | **Fixed**: darker text, labelled switch, `aria-pressed`, 16px mobile inputs, reduced-motion CSS. |
+| Should-fix | `web/next.config.ts`, `web/lib/proxy.ts` | No framing/CSP/nosniff headers; receipt indexable; proxies dropped correlation ids and cache headers. | Article VIII.3; IX.1 | **Fixed**: security headers, `poweredByHeader: false`, receipt noindex, no-store and correlation/retry forwarding. |
+| Should-fix | `web/package.json`, CI | `npm run lint` failed; no web tests; CI built only. | Article III.1–2 | **Fixed**: lint clean, money/problem unit tests with `criterion()` references, CI runs lint, tests and build. |
+| Should-fix | `web/app/c/[id]/page.tsx`, `web/lib/api.ts` | Invalid UUIDs rendered a 500; no error boundary; 404 copy was goal-specific. | OpenAPI 404 | **Fixed**: 400/404 map to not-found, branded error boundary, generic 404 copy. |
+| Should-fix | PWA/performance | No service worker/offline fallback, PNG/maskable/Apple icons, or page-weight budget ADR. | ADR 0003; Article VI.2 | **T099**. |
+| Should-fix | Tests | No browser E2E checkout/receipt flow. | Article III | **T100**. |
+| Note | `web/app/g/[slug]/page.tsx` | Goal metadata/page now share a `cache()`d fetch; per-goal OG images remain a follow-up. | ADR 0003 | Future polish. |
+
+### Follow-ups
+
+- T099: PWA offline/service worker, PNG + maskable + Apple icons, page-weight budget ADR and CI measurement.
+- T100: browser E2E checkout/receipt against the fake provider.
+- Manual Paystack sandbox (T096) and the CODEOWNER review for `ledger/` and `payments/` remain before release.
