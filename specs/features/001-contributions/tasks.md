@@ -83,9 +83,9 @@ Criteria: AC-CONTRIB-009, AC-CONTRIB-010
 
 - [x] T070 Write the failing integration test for AC-CONTRIB-009: retry after FAILED/EXPIRED creates a new contribution
 - [x] T071 Implement retry until T070 is green
-- [ ] T072 Write the failing contract test for AC-CONTRIB-010: anonymous feed hides the name
-- [ ] T073 Implement the feed projection until T072 is green
-- [ ] T074 Refactor; keep the suite green
+- [x] T072 Write the failing contract test for AC-CONTRIB-010: anonymous feed hides the name
+- [x] T073 Implement the feed projection until T072 is green
+- [x] T074 Refactor; keep the suite green
 
 ## Hardening
 

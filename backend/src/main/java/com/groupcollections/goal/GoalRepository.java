@@ -24,18 +24,28 @@ public class GoalRepository {
     List<Goal> rows =
         jdbc.query(
             """
-            select id, target_type, fixed_amount_pesewas, minimum_amount_pesewas, status, deadline
+            select id, slug, title, template, target_type, fixed_amount_pesewas,
+                   target_amount_pesewas, minimum_amount_pesewas, status, deadline,
+                   destination_type, second_approver, hold_window_minutes, surplus_rule
             from goals
             where slug = ?
             """,
             (resultSet, rowNumber) ->
                 new Goal(
                     resultSet.getObject("id", UUID.class),
+                    resultSet.getString("slug"),
+                    resultSet.getString("title"),
+                    resultSet.getString("template"),
                     TargetType.valueOf(resultSet.getString("target_type")),
                     money(resultSet, "fixed_amount_pesewas"),
+                    money(resultSet, "target_amount_pesewas"),
                     money(resultSet, "minimum_amount_pesewas"),
                     GoalStatus.valueOf(resultSet.getString("status")),
-                    instant(resultSet, "deadline")),
+                    instant(resultSet, "deadline"),
+                    resultSet.getString("destination_type"),
+                    resultSet.getString("second_approver"),
+                    resultSet.getInt("hold_window_minutes"),
+                    resultSet.getString("surplus_rule")),
             slug);
     return rows.stream().findFirst();
   }

@@ -155,6 +155,51 @@ public class ContributionRepository {
     return rows.stream().findFirst();
   }
 
+  public Money goalRaised(UUID goalId) {
+    Long sum =
+        jdbc.queryForObject(
+            """
+            select coalesce(sum(le.amount_pesewas), 0)
+            from ledger_entries le
+            join contributions c on c.id = le.contribution_id
+            where c.goal_id = ? and le.entry_type = 'CONTRIBUTION' and le.direction = 'CREDIT'
+            """,
+            Long.class,
+            goalId);
+    return Money.ofPesewas(sum == null ? 0 : sum);
+  }
+
+  public long confirmedCount(UUID goalId) {
+    Long count =
+        jdbc.queryForObject(
+            "select count(*) from contributions where goal_id = ? and state = 'CONFIRMED'",
+            Long.class,
+            goalId);
+    return count == null ? 0 : count;
+  }
+
+  public List<PublicGoalView.FeedItem> feed(UUID goalId, int limit) {
+    return jdbc.query(
+        """
+        select display_name, anonymous, amount_pesewas, confirmed_at
+        from contributions
+        where goal_id = ? and state = 'CONFIRMED'
+        order by confirmed_at desc nulls last
+        limit ?
+        """,
+        (resultSet, rowNumber) -> {
+          boolean anonymous = resultSet.getBoolean("anonymous");
+          OffsetDateTime confirmedAt = resultSet.getObject("confirmed_at", OffsetDateTime.class);
+          return new PublicGoalView.FeedItem(
+              anonymous ? null : resultSet.getString("display_name"),
+              anonymous,
+              resultSet.getLong("amount_pesewas"),
+              confirmedAt == null ? null : confirmedAt.toInstant());
+        },
+        goalId,
+        limit);
+  }
+
   /** Locks PENDING contributions past the cutoff; concurrent instances skip locked rows. */
   public List<ContributionPending> lockPendingDue(Instant cutoff, int limit) {
     return jdbc.query(

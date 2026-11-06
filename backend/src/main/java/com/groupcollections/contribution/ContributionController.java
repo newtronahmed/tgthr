@@ -2,6 +2,7 @@ package com.groupcollections.contribution;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,9 +15,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class ContributionController {
 
   private final ContributionService contributions;
+  private final PublicGoalService publicGoals;
 
-  public ContributionController(ContributionService contributions) {
+  public ContributionController(ContributionService contributions, PublicGoalService publicGoals) {
     this.contributions = contributions;
+    this.publicGoals = publicGoals;
+  }
+
+  @GetMapping("/{slug}")
+  public PublicGoalView goal(@PathVariable String slug) {
+    return publicGoals.get(slug);
   }
 
   @PostMapping("/{slug}/contributions")
