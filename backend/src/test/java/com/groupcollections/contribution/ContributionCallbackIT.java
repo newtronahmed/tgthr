@@ -127,6 +127,48 @@ class ContributionCallbackIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-016")
+  void lateSuccessAfterFailureOrExpiryConfirmsOnceAndPosts() {
+    String failedSlug = insertGoal("late-failed", "OPEN", null);
+    Map<String, Object> failed = createContribution(failedSlug, 5_000, "0240000001").getBody();
+    String failedId = (String) failed.get("id");
+    long failedTotal = ((Number) failed.get("totalPesewas")).longValue();
+    assertThat(PAYSTACK.sendFailedCallback(webhookUrl(), failedId, failedTotal)).isEqualTo(204);
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), failedId, failedTotal)).isEqualTo(204);
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), failedId, failedTotal)).isEqualTo(204);
+    assertConfirmedOnce(UUID.fromString(failedId));
+
+    String expiredSlug = insertGoal("late-expired", "OPEN", null);
+    Map<String, Object> expired = createContribution(expiredSlug, 5_000, "0240000001").getBody();
+    String expiredId = (String) expired.get("id");
+    long expiredTotal = ((Number) expired.get("totalPesewas")).longValue();
+    jdbc.update(
+        "update contributions set state = 'EXPIRED' where id = ?", UUID.fromString(expiredId));
+
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), expiredId, expiredTotal)).isEqualTo(204);
+    assertConfirmedOnce(UUID.fromString(expiredId));
+  }
+
+  private void assertConfirmedOnce(UUID id) {
+    String state =
+        jdbc.queryForObject("select state from contributions where id = ?", String.class, id);
+    assertThat(state).isEqualTo("CONFIRMED");
+    Integer entries =
+        jdbc.queryForObject(
+            "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
+    assertThat(entries).isEqualTo(4);
+    Integer confirmedEvents =
+        jdbc.queryForObject(
+            """
+            select count(*) from contribution_events
+            where contribution_id = ? and to_state = 'CONFIRMED'
+            """,
+            Integer.class,
+            id);
+    assertThat(confirmedEvents).isEqualTo(1);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-004")
   void duplicateSuccessCallbackPostsOnce() {
     String slug = insertGoal("duplicate", "OPEN", null);

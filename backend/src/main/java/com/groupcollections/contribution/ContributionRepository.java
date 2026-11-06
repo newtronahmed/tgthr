@@ -75,12 +75,12 @@ public class ContributionRepository {
   }
 
   @Transactional
-  public boolean apply(UUID id, ContributionEvent event) {
+  public Optional<ContributionTransition> apply(UUID id, ContributionEvent event) {
     ContributionState current = currentState(id);
     Optional<ContributionTransition> transition = ContributionStateMachine.apply(current, event);
     if (transition.isEmpty()) {
       log.warn("illegal contribution transition: event {} from state {}", event, current);
-      return false;
+      return Optional.empty();
     }
     ContributionTransition legal = transition.get();
     jdbc.update(
@@ -88,7 +88,7 @@ public class ContributionRepository {
         legal.to().name(),
         id);
     appendHistory(id, legal.from(), legal.to(), legal.event().name());
-    return true;
+    return transition;
   }
 
   public ContributionStatus status(UUID id) {

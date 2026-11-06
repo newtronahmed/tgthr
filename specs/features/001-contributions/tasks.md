@@ -58,8 +58,8 @@ Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CON
 - [x] T049 Implement the posting engine and confirmation transaction until T048 is green
 - [x] T050 Write the failing integration test for AC-CONTRIB-004: duplicate SUCCESS posts once
 - [x] T051 Enforce the unique posting set until T050 is green
-- [ ] T052 Write the failing integration test for AC-CONTRIB-016: late SUCCESS after EXPIRED/FAILED confirms once and alerts
-- [ ] T053 Implement the late-success transitions and alert until T052 is green
+- [x] T052 Write the failing integration test for AC-CONTRIB-016: late SUCCESS after EXPIRED/FAILED confirms once and alerts
+- [x] T053 Implement the late-success transitions and alert until T052 is green
 - [ ] T054 Write the failing `LedgerPostingIT` for INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004 and INV-LEDGER-006
 - [ ] T055 Implement the remaining ledger guards and derived-balance queries until T054 is green
 - [ ] T056 Write the failing integration test for INV-STATE-002: ledger entries exist only for CONFIRMED contributions
