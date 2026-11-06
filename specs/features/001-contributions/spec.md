@@ -82,6 +82,7 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 | AC-CONTRIB-019 | P1 | Given a prompt request that the partner rejects or times out, when the create request completes, then the contribution is FAILED, no ledger entries exist, and the response carries the FAILED state so the guest may retry. | Integration |
 | AC-CONTRIB-020 | P1 | Given a signed callback for an unknown provider reference, when it arrives, then no contribution or ledger row changes, the event is logged, and an alert is raised. | Integration |
 | AC-CONTRIB-021 | P1 | Given a signed callback whose amount differs from the contribution total, when it arrives, then the state and ledger are unchanged and an alert is raised for review. | Integration |
+| AC-CONTRIB-022 | P1 | Given a guest enters an amount before paying, when the checkout requests a quote, then the response returns the contribution, processing fee, platform fee and total without creating a contribution. | Integration |
 
 ## Failure modes and edge cases
 

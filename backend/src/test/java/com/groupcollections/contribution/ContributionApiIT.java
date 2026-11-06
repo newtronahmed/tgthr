@@ -55,6 +55,40 @@ class ContributionApiIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-022")
+  void quotePreviewsTheExactFeesWithoutCreatingAContribution() {
+    String slug = insertGoal("quote", "OPEN", null);
+
+    ResponseEntity<Map<String, Object>> response =
+        rest.exchange(
+            "/public/goals/{slug}/contribution-quote",
+            HttpMethod.POST,
+            new HttpEntity<>(Map.of("amountPesewas", 1_000), jsonHeaders()),
+            new ParameterizedTypeReference<>() {},
+            slug);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().get("amountPesewas")).isEqualTo(1_000);
+    assertThat(response.getBody().get("processingFeePesewas")).isEqualTo(21);
+    assertThat(response.getBody().get("platformFeePesewas")).isEqualTo(15);
+    assertThat(response.getBody().get("totalPesewas")).isEqualTo(1_036);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from contributions where goal_id = (select id from goals where slug = ?)",
+                Integer.class,
+                slug))
+        .isZero();
+    assertThat(PAYSTACK.promptCount()).isZero();
+  }
+
+  private static HttpHeaders jsonHeaders() {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    return headers;
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-019")
   void promptTimeoutMarksTheContributionFailed() {
     String slug = insertGoal("prompt-timeout", "OPEN", null);

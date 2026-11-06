@@ -66,6 +66,32 @@ paths:
           $ref: '#/components/responses/Problem'
         '429':
           $ref: '#/components/responses/Problem'
+  /public/goals/{slug}/contribution-quote:
+    post:
+      tags: [Public]
+      operationId: quoteContribution
+      summary: Preview the exact fees for an amount without starting a payment
+      parameters:
+        - $ref: '#/components/parameters/GoalSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContributionQuote'
+      responses:
+        '200':
+          description: Fee breakdown for the amount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeQuote'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
   /public/contributions/{id}:
     get:
       tags: [Public]
@@ -234,6 +260,31 @@ components:
         network:
           type: string
           enum: [MTN, TELECEL, AT]
+    ContributionQuote:
+      type: object
+      required: [amountPesewas]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 10000000
+    FeeQuote:
+      type: object
+      required: [amountPesewas, processingFeePesewas, platformFeePesewas, totalPesewas]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+        processingFeePesewas:
+          type: integer
+          format: int64
+        platformFeePesewas:
+          type: integer
+          format: int64
+        totalPesewas:
+          type: integer
+          format: int64
     ContributionStatus:
       type: object
       required: [id, state, amountPesewas, processingFeePesewas, platformFeePesewas, feePesewas, totalPesewas]

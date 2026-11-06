@@ -37,6 +37,15 @@ public class RateLimiter {
     this.perPhonePerMinute = perPhonePerMinute;
   }
 
+  public void checkIp(String clientIp) {
+    if (!enabled) {
+      return;
+    }
+    if (!allow("ip:" + clientIp, perIpPerMinute)) {
+      throw new RateLimitExceededException();
+    }
+  }
+
   public void check(String clientIp, byte[] phoneHash) {
     if (!enabled) {
       return;

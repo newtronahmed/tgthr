@@ -19,21 +19,33 @@ public class ContributionController {
   private final PublicGoalService publicGoals;
   private final RateLimiter rateLimiter;
   private final PayerPhoneCipher phones;
+  private final ContributionQuoteService quotes;
 
   public ContributionController(
       ContributionService contributions,
       PublicGoalService publicGoals,
       RateLimiter rateLimiter,
-      PayerPhoneCipher phones) {
+      PayerPhoneCipher phones,
+      ContributionQuoteService quotes) {
     this.contributions = contributions;
     this.publicGoals = publicGoals;
     this.rateLimiter = rateLimiter;
     this.phones = phones;
+    this.quotes = quotes;
   }
 
   @GetMapping("/{slug}")
   public PublicGoalView goal(@PathVariable String slug) {
     return publicGoals.get(slug);
+  }
+
+  @PostMapping("/{slug}/contribution-quote")
+  public FeeQuote quote(
+      @PathVariable String slug,
+      @Valid @RequestBody ContributionQuoteRequest request,
+      HttpServletRequest servletRequest) {
+    rateLimiter.checkIp(servletRequest.getRemoteAddr());
+    return quotes.quote(slug, request.amountPesewas());
   }
 
   @PostMapping("/{slug}/contributions")
