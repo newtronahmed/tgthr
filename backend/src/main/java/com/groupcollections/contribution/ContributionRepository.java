@@ -85,8 +85,8 @@ public class ContributionRepository {
         insert into contributions
             (id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
              total_pesewas, state, provider_reference, payer_phone_ciphertext, payer_phone_hash,
-             display_name, anonymous, idempotency_key)
-        values (?, ?, ?, ?, ?, ?, 'INITIATED', ?, ?, ?, ?, ?, ?)
+             display_name, anonymous, idempotency_key, created_at, updated_at)
+        values (?, ?, ?, ?, ?, ?, 'INITIATED', ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         id,
         goalId,
@@ -99,7 +99,9 @@ public class ContributionRepository {
         phones.hash(request.momoNumber()),
         request.displayName(),
         request.anonymousOrFalse(),
-        idempotencyKey);
+        idempotencyKey,
+        Timestamp.from(Instant.now(clock)),
+        Timestamp.from(Instant.now(clock)));
     appendHistory(id, null, ContributionState.INITIATED, "CREATED");
   }
 
@@ -113,16 +115,19 @@ public class ContributionRepository {
       return Optional.empty();
     }
     ContributionTransition legal = transition.get();
+    Timestamp now = Timestamp.from(Instant.now(clock));
     if (legal.to() == ContributionState.CONFIRMED) {
       jdbc.update(
-          "update contributions set state = ?, updated_at = now(), confirmed_at = ? where id = ?",
+          "update contributions set state = ?, updated_at = ?, confirmed_at = ? where id = ?",
           legal.to().name(),
-          Timestamp.from(Instant.now(clock)),
+          now,
+          now,
           id);
     } else {
       jdbc.update(
-          "update contributions set state = ?, updated_at = now() where id = ?",
+          "update contributions set state = ?, updated_at = ? where id = ?",
           legal.to().name(),
+          now,
           id);
     }
     appendHistory(id, legal.from(), legal.to(), legal.event().name());
@@ -185,12 +190,14 @@ public class ContributionRepository {
       UUID contributionId, ContributionState from, ContributionState to, String event) {
     jdbc.update(
         """
-        insert into contribution_events (contribution_id, from_state, to_state, event)
-        values (?, ?, ?, ?)
+        insert into contribution_events
+            (contribution_id, from_state, to_state, event, occurred_at)
+        values (?, ?, ?, ?, ?)
         """,
         contributionId,
         from == null ? null : from.name(),
         to.name(),
-        event);
+        event,
+        Timestamp.from(Instant.now(clock)));
   }
 }

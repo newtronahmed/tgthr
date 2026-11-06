@@ -1,5 +1,6 @@
 package com.groupcollections.support;
 
+import com.groupcollections.contribution.AlertPublisher;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -9,8 +10,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -25,7 +30,17 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Shared harness for HTTP-level tests: real Postgres, the fake partner and a random port. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(ApiIntegrationTest.AlertConfiguration.class)
 public abstract class ApiIntegrationTest {
+
+  @TestConfiguration
+  static class AlertConfiguration {
+    @Bean
+    @Primary
+    AlertPublisher recordingAlertPublisher() {
+      return new RecordingAlertPublisher();
+    }
+  }
 
   @ServiceConnection
   protected static final PostgreSQLContainer<?> POSTGRES =
@@ -45,6 +60,7 @@ public abstract class ApiIntegrationTest {
     registry.add(
         "collections.security.payer-phone-key",
         () -> "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    registry.add("collections.scheduling.enabled", () -> "false");
   }
 
   @Autowired protected TestRestTemplate rest;
@@ -53,6 +69,7 @@ public abstract class ApiIntegrationTest {
   @BeforeEach
   void resetFakePartner() {
     PAYSTACK.reset();
+    RecordingAlertPublisher.reset();
   }
 
   protected String insertGoal(String slugPrefix, String status, Instant deadline) {

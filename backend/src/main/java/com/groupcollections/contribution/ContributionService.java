@@ -28,6 +28,7 @@ public class ContributionService {
   private final PaystackClient paystack;
   private final PayerPhoneCipher phones;
   private final Clock clock;
+  private final AlertPublisher alerts;
 
   public ContributionService(
       GoalRepository goals,
@@ -36,7 +37,8 @@ public class ContributionService {
       FeeCalculator fees,
       PaystackClient paystack,
       PayerPhoneCipher phones,
-      Clock clock) {
+      Clock clock,
+      AlertPublisher alerts) {
     this.goals = goals;
     this.contributions = contributions;
     this.confirmation = confirmation;
@@ -44,6 +46,7 @@ public class ContributionService {
     this.paystack = paystack;
     this.phones = phones;
     this.clock = clock;
+    this.alerts = alerts;
   }
 
   public ContributionStatus create(
@@ -87,16 +90,20 @@ public class ContributionService {
     Optional<ContributionPayment> found =
         contributions.findByProviderReference(result.providerReference());
     if (found.isEmpty()) {
-      log.warn("callback for unknown provider reference {}", result.providerReference());
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.UNKNOWN_REFERENCE,
+              result.providerReference(),
+              "callback arrived for an unknown provider reference"));
       return;
     }
     ContributionPayment payment = found.get();
     if (payment.total().pesewas() != result.amountPesewas()) {
-      log.warn(
-          "callback amount mismatch for {}: expected {}, got {}",
-          result.providerReference(),
-          payment.total().pesewas(),
-          result.amountPesewas());
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.AMOUNT_MISMATCH,
+              result.providerReference(),
+              "expected " + payment.total().pesewas() + " pesewas, got " + result.amountPesewas()));
       return;
     }
     if (result.success()) {

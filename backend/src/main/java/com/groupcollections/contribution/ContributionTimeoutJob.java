@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Resolves PENDING contributions past the timeout by asking the partner for the final status
@@ -42,7 +41,6 @@ public class ContributionTimeoutJob {
   }
 
   @Scheduled(fixedDelay = 60_000)
-  @Transactional
   public void run() {
     Instant cutoff = clock.instant().minus(timeout);
     List<ContributionPending> due = contributions.lockPendingDue(cutoff, BATCH_SIZE);
@@ -51,19 +49,28 @@ public class ContributionTimeoutJob {
         log.warn("pending contribution {} has no provider reference", pending.id());
         continue;
       }
-      switch (paystack.verify(pending.providerReference())) {
-        case PAID ->
-            contributions
-                .findPayment(pending.id())
-                .ifPresentOrElse(
-                    confirmation::confirm,
-                    () -> log.warn("pending contribution {} disappeared", pending.id()));
-        case NOT_PAID -> contributions.apply(pending.id(), ContributionEvent.PAYMENT_TIMED_OUT);
-        case UNKNOWN ->
-            log.warn(
-                "could not verify contribution {}; leaving it pending for the next run",
-                pending.id());
+      try {
+        resolve(pending);
+      } catch (RuntimeException failure) {
+        log.error("could not resolve contribution {}", pending.id(), failure);
       }
+    }
+  }
+
+  private void resolve(ContributionPending pending) {
+    switch (paystack.verify(pending.providerReference())) {
+      case PAID ->
+          contributions
+              .findPayment(pending.id())
+              .ifPresentOrElse(
+                  confirmation::confirm,
+                  () -> log.warn("pending contribution {} disappeared", pending.id()));
+      case FAILED -> contributions.apply(pending.id(), ContributionEvent.PAYMENT_FAILED);
+      case NO_PAYMENT -> contributions.apply(pending.id(), ContributionEvent.PAYMENT_TIMED_OUT);
+      case UNKNOWN ->
+          log.warn(
+              "could not verify contribution {}; leaving it pending for the next run",
+              pending.id());
     }
   }
 }

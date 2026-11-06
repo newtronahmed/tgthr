@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
+import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -31,12 +33,35 @@ class ContributionStatusIT extends ApiIntegrationTest {
 
     assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total)).isEqualTo(204);
 
+    Instant before = Instant.now().minusSeconds(5);
     Map<String, Object> confirmed = getContribution(contributionId);
     assertThat(confirmed.get("state")).isEqualTo("CONFIRMED");
+    assertThat(confirmed.get("amountPesewas")).isEqualTo(5_000);
+    assertThat(confirmed.get("processingFeePesewas"))
+        .isEqualTo(created.get("processingFeePesewas"));
+    assertThat(confirmed.get("platformFeePesewas")).isEqualTo(created.get("platformFeePesewas"));
+    assertThat(confirmed.get("feePesewas")).isEqualTo(created.get("feePesewas"));
+    assertThat(confirmed.get("totalPesewas")).isEqualTo(created.get("totalPesewas"));
     assertThat(confirmed.get("receipt")).isInstanceOf(Map.class);
     Map<?, ?> receipt = (Map<?, ?>) confirmed.get("receipt");
     assertThat(receipt.get("reference")).isEqualTo(contributionId);
-    assertThat(receipt.get("confirmedAt")).isNotNull();
+    Instant confirmedAt = Instant.parse((String) receipt.get("confirmedAt"));
+    assertThat(confirmedAt).isAfter(before);
+    assertThat(confirmedAt).isBefore(Instant.now().plusSeconds(5));
+  }
+
+  @Test
+  void unknownContributionReturns404Problem() {
+    ResponseEntity<Map<String, Object>> response =
+        rest.exchange(
+            "/public/contributions/{id}",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<>() {},
+            UUID.randomUUID());
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getBody()).containsEntry("code", "CONTRIBUTION_NOT_FOUND");
   }
 
   private Map<String, Object> getContribution(String contributionId) {

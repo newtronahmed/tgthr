@@ -101,7 +101,7 @@ The automated tests use an in-process `FakePaystackServer` built on the JDK `Htt
 | AC-CONTRIB-005 | Integration | `ContributionCallbackIT` | One transaction; balanced entries; goal total rises |
 | AC-CONTRIB-006 | Integration | `ContributionCallbackIT` | FAILED callback leaves ledger empty |
 | AC-CONTRIB-007 | Integration | `ContributionCallbackIT` | Invalid signature, 401, no state change |
-| AC-CONTRIB-008 | Integration | `ContributionStatusIT` | Clock advanced 5 minutes; poll applies final status |
+| AC-CONTRIB-008 | Integration | `ContributionTimeoutIT` | Clock advanced 5 minutes; poll applies paid/failed/no-payment |
 | AC-CONTRIB-009 | Integration | `ContributionApiIT` | New contribution after FAILED/EXPIRED; old row unchanged |
 | AC-CONTRIB-010 | Contract | `PublicContractTest` | Anonymous feed hides the name; organizer view not in this slice |
 | AC-CONTRIB-011 | Contract | `PublicContractTest` | No phone number in any public response |

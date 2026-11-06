@@ -40,46 +40,48 @@ class ContributionTimeoutIT extends ApiIntegrationTest {
 
   @Test
   @Criterion("AC-CONTRIB-008")
-  void timeoutJobConfirmsAPaidContributionAndExpiresAnUnpaidOne() {
+  void timeoutJobResolvesDueContributionsFromThePartnerStatus() {
+    String freshSlug = insertGoal("timeout-fresh", "OPEN", null);
+    UUID freshId = createId(freshSlug, "0240000001");
+
+    timeoutJob.run();
+    assertThat(state(freshId)).isEqualTo("PENDING");
+
     String paidSlug = insertGoal("timeout-paid", "OPEN", null);
-    Map<String, Object> paid = createContribution(paidSlug, 5_000, "0240000001").getBody();
-    UUID paidId = UUID.fromString((String) paid.get("id"));
-
+    UUID paidId = createId(paidSlug, "0240000001");
     CLOCK.advance(Duration.ofMinutes(6));
     timeoutJob.run();
+    assertThat(state(paidId)).isEqualTo("CONFIRMED");
+    assertThat(ledgerCount(paidId)).isEqualTo(4);
 
-    assertThat(
-            jdbc.queryForObject(
-                "select state from contributions where id = ?", String.class, paidId))
-        .isEqualTo("CONFIRMED");
-    assertThat(
-            jdbc.queryForObject(
-                "select count(*) from ledger_entries where contribution_id = ?",
-                Integer.class,
-                paidId))
-        .isEqualTo(4);
-
-    String unpaidSlug = insertGoal("timeout-unpaid", "OPEN", null);
-    Map<String, Object> unpaid = createContribution(unpaidSlug, 5_000, "0240000005").getBody();
-    UUID unpaidId = UUID.fromString((String) unpaid.get("id"));
-    assertThat(
-            jdbc.queryForObject(
-                "select state from contributions where id = ?", String.class, unpaidId))
-        .isEqualTo("PENDING");
-
+    String failedSlug = insertGoal("timeout-failed", "OPEN", null);
+    UUID failedId = createId(failedSlug, "0240000005");
     CLOCK.advance(Duration.ofMinutes(6));
     timeoutJob.run();
+    assertThat(state(failedId)).isEqualTo("FAILED");
+    assertThat(ledgerCount(failedId)).isZero();
 
-    assertThat(
-            jdbc.queryForObject(
-                "select state from contributions where id = ?", String.class, unpaidId))
-        .isEqualTo("EXPIRED");
-    assertThat(
-            jdbc.queryForObject(
-                "select count(*) from ledger_entries where contribution_id = ?",
-                Integer.class,
-                unpaidId))
-        .isZero();
+    String abandonedSlug = insertGoal("timeout-abandoned", "OPEN", null);
+    UUID abandonedId = createId(abandonedSlug, "0240000006");
+    CLOCK.advance(Duration.ofMinutes(6));
+    timeoutJob.run();
+    assertThat(state(abandonedId)).isEqualTo("EXPIRED");
+    assertThat(ledgerCount(abandonedId)).isZero();
+  }
+
+  private UUID createId(String slug, String momoNumber) {
+    Map<String, Object> created = createContribution(slug, 5_000, momoNumber).getBody();
+    assertThat(created).isNotNull();
+    return UUID.fromString((String) created.get("id"));
+  }
+
+  private String state(UUID id) {
+    return jdbc.queryForObject("select state from contributions where id = ?", String.class, id);
+  }
+
+  private Integer ledgerCount(UUID id) {
+    return jdbc.queryForObject(
+        "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
   }
 
   static final class MutableClock extends Clock {

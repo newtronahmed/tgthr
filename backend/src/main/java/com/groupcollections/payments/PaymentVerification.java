@@ -5,6 +5,7 @@ package com.groupcollections.payments;
  */
 public enum PaymentVerification {
   PAID,
-  NOT_PAID,
+  FAILED,
+  NO_PAYMENT,
   UNKNOWN
 }

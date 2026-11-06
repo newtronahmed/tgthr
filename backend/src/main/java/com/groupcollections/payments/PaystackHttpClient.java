@@ -52,9 +52,14 @@ public final class PaystackHttpClient implements PaystackClient {
       if (response == null || !response.status() || response.data() == null) {
         return PaymentVerification.UNKNOWN;
       }
-      return switch (response.data().status()) {
+      String status = response.data().status();
+      if (status == null) {
+        return PaymentVerification.UNKNOWN;
+      }
+      return switch (status) {
         case "success" -> PaymentVerification.PAID;
-        case "failed" -> PaymentVerification.NOT_PAID;
+        case "failed", "reversed" -> PaymentVerification.FAILED;
+        case "abandoned" -> PaymentVerification.NO_PAYMENT;
         default -> PaymentVerification.UNKNOWN;
       };
     } catch (RestClientException failure) {

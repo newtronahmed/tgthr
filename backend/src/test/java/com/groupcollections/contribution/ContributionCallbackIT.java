@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -165,6 +166,52 @@ class ContributionCallbackIT extends ApiIntegrationTest {
         "select count(*) from ledger_entries where contribution_id = ?",
         Integer.class,
         contributionId);
+  }
+
+  @Test
+  @Criterion("AC-CONTRIB-020")
+  void unknownProviderReferenceIsAlertedWithoutChange() {
+    String reference = UUID.randomUUID().toString();
+
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), reference, 5_000)).isEqualTo(204);
+
+    assertThat(RecordingAlertPublisher.alerts())
+        .anySatisfy(
+            alert -> {
+              assertThat(alert.type()).isEqualTo(Alert.AlertType.UNKNOWN_REFERENCE);
+              assertThat(alert.reference()).isEqualTo(reference);
+            });
+    Integer contributions =
+        jdbc.queryForObject(
+            "select count(*) from contributions where provider_reference = ?",
+            Integer.class,
+            reference);
+    assertThat(contributions).isZero();
+  }
+
+  @Test
+  @Criterion("AC-CONTRIB-021")
+  void callbackAmountMismatchIsAlertedWithoutChange() {
+    String slug = insertGoal("mismatch", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    assertThat(created).isNotNull();
+    String contributionId = (String) created.get("id");
+    UUID id = UUID.fromString(contributionId);
+    long total = ((Number) created.get("totalPesewas")).longValue();
+
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total + 1))
+        .isEqualTo(204);
+
+    assertThat(
+            jdbc.queryForObject("select state from contributions where id = ?", String.class, id))
+        .isEqualTo("PENDING");
+    assertThat(ledgerCount(id)).isZero();
+    assertThat(RecordingAlertPublisher.alerts())
+        .anySatisfy(
+            alert -> {
+              assertThat(alert.type()).isEqualTo(Alert.AlertType.AMOUNT_MISMATCH);
+              assertThat(alert.reference()).isEqualTo(contributionId);
+            });
   }
 
   @Test

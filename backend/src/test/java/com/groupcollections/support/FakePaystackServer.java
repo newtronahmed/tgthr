@@ -37,7 +37,8 @@ public final class FakePaystackServer implements AutoCloseable {
           "0240000002", "DECLINED",
           "0240000003", "TIMEOUT",
           "0240000004", "REQUEST_REJECTED",
-          "0240000005", "PENDING_THEN_FAILED");
+          "0240000005", "PENDING_THEN_FAILED",
+          "0240000006", "PENDING_THEN_ABANDONED");
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -155,9 +156,11 @@ public final class FakePaystackServer implements AutoCloseable {
         exchange.getRequestURI().getPath().substring("/transaction/verify/".length());
     String scenario = scenarioByReference.getOrDefault(reference, "SUCCESS");
     String status =
-        "DECLINED".equals(scenario) || "PENDING_THEN_FAILED".equals(scenario)
-            ? "failed"
-            : "success";
+        switch (scenario) {
+          case "DECLINED", "PENDING_THEN_FAILED" -> "failed";
+          case "PENDING_THEN_ABANDONED" -> "abandoned";
+          default -> "success";
+        };
     respond(
         exchange,
         200,

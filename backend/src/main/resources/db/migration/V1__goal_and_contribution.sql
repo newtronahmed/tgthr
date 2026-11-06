@@ -71,8 +71,8 @@ CREATE TABLE contributions (
 
 CREATE INDEX idx_contributions_goal_id ON contributions (goal_id);
 CREATE INDEX idx_contributions_payer_phone_hash ON contributions (payer_phone_hash);
-CREATE INDEX idx_contributions_pending_created_at
-    ON contributions (created_at)
+CREATE INDEX idx_contributions_pending_updated_at
+    ON contributions (updated_at)
     WHERE state = 'PENDING';
 
 CREATE TABLE contribution_events (
