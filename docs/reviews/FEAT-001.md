@@ -51,3 +51,30 @@ Resolved:
 - **Traceability:** illegal transitions log the contribution id.
 
 Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remains pending with FEAT-002 (payouts). `make check` passes; traceability reports 22 active / 5 pending.
+
+## 2026-11-06 — slice 4 (timeout, status lookup, receipt)
+
+- Range: `815bd16..HEAD`
+- Reviewers: two fresh-context read-only subagents (timeout/money correctness; receipt/contract/test isolation)
+- Verdict: **blocked** on three findings; all fixed before slice 5.
+
+### Findings
+
+| Severity | Location | Finding | Reference | Action |
+| --- | --- | --- | --- | --- |
+| Blocker | `ContributionTimeoutJob`, `PaystackHttpClient.verify` | A partner `failed` charge was applied as `PAYMENT_TIMED_OUT` (EXPIRED) while the domain table says a valid FAILED poll result becomes FAILED; `abandoned`/`reversed` fell to UNKNOWN and stayed PENDING forever. | AC-CONTRIB-008; domain state machine; Article IV.2 | **Fixed**: PAID/FAILED/NO_PAYMENT/UNKNOWN mapping; `failed`/`reversed` → FAILED, `abandoned` → EXPIRED, in-flight/unknown → retry. AC-008 amended; test covers paid, failed and abandoned. |
+| Blocker | `ContributionStatusIT`, `ContributionStatus`, OpenAPI | AC-013 said the receipt carries amount/fees/total while OpenAPI puts them beside `reference`/`confirmedAt`; the test checked amounts only while PENDING and accepted any timestamp. | AC-CONTRIB-013; Article II.4 | **Fixed**: AC-013 wording aligned with OpenAPI; the test now asserts exact fee/total values and parses `confirmedAt`. |
+| Blocker | `ContributionService.handle` | Unknown provider reference and amount mismatch were WARN-only; a confirmed payment could be discarded without an alert. | AC-CONTRIB-020/021; Article I.5, IX.2 | **Fixed**: `AlertPublisher` (logging in prod, recording in tests); both criteria now have active tests; late-success alert is published after commit. |
+| Should-fix | `ContributionTimeoutJob` | One transaction held `FOR UPDATE` locks across up to 100 provider HTTP calls; one failure rolled back the batch. | AC-CONTRIB-008; Article IV | **Fixed**: due rows are selected, verification runs outside the lock, each result is applied in its own transaction with per-row failure isolation. |
+| Should-fix | `ContributionRepository`, `ContributionTimeoutIT` | Eligibility and receipt times mixed DB `now()` with the injected clock; the AC-008 test did not prove the cutoff. | Article III.4; AC-CONTRIB-008 | **Fixed**: `created_at`/`updated_at`/`occurred_at`/`confirmed_at` all use the injected clock; the test now leaves a fresh row PENDING before advancing time. |
+| Should-fix | `SchedulingConfiguration` | `@EnableScheduling` ran the job in every test context, mutating other tests' rows. | Article III.4 | **Fixed**: scheduling is gated by `collections.scheduling.enabled` and disabled in the test harness. |
+| Should-fix | `PaystackHttpClient.verify` | A null `data.status` threw NPE and rolled back the batch; no timeouts; amount/currency not checked. | AC-CONTRIB-008; Article IX.1 | Null guard fixed; timeouts and amount/currency validation remain T097. |
+| Should-fix | timeout job | UNKNOWN/null-reference rows keep the oldest timestamps and can starve newer due rows; EXPIRED/FAILED are never re-polled; stale INITIATED rows are never swept. | AC-CONTRIB-008/016/019 | T090 reconciliation/attempt tracking; INITIATED sweep needs a spec decision. |
+| Should-fix | `ContributionStatusController`, `PublicContractTest` | The new GET had no 404 or phone-free contract test. | AC-CONTRIB-011/013; OpenAPI | **Fixed**: both tests added. |
+| Note | `ContributionRepository` | `confirmed_at` has no backfill for rows confirmed before this change. | AC-CONTRIB-013 | No pre-release data; V3 backfill only if needed. |
+| Note | `V1__goal_and_contribution.sql` | Partial index was on `created_at` while the job filters `updated_at`. | AC-CONTRIB-008 | **Fixed**: index moved to `updated_at`. |
+
+### Follow-ups
+
+- Remaining should-fix: T090 (reconciliation, starvation, stale INITIATED, concurrency), T091 (structured events/metrics), T092 (rate limits, secrets), T097 (timeouts, verify amount/currency, raw bytes, replay decision).
+- CODEOWNER review for `ledger/` and `payments/` is still required before release; AI review does not replace it.

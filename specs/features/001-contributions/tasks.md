@@ -75,7 +75,7 @@ Criteria: AC-CONTRIB-008, AC-CONTRIB-013
 - [x] T061 Implement the timeout job with `FOR UPDATE SKIP LOCKED` until T060 is green
 - [x] T062 Write the failing contract test for AC-CONTRIB-013: no receipt while PENDING, full receipt once CONFIRMED
 - [x] T063 Implement the status and receipt response until T062 is green; write `confirmed_at` when a contribution is confirmed
-- [ ] T064 Refactor; keep the suite green
+- [x] T064 Refactor; keep the suite green
 
 ## Slice 5 (P2): Anonymous feed and retry
 
