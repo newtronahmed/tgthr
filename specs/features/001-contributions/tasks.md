@@ -96,7 +96,7 @@ Criteria: AC-CONTRIB-009, AC-CONTRIB-010
 - [x] T094 Update the spec status to Implemented
 - [x] T095 Scaffold `web/` and implement the public goal, checkout and receipt pages after the backend slice is green
 - [ ] T096 Run the manual Paystack sandbox suite before the first live payment
-- [ ] T099 Web PWA close-out: service worker/offline fallback, PNG/maskable icons and Apple touch icon, page-weight budget ADR and CI measurement
-- [ ] T100 Web E2E checkout/receipt test against the fake provider and a browser runner
+- [x] T099 Web PWA close-out: service worker/offline fallback, PNG/maskable icons and Apple touch icon, page-weight budget ADR and CI measurement
+- [x] T100 Web E2E checkout/receipt test against the fake provider and a browser runner
 - [x] T097 Provider hardening: bounded Paystack HTTP timeouts, callback currency/event/status validation, verify amount/currency validation, raw-byte signature verification, replay-window decision
 - [x] T098 Remaining hardening: goal-acceptance lock (FOR SHARE), IdGenerator/SecureRandom seams, deterministic idempotency race, stale-INITIATED expiry, stuck-PENDING alerts, terminal re-polling

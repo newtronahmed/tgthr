@@ -173,3 +173,12 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 - T099: PWA offline/service worker, PNG + maskable + Apple icons, page-weight budget ADR and CI measurement.
 - T100: browser E2E checkout/receipt against the fake provider.
 - Manual Paystack sandbox (T096) and the CODEOWNER review for `ledger/` and `payments/` remain before release.
+
+## 2026-11-06 — web close-out (T099/T100)
+
+- Verdict: pass.
+- PWA: service worker with a static shell and offline fallback, network-first navigations, cache-first static assets; API and personal pages are never cached. 192/512/maskable PNG icons and an Apple touch icon are generated from the brand SVG. `app/offline` is precached.
+- Performance: ADR 0008 sets a 220 KB JS / 20 KB CSS gzipped budget; `npm run budget` measures 183.5 / 9.1 KB and CI enforces it.
+- E2E: `@playwright/test` runs the full guest flow (goal → quote → PENDING → signed fake callback → receipt) against the real backend in CI and against the stub locally. The fake provider lives in `tools/paystack-fake`.
+- Traceability: 30 active / 1 pending (INV-LEDGER-003, FEAT-002).
+- Remaining before release: manual Paystack sandbox (T096), CODEOWNER review for `ledger/` and `payments/`, and a PR merge.
