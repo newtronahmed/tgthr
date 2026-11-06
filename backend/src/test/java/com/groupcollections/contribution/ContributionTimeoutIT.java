@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
+import com.groupcollections.support.RecordingAlertPublisher;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -67,6 +69,33 @@ class ContributionTimeoutIT extends ApiIntegrationTest {
     timeoutJob.run();
     assertThat(state(abandonedId)).isEqualTo("EXPIRED");
     assertThat(ledgerCount(abandonedId)).isZero();
+
+    String wrongAmountSlug = insertGoal("timeout-wrong-amount", "OPEN", null);
+    UUID wrongAmountId = createId(wrongAmountSlug, "0240000008");
+    CLOCK.advance(Duration.ofMinutes(6));
+    timeoutJob.run();
+    assertThat(state(wrongAmountId)).isEqualTo("PENDING");
+    assertThat(
+            RecordingAlertPublisher.alerts().stream()
+                .filter(alert -> alert.type() == Alert.AlertType.VERIFY_MISMATCH)
+                .anyMatch(alert -> alert.reference().equals(wrongAmountId.toString())))
+        .isTrue();
+
+    String recheckSlug = insertGoal("timeout-recheck", "OPEN", null);
+    UUID recheckId = createId(recheckSlug, "0240000001");
+    jdbc.update(
+        "update contributions set state = 'EXPIRED', updated_at = ? where id = ?",
+        Timestamp.from(CLOCK.instant().minus(Duration.ofMinutes(10))),
+        recheckId);
+    CLOCK.advance(Duration.ofMinutes(6));
+    timeoutJob.run();
+    assertThat(state(recheckId)).isEqualTo("CONFIRMED");
+    assertThat(ledgerCount(recheckId)).isEqualTo(4);
+    assertThat(
+            RecordingAlertPublisher.alerts().stream()
+                .filter(alert -> alert.type() == Alert.AlertType.LATE_SUCCESS)
+                .anyMatch(alert -> alert.reference().equals(recheckId.toString())))
+        .isTrue();
   }
 
   private UUID createId(String slug, String momoNumber) {

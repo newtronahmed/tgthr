@@ -19,14 +19,28 @@ public class PaystackWebhookMapper {
   public PaymentResult map(String rawBody) {
     try {
       PaystackWebhook webhook = mapper.readValue(rawBody, PaystackWebhook.class);
-      if (webhook.data() == null) {
+      PaystackWebhook.Data data = webhook.data();
+      if (data == null) {
         throw new InvalidWebhookPayloadException("Paystack webhook is missing data");
       }
+      boolean success = "charge.success".equals(webhook.event());
+      if (!success && !"charge.failed".equals(webhook.event())) {
+        throw new InvalidWebhookPayloadException("unsupported Paystack event");
+      }
+      if (data.reference() == null || data.reference().isBlank()) {
+        throw new InvalidWebhookPayloadException("Paystack webhook is missing the reference");
+      }
+      if (data.amount() <= 0) {
+        throw new InvalidWebhookPayloadException("Paystack webhook has an invalid amount");
+      }
+      if (!(success ? "success" : "failed").equals(data.status())) {
+        throw new InvalidWebhookPayloadException("Paystack event and status disagree");
+      }
+      if (!"GHS".equals(data.currency())) {
+        throw new InvalidWebhookPayloadException("unsupported currency");
+      }
       return new PaymentResult(
-          webhook.data().reference(),
-          "charge.success".equals(webhook.event()),
-          webhook.data().amount(),
-          webhook.data().paidAt());
+          data.reference(), success, data.amount(), data.paidAt(), data.currency());
     } catch (JsonProcessingException failure) {
       throw new InvalidWebhookPayloadException("invalid Paystack webhook payload");
     }
@@ -34,6 +48,10 @@ public class PaystackWebhookMapper {
 
   record PaystackWebhook(String event, Data data) {
     record Data(
-        String reference, String status, long amount, @JsonProperty("paid_at") Instant paidAt) {}
+        String reference,
+        String status,
+        long amount,
+        String currency,
+        @JsonProperty("paid_at") Instant paidAt) {}
   }
 }

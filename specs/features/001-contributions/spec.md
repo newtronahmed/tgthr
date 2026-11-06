@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Feature ID | FEAT-001 |
-| Status | Ready |
+| Status | Implemented |
 | Owner | Ahmed Zubairu |
 | Area code | CONTRIB |
 | Created | 2026-11-04 |
@@ -138,6 +138,8 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 | 2026-11-05 | Response-time targets at the 95th percentile | Create 1.5 seconds including the partner prompt; status 300 milliseconds |
 | 2026-11-05 | Platform revenue model | 1.5% platform service fee on the contribution amount, rounded up to the nearest pesewa, paid by the contributor on top (ADR 0007) |
 | 2026-11-06 | Maximum contribution | GHS 100,000 (10,000,000 pesewas) per contribution; larger requests return 422 |
+| 2026-11-06 | Callback replay protection | Signature authentication only; replay is safe because references are idempotent and transitions are guarded. No timestamp window. |
+| 2026-11-06 | Contributor count | `contributorCount` counts confirmed contributions, not distinct people. |
 
 ## Definition of ready
 

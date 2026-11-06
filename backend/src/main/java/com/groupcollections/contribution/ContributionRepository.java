@@ -210,7 +210,7 @@ public class ContributionRepository {
    * Selects PENDING contributions past the cutoff. SKIP LOCKED avoids blocking on rows another
    * transaction is changing; duplicate polling is safe because resolution is idempotent.
    */
-  public List<ContributionPending> lockPendingDue(Instant cutoff, int limit) {
+  public List<ContributionPending> findPendingDue(Instant cutoff, int limit) {
     return jdbc.query(
         """
         select id, provider_reference
@@ -231,6 +231,26 @@ public class ContributionRepository {
     List<ContributionStatus> rows =
         jdbc.query(STATUS_COLUMNS + "where idempotency_key = ?", STATUS_MAPPER, idempotencyKey);
     return rows.stream().findFirst();
+  }
+
+  /** Terminal rows worth a bounded re-check; a later success must never be lost. */
+  public List<ContributionPending> findTerminalForRecheck(
+      Instant cutoff, Instant lookbackStart, int limit) {
+    return jdbc.query(
+        """
+        select id, provider_reference
+        from contributions
+        where state in ('EXPIRED', 'FAILED') and updated_at <= ? and updated_at >= ?
+        order by updated_at
+        limit ?
+        for update skip locked
+        """,
+        (resultSet, rowNumber) ->
+            new ContributionPending(
+                resultSet.getObject("id", UUID.class), resultSet.getString("provider_reference")),
+        Timestamp.from(cutoff),
+        Timestamp.from(lookbackStart),
+        limit);
   }
 
   private ContributionState currentState(UUID id) {

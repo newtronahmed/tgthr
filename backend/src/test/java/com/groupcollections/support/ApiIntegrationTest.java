@@ -63,6 +63,8 @@ public abstract class ApiIntegrationTest {
         "collections.security.payer-phone-key",
         () -> "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
     registry.add("collections.scheduling.enabled", () -> "false");
+    registry.add("collections.payments.paystack.connect-timeout", () -> "PT1S");
+    registry.add("collections.payments.paystack.read-timeout", () -> "PT1S");
   }
 
   @Autowired protected TestRestTemplate rest;

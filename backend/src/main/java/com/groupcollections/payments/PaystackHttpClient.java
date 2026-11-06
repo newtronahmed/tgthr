@@ -41,7 +41,7 @@ public final class PaystackHttpClient implements PaystackClient {
   }
 
   @Override
-  public PaymentVerification verify(String providerReference) {
+  public PaymentStatus verify(String providerReference) {
     try {
       VerifyResponse response =
           restClient
@@ -50,20 +50,22 @@ public final class PaystackHttpClient implements PaystackClient {
               .retrieve()
               .body(VerifyResponse.class);
       if (response == null || !response.status() || response.data() == null) {
-        return PaymentVerification.UNKNOWN;
+        return PaymentStatus.unknown();
       }
       String status = response.data().status();
       if (status == null) {
-        return PaymentVerification.UNKNOWN;
+        return PaymentStatus.unknown();
       }
-      return switch (status) {
-        case "success" -> PaymentVerification.PAID;
-        case "failed", "reversed" -> PaymentVerification.FAILED;
-        case "abandoned" -> PaymentVerification.NO_PAYMENT;
-        default -> PaymentVerification.UNKNOWN;
-      };
+      PaymentVerification outcome =
+          switch (status) {
+            case "success" -> PaymentVerification.PAID;
+            case "failed", "reversed" -> PaymentVerification.FAILED;
+            case "abandoned" -> PaymentVerification.NO_PAYMENT;
+            default -> PaymentVerification.UNKNOWN;
+          };
+      return new PaymentStatus(outcome, response.data().amount(), response.data().currency());
     } catch (RestClientException failure) {
-      return PaymentVerification.UNKNOWN;
+      return PaymentStatus.unknown();
     }
   }
 
@@ -81,6 +83,6 @@ public final class PaystackHttpClient implements PaystackClient {
   }
 
   record VerifyResponse(boolean status, VerifyData data) {
-    record VerifyData(String status) {}
+    record VerifyData(String status, long amount, String currency) {}
   }
 }

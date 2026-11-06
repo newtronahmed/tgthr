@@ -55,6 +55,26 @@ class ContributionApiIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-019")
+  void promptTimeoutMarksTheContributionFailed() {
+    String slug = insertGoal("prompt-timeout", "OPEN", null);
+
+    ResponseEntity<Map<String, Object>> response = createContribution(slug, 5_000, "0240000007");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().get("state")).isEqualTo("FAILED");
+    UUID id = UUID.fromString((String) response.getBody().get("id"));
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject("select state from contributions where id = ?", String.class, id))
+        .isEqualTo("FAILED");
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-009")
   void retryAfterTerminalStateCreatesANewContribution() {
     String slug = insertGoal("retry", "OPEN", null);

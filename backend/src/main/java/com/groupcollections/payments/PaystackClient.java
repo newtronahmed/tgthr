@@ -11,5 +11,5 @@ public interface PaystackClient {
   boolean initiateCharge(UUID reference, long totalPesewas, String momoNumber, Network network);
 
   /** Looks up the final status of a charge; UNKNOWN means the lookup failed and must be retried. */
-  PaymentVerification verify(String providerReference);
+  PaymentStatus verify(String providerReference);
 }

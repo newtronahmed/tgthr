@@ -1,11 +1,12 @@
 package com.groupcollections.contribution;
 
+import com.groupcollections.payments.PaymentStatus;
+import com.groupcollections.payments.PaymentVerification;
 import com.groupcollections.payments.PaystackClient;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,7 @@ public class ContributionTimeoutJob {
   private final Clock clock;
   private final Duration timeout;
   private final MeterRegistry meters;
+  private final AlertPublisher alerts;
 
   public ContributionTimeoutJob(
       ContributionRepository contributions,
@@ -35,20 +37,21 @@ public class ContributionTimeoutJob {
       PaystackClient paystack,
       Clock clock,
       @Value("${collections.contribution.timeout}") Duration timeout,
-      MeterRegistry meters) {
+      MeterRegistry meters,
+      AlertPublisher alerts) {
     this.contributions = contributions;
     this.confirmation = confirmation;
     this.paystack = paystack;
     this.clock = clock;
     this.timeout = timeout;
     this.meters = meters;
+    this.alerts = alerts;
   }
 
   @Scheduled(fixedDelay = 60_000)
   public void run() {
     Instant cutoff = clock.instant().minus(timeout);
-    List<ContributionPending> due = contributions.lockPendingDue(cutoff, BATCH_SIZE);
-    for (ContributionPending pending : due) {
+    for (ContributionPending pending : contributions.findPendingDue(cutoff, BATCH_SIZE)) {
       if (pending.providerReference() == null || pending.providerReference().isBlank()) {
         log.warn("pending contribution {} has no provider reference", pending.id());
         continue;
@@ -59,18 +62,24 @@ public class ContributionTimeoutJob {
         log.error("could not resolve contribution {}", pending.id(), failure);
       }
     }
+    Instant lookbackStart = cutoff.minus(Duration.ofHours(24));
+    for (ContributionPending terminal :
+        contributions.findTerminalForRecheck(cutoff, lookbackStart, BATCH_SIZE)) {
+      if (terminal.providerReference() == null || terminal.providerReference().isBlank()) {
+        continue;
+      }
+      try {
+        recheck(terminal);
+      } catch (RuntimeException failure) {
+        log.error("could not re-check contribution {}", terminal.id(), failure);
+      }
+    }
   }
 
   private void resolve(ContributionPending pending) {
-    switch (paystack.verify(pending.providerReference())) {
-      case PAID -> {
-        contributions
-            .findPayment(pending.id())
-            .ifPresentOrElse(
-                confirmation::confirm,
-                () -> log.warn("pending contribution {} disappeared", pending.id()));
-        resolved(pending, "confirmed");
-      }
+    PaymentStatus status = paystack.verify(pending.providerReference());
+    switch (status.outcome()) {
+      case PAID -> confirmIfMatching(pending, status, "confirmed");
       case FAILED -> {
         contributions.apply(pending.id(), ContributionEvent.PAYMENT_FAILED);
         resolved(pending, "failed");
@@ -85,6 +94,40 @@ public class ContributionTimeoutJob {
             "could not verify contribution {}; leaving it pending for the next run", pending.id());
       }
     }
+  }
+
+  private void recheck(ContributionPending terminal) {
+    PaymentStatus status = paystack.verify(terminal.providerReference());
+    if (status.outcome() == PaymentVerification.PAID) {
+      confirmIfMatching(terminal, status, "reconfirmed");
+    }
+  }
+
+  private void confirmIfMatching(
+      ContributionPending pending, PaymentStatus status, String metricResult) {
+    contributions
+        .findPayment(pending.id())
+        .ifPresentOrElse(
+            payment -> {
+              if (status.amountPesewas() != payment.total().pesewas()
+                  || !"GHS".equals(status.currency())) {
+                alerts.publish(
+                    new Alert(
+                        Alert.AlertType.VERIFY_MISMATCH,
+                        pending.providerReference(),
+                        "expected "
+                            + payment.total().pesewas()
+                            + " GHS, got "
+                            + status.amountPesewas()
+                            + " "
+                            + status.currency()));
+                meters.counter("contributions.timeout", "result", "verify_mismatch").increment();
+                return;
+              }
+              confirmation.confirm(payment);
+              resolved(pending, metricResult);
+            },
+            () -> log.warn("contribution {} disappeared during verification", pending.id()));
   }
 
   private void resolved(ContributionPending pending, String result) {

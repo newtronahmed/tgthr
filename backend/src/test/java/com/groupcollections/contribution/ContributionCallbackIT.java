@@ -188,6 +188,33 @@ class ContributionCallbackIT extends ApiIntegrationTest {
     assertThat(missingData.getBody()).containsEntry("code", "INVALID_WEBHOOK");
   }
 
+  @Test
+  void invalidWebhookPayloadsAreRejected() {
+    String reference = UUID.randomUUID().toString();
+
+    assertInvalidWebhook(
+        """
+        {"event":"charge.reversed","data":{"reference":"%s","status":"success","amount":1000,"currency":"GHS","paid_at":null}}
+        """
+            .formatted(reference));
+    assertInvalidWebhook(
+        """
+        {"event":"charge.success","data":{"reference":"%s","status":"success","amount":1000,"currency":"USD","paid_at":null}}
+        """
+            .formatted(reference));
+    assertInvalidWebhook(
+        """
+        {"event":"charge.success","data":{"reference":"%s","status":"failed","amount":1000,"currency":"GHS","paid_at":null}}
+        """
+            .formatted(reference));
+  }
+
+  private void assertInvalidWebhook(String body) {
+    ResponseEntity<Map<String, Object>> response = postRaw(body);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(response.getBody()).containsEntry("code", "INVALID_WEBHOOK");
+  }
+
   private ResponseEntity<Map<String, Object>> postRaw(String body) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
