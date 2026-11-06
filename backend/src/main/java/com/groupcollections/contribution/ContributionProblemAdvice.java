@@ -38,6 +38,12 @@ public class ContributionProblemAdvice {
         failure.getMessage());
   }
 
+  @ExceptionHandler(RateLimitExceededException.class)
+  ProblemDetail rateLimited(RateLimitExceededException failure) {
+    return problem(
+        HttpStatus.TOO_MANY_REQUESTS, "Too many requests", "RATE_LIMITED", failure.getMessage());
+  }
+
   @ExceptionHandler(InvalidSignatureException.class)
   ProblemDetail invalidSignature(InvalidSignatureException failure) {
     return problem(

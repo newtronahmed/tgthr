@@ -1,20 +1,12 @@
 package com.groupcollections.contribution;
 
-import com.groupcollections.goal.Goal;
-import com.groupcollections.goal.GoalNotAcceptingException;
-import com.groupcollections.goal.GoalNotFoundException;
-import com.groupcollections.goal.GoalRepository;
-import com.groupcollections.ledger.Money;
 import com.groupcollections.payments.PaymentResult;
 import com.groupcollections.payments.PaystackClient;
 import io.micrometer.core.instrument.MeterRegistry;
-import java.time.Clock;
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,77 +14,48 @@ public class ContributionService {
 
   private static final Logger log = LoggerFactory.getLogger(ContributionService.class);
 
-  private final GoalRepository goals;
   private final ContributionRepository contributions;
+  private final ContributionRegistration registration;
   private final ContributionConfirmationService confirmation;
-  private final FeeCalculator fees;
   private final PaystackClient paystack;
-  private final PayerPhoneCipher phones;
-  private final Clock clock;
   private final AlertPublisher alerts;
   private final MeterRegistry meters;
 
   public ContributionService(
-      GoalRepository goals,
       ContributionRepository contributions,
+      ContributionRegistration registration,
       ContributionConfirmationService confirmation,
-      FeeCalculator fees,
       PaystackClient paystack,
-      PayerPhoneCipher phones,
-      Clock clock,
       AlertPublisher alerts,
       MeterRegistry meters) {
-    this.goals = goals;
     this.contributions = contributions;
+    this.registration = registration;
     this.confirmation = confirmation;
-    this.fees = fees;
     this.paystack = paystack;
-    this.phones = phones;
-    this.clock = clock;
     this.alerts = alerts;
     this.meters = meters;
   }
 
   public ContributionStatus create(
       String slug, String idempotencyKey, CreateContributionRequest request) {
-    Optional<ContributionStatus> original = contributions.findByIdempotencyKey(idempotencyKey);
-    if (original.isPresent()) {
-      return original.get();
+    ContributionRegistration.Registration created =
+        registration.register(slug, idempotencyKey, request);
+    if (!created.created()) {
+      return created.status();
     }
-
-    Goal goal = goals.findBySlug(slug).orElseThrow(() -> new GoalNotFoundException(slug));
-    if (!goal.acceptsContributions(Instant.now(clock))) {
-      throw new GoalNotAcceptingException(slug);
-    }
-    Money amount = Money.ofPesewas(request.amountPesewas());
-    goal.rules().check(amount);
-
-    FeeBreakdown breakdown = fees.calculate(amount);
-    UUID id = UUID.randomUUID();
-    try {
-      contributions.insertInitiated(id, goal.id(), breakdown, request, phones, idempotencyKey);
-    } catch (DuplicateKeyException race) {
-      return contributions.findByIdempotencyKey(idempotencyKey).orElseThrow(() -> race);
-    }
-    meters.counter("contributions.created").increment();
-    log.info(
-        "event=contribution_created contributionId={} goalId={} amountPesewas={}",
-        id,
-        goal.id(),
-        amount.pesewas());
 
     boolean accepted =
         paystack.initiateCharge(
-            id, breakdown.total().pesewas(), request.momoNumber(), request.network());
+            created.id(), created.totalPesewas(), request.momoNumber(), request.network());
     meters
         .counter("contributions.prompt", "result", accepted ? "accepted" : "rejected")
         .increment();
     if (accepted) {
-      contributions.apply(id, ContributionEvent.PROMPT_SENT);
+      contributions.apply(created.id(), ContributionEvent.PROMPT_SENT);
     } else {
-      contributions.apply(id, ContributionEvent.PROMPT_REJECTED);
+      contributions.apply(created.id(), ContributionEvent.PROMPT_REJECTED);
     }
-    return contributions.status(id);
+    return contributions.status(created.id());
   }
 
   public ContributionStatus status(UUID id) {

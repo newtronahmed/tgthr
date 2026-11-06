@@ -27,6 +27,7 @@ A contribution is one payment attempt. Its state decides whether it counts towar
 | --- | --- | --- | --- |
 | INITIATED | Prompt requested successfully | PENDING | History row |
 | INITIATED | Valid SUCCESS callback or poll result (arrived before PENDING was recorded) | CONFIRMED | Ledger entries posted in the same transaction; history row |
+| INITIATED | Timeout and the partner confirms no payment | EXPIRED | History row |
 | INITIATED | Partner rejects the prompt request | FAILED | History row |
 | PENDING | Valid SUCCESS callback or poll result | CONFIRMED | Ledger entries posted in the same transaction |
 | PENDING | Valid FAILED callback or poll result | FAILED | History row |
@@ -49,3 +50,4 @@ Any other event for a given state is an illegal transition: it is logged with th
 
 - 2026-11-05: a valid late SUCCESS after EXPIRED or FAILED moves the contribution to CONFIRMED and raises an alert. The two transitions above are added because Constitution I.5 forbids dropping a confirmed payment.
 - 2026-11-06: a valid SUCCESS while INITIATED confirms the contribution. The callback is proof that the prompt was sent and paid; acknowledging it and leaving the row INITIATED would drop a confirmed payment. The create path's later PROMPT_SENT is then illegal and ignored.
+- 2026-11-06: a stale INITIATED row whose poll confirms no payment expires. Without this, a crash between the insert and PROMPT_SENT leaves the row INITIATED forever.

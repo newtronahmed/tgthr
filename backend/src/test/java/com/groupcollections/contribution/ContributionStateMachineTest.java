@@ -23,6 +23,10 @@ class ContributionStateMachineTest {
         ContributionEvent.PAYMENT_SUCCEEDED,
         ContributionState.CONFIRMED);
     assertTransition(
+        ContributionState.INITIATED,
+        ContributionEvent.PAYMENT_TIMED_OUT,
+        ContributionState.EXPIRED);
+    assertTransition(
         ContributionState.PENDING,
         ContributionEvent.PAYMENT_SUCCEEDED,
         ContributionState.CONFIRMED);

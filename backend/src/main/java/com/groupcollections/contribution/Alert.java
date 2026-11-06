@@ -6,6 +6,7 @@ public record Alert(AlertType type, String reference, String detail) {
     UNKNOWN_REFERENCE,
     AMOUNT_MISMATCH,
     LATE_SUCCESS,
-    VERIFY_MISMATCH
+    VERIFY_MISMATCH,
+    STUCK_PENDING
   }
 }

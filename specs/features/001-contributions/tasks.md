@@ -91,10 +91,10 @@ Criteria: AC-CONTRIB-009, AC-CONTRIB-010
 
 - [x] T090 Failure-path tests for prompt rejection, unknown reference, amount mismatch, early/late success and duplicates; concurrency tests for idempotency and duplicate confirmation; amount cap; malformed payload 4xx; append-only TRUNCATE guard
 - [x] T091 Correlation-ID filter, structured key=value events, Micrometer counters for create/prompt/callback/confirm/timeout, alerts for unknown reference, amount mismatch and late success after commit; illegal transitions log the contribution id
-- [ ] T092 Rate limiting per IP and per MoMo number; remove dev credential defaults; redact phone numbers from DTO `toString`
+- [x] T092 Rate limiting per IP and per MoMo number; remove dev credential defaults; redact phone numbers from DTO `toString`
 - [x] T093 Run `make check`; remove every `@Disabled` marker for FEAT-001 (INV-LEDGER-003 remains disabled for FEAT-002)
 - [x] T094 Update the spec status to Implemented
 - [ ] T095 Scaffold `web/` and implement the public goal, checkout and receipt pages after the backend slice is green
 - [ ] T096 Run the manual Paystack sandbox suite before the first live payment
 - [x] T097 Provider hardening: bounded Paystack HTTP timeouts, callback currency/event/status validation, verify amount/currency validation, raw-byte signature verification, replay-window decision
-- [ ] T098 Remaining hardening: goal-acceptance lock, UUID/randomness seams, concurrency test barriers, reconciliation and alerts for stuck or starved PENDING rows and stale INITIATED rows
+- [x] T098 Remaining hardening: goal-acceptance lock (FOR SHARE), IdGenerator/SecureRandom seams, deterministic idempotency race, stale-INITIATED expiry, stuck-PENDING alerts, terminal re-polling

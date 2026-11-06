@@ -16,7 +16,9 @@ public final class ContributionStateMachine {
                   ContributionEvent.PROMPT_REJECTED,
                   ContributionState.FAILED,
                   ContributionEvent.PAYMENT_SUCCEEDED,
-                  ContributionState.CONFIRMED),
+                  ContributionState.CONFIRMED,
+                  ContributionEvent.PAYMENT_TIMED_OUT,
+                  ContributionState.EXPIRED),
               ContributionState.PENDING,
               Map.of(
                   ContributionEvent.PAYMENT_SUCCEEDED,

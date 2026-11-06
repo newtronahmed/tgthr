@@ -81,6 +81,37 @@ class ContributionTimeoutIT extends ApiIntegrationTest {
                 .anyMatch(alert -> alert.reference().equals(wrongAmountId.toString())))
         .isTrue();
 
+    UUID stalePaid = createId(insertGoal("stale-paid", "OPEN", null), "0240000001");
+    jdbc.update(
+        "update contributions set state = 'INITIATED', updated_at = ? where id = ?",
+        Timestamp.from(CLOCK.instant().minus(Duration.ofMinutes(10))),
+        stalePaid);
+    timeoutJob.run();
+    assertThat(state(stalePaid)).isEqualTo("CONFIRMED");
+    assertThat(ledgerCount(stalePaid)).isEqualTo(4);
+
+    UUID staleExpired = createId(insertGoal("stale-expired", "OPEN", null), "0240000006");
+    jdbc.update(
+        "update contributions set state = 'INITIATED', updated_at = ? where id = ?",
+        Timestamp.from(CLOCK.instant().minus(Duration.ofMinutes(10))),
+        staleExpired);
+    timeoutJob.run();
+    assertThat(state(staleExpired)).isEqualTo("EXPIRED");
+    assertThat(ledgerCount(staleExpired)).isZero();
+
+    UUID stuck = createId(insertGoal("stuck", "OPEN", null), "0240000008");
+    jdbc.update(
+        "update contributions set updated_at = ? where id = ?",
+        Timestamp.from(CLOCK.instant().minus(Duration.ofMinutes(30))),
+        stuck);
+    timeoutJob.run();
+    assertThat(state(stuck)).isEqualTo("PENDING");
+    assertThat(
+            RecordingAlertPublisher.alerts().stream()
+                .filter(alert -> alert.type() == Alert.AlertType.STUCK_PENDING)
+                .anyMatch(alert -> alert.reference().equals(stuck.toString())))
+        .isTrue();
+
     String recheckSlug = insertGoal("timeout-recheck", "OPEN", null);
     UUID recheckId = createId(recheckSlug, "0240000001");
     jdbc.update(

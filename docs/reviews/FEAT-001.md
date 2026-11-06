@@ -132,3 +132,13 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 - Close-out: FEAT-001 placeholders removed; the only remaining disabled test is INV-LEDGER-003 (payout scope, FEAT-002). Spec marked Implemented. Traceability 29 active / 1 pending.
 - Residual: **T098** (goal-acceptance lock, UUID/randomness seams, concurrency test barriers, starvation/stale-INITIATED alerts) and **T092** (rate limits, secrets, phone redaction). T095 web and T096 sandbox remain for delivery.
 - CODEOWNER review for `ledger/` and `payments/` is still required before release.
+
+## 2026-11-06 — residual hardening (T092/T098)
+
+- Verdict: pass.
+- Registration now holds `FOR SHARE` on the goal row for the acceptance check and insert; the idempotent insert uses `ON CONFLICT DO NOTHING`; a barrier `IdGenerator` forces the check-then-insert race in `ContributionIdempotencyRaceIT` (one row, one prompt).
+- `IdGenerator` and `SecureRandom` are injected; registration uses the injected `Clock`.
+- Stale INITIATED rows are polled (paid → CONFIRMED, no payment → EXPIRED); PENDING rows older than twice the timeout raise `STUCK_PENDING`; terminal re-polling remains.
+- Rate limiting: in-memory fixed window per client IP and per hashed phone; 429 `RATE_LIMITED`; unit and integration tests.
+- Secrets/redaction: no committed database password default; the request `toString` omits the phone number.
+- Traceability 29 active / 1 pending (INV-LEDGER-003, FEAT-002). Remaining delivery: T095 web, T096 sandbox, CODEOWNER review.

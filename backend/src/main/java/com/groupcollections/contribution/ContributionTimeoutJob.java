@@ -51,15 +51,34 @@ public class ContributionTimeoutJob {
   @Scheduled(fixedDelay = 60_000)
   public void run() {
     Instant cutoff = clock.instant().minus(timeout);
+    Instant stuckBefore = clock.instant().minus(timeout.multipliedBy(2));
     for (ContributionPending pending : contributions.findPendingDue(cutoff, BATCH_SIZE)) {
       if (pending.providerReference() == null || pending.providerReference().isBlank()) {
         log.warn("pending contribution {} has no provider reference", pending.id());
         continue;
       }
+      if (pending.updatedAt().isBefore(stuckBefore)) {
+        alerts.publish(
+            new Alert(
+                Alert.AlertType.STUCK_PENDING,
+                pending.providerReference(),
+                "pending for more than " + timeout.multipliedBy(2)));
+        meters.counter("contributions.timeout", "result", "stuck").increment();
+      }
       try {
         resolve(pending);
       } catch (RuntimeException failure) {
         log.error("could not resolve contribution {}", pending.id(), failure);
+      }
+    }
+    for (ContributionPending stale : contributions.findInitiatedStale(cutoff, BATCH_SIZE)) {
+      if (stale.providerReference() == null || stale.providerReference().isBlank()) {
+        continue;
+      }
+      try {
+        resolveStaleInitiated(stale);
+      } catch (RuntimeException failure) {
+        log.error("could not resolve stale contribution {}", stale.id(), failure);
       }
     }
     Instant lookbackStart = cutoff.minus(Duration.ofHours(24));
@@ -92,6 +111,21 @@ public class ContributionTimeoutJob {
         meters.counter("contributions.timeout", "result", "unknown").increment();
         log.warn(
             "could not verify contribution {}; leaving it pending for the next run", pending.id());
+      }
+    }
+  }
+
+  private void resolveStaleInitiated(ContributionPending stale) {
+    PaymentStatus status = paystack.verify(stale.providerReference());
+    switch (status.outcome()) {
+      case PAID -> confirmIfMatching(stale, status, "confirmed");
+      case FAILED, NO_PAYMENT -> {
+        contributions.apply(stale.id(), ContributionEvent.PAYMENT_TIMED_OUT);
+        resolved(stale, "expired");
+      }
+      case UNKNOWN -> {
+        meters.counter("contributions.timeout", "result", "unknown").increment();
+        log.warn("could not verify stale contribution {}; leaving it for the next run", stale.id());
       }
     }
   }

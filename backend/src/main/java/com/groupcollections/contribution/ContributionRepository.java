@@ -72,37 +72,42 @@ public class ContributionRepository {
     this.clock = clock;
   }
 
-  @Transactional
-  public void insertInitiated(
+  public boolean insertInitiated(
       UUID id,
       UUID goalId,
       FeeBreakdown fees,
       CreateContributionRequest request,
       PayerPhoneCipher phones,
       String idempotencyKey) {
-    jdbc.update(
-        """
+    int inserted =
+        jdbc.update(
+            """
         insert into contributions
             (id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
              total_pesewas, state, provider_reference, payer_phone_ciphertext, payer_phone_hash,
              display_name, anonymous, idempotency_key, created_at, updated_at)
         values (?, ?, ?, ?, ?, ?, 'INITIATED', ?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict (idempotency_key) do nothing
         """,
-        id,
-        goalId,
-        fees.amount().pesewas(),
-        fees.processingFee().pesewas(),
-        fees.platformFee().pesewas(),
-        fees.total().pesewas(),
-        id.toString(),
-        phones.encrypt(request.momoNumber()),
-        phones.hash(request.momoNumber()),
-        request.displayName(),
-        request.anonymousOrFalse(),
-        idempotencyKey,
-        Timestamp.from(Instant.now(clock)),
-        Timestamp.from(Instant.now(clock)));
+            id,
+            goalId,
+            fees.amount().pesewas(),
+            fees.processingFee().pesewas(),
+            fees.platformFee().pesewas(),
+            fees.total().pesewas(),
+            id.toString(),
+            phones.encrypt(request.momoNumber()),
+            phones.hash(request.momoNumber()),
+            request.displayName(),
+            request.anonymousOrFalse(),
+            idempotencyKey,
+            Timestamp.from(Instant.now(clock)),
+            Timestamp.from(Instant.now(clock)));
+    if (inserted == 0) {
+      return false;
+    }
     appendHistory(id, null, ContributionState.INITIATED, "CREATED");
+    return true;
   }
 
   @Transactional
@@ -213,16 +218,14 @@ public class ContributionRepository {
   public List<ContributionPending> findPendingDue(Instant cutoff, int limit) {
     return jdbc.query(
         """
-        select id, provider_reference
+        select id, provider_reference, updated_at
         from contributions
         where state = 'PENDING' and updated_at <= ?
         order by updated_at
         limit ?
         for update skip locked
         """,
-        (resultSet, rowNumber) ->
-            new ContributionPending(
-                resultSet.getObject("id", UUID.class), resultSet.getString("provider_reference")),
+        (resultSet, rowNumber) -> pending(resultSet),
         Timestamp.from(cutoff),
         limit);
   }
@@ -238,19 +241,41 @@ public class ContributionRepository {
       Instant cutoff, Instant lookbackStart, int limit) {
     return jdbc.query(
         """
-        select id, provider_reference
+        select id, provider_reference, updated_at
         from contributions
         where state in ('EXPIRED', 'FAILED') and updated_at <= ? and updated_at >= ?
         order by updated_at
         limit ?
         for update skip locked
         """,
-        (resultSet, rowNumber) ->
-            new ContributionPending(
-                resultSet.getObject("id", UUID.class), resultSet.getString("provider_reference")),
+        (resultSet, rowNumber) -> pending(resultSet),
         Timestamp.from(cutoff),
         Timestamp.from(lookbackStart),
         limit);
+  }
+
+  /** INITIATED rows older than the timeout; a crash may have left them behind. */
+  public List<ContributionPending> findInitiatedStale(Instant cutoff, int limit) {
+    return jdbc.query(
+        """
+        select id, provider_reference, updated_at
+        from contributions
+        where state = 'INITIATED' and updated_at <= ?
+        order by updated_at
+        limit ?
+        for update skip locked
+        """,
+        (resultSet, rowNumber) -> pending(resultSet),
+        Timestamp.from(cutoff),
+        limit);
+  }
+
+  private static ContributionPending pending(java.sql.ResultSet resultSet)
+      throws java.sql.SQLException {
+    return new ContributionPending(
+        resultSet.getObject("id", UUID.class),
+        resultSet.getString("provider_reference"),
+        resultSet.getObject("updated_at", OffsetDateTime.class).toInstant());
   }
 
   private ContributionState currentState(UUID id) {

@@ -1,5 +1,6 @@
 package com.groupcollections.contribution;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,10 +17,18 @@ public class ContributionController {
 
   private final ContributionService contributions;
   private final PublicGoalService publicGoals;
+  private final RateLimiter rateLimiter;
+  private final PayerPhoneCipher phones;
 
-  public ContributionController(ContributionService contributions, PublicGoalService publicGoals) {
+  public ContributionController(
+      ContributionService contributions,
+      PublicGoalService publicGoals,
+      RateLimiter rateLimiter,
+      PayerPhoneCipher phones) {
     this.contributions = contributions;
     this.publicGoals = publicGoals;
+    this.rateLimiter = rateLimiter;
+    this.phones = phones;
   }
 
   @GetMapping("/{slug}")
@@ -31,10 +40,12 @@ public class ContributionController {
   public ResponseEntity<ContributionStatus> create(
       @PathVariable String slug,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-      @Valid @RequestBody CreateContributionRequest request) {
+      @Valid @RequestBody CreateContributionRequest request,
+      HttpServletRequest servletRequest) {
     if (idempotencyKey == null || idempotencyKey.length() < 8 || idempotencyKey.length() > 64) {
       throw new InvalidRequestException("Idempotency-Key must be 8 to 64 characters");
     }
+    rateLimiter.check(servletRequest.getRemoteAddr(), phones.hash(request.momoNumber()));
     return ResponseEntity.accepted().body(contributions.create(slug, idempotencyKey, request));
   }
 }

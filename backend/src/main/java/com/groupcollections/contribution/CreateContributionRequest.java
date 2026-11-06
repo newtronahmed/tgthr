@@ -18,4 +18,17 @@ public record CreateContributionRequest(
   public boolean anonymousOrFalse() {
     return Boolean.TRUE.equals(anonymous);
   }
+
+  @Override
+  public String toString() {
+    return "CreateContributionRequest[amountPesewas="
+        + amountPesewas
+        + ", network="
+        + network
+        + ", displayName="
+        + displayName
+        + ", anonymous="
+        + anonymous
+        + "]";
+  }
 }

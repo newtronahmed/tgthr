@@ -18,7 +18,7 @@ Each module is a direct sub-package of `com.groupcollections`. Spring Modulith v
 
 ## Commands
 
-Requires JDK 21. Set `JAVA_HOME` to a JDK 21 installation before running Gradle; the build does not auto-download toolchains. The Gradle wrapper is committed.
+Requires JDK 21. Set `JAVA_HOME` to a JDK 21 installation before running Gradle; the build does not auto-download toolchains. The Gradle wrapper is committed. For local runs export `DATABASE_PASSWORD=collections` (the docker compose value); no credentials are committed.
 
 ```
 ./gradlew test           # unit and property tests

@@ -65,6 +65,7 @@ public abstract class ApiIntegrationTest {
     registry.add("collections.scheduling.enabled", () -> "false");
     registry.add("collections.payments.paystack.connect-timeout", () -> "PT1S");
     registry.add("collections.payments.paystack.read-timeout", () -> "PT1S");
+    registry.add("collections.rate-limit.enabled", () -> "false");
   }
 
   @Autowired protected TestRestTemplate rest;
