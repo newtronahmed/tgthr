@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.groupcollections.support.Criterion;
 import com.groupcollections.support.FakePaystackServer;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -155,6 +158,68 @@ class ContributionApiIT {
             "select count(*) from contributions where goal_id = ?", Integer.class, goalId);
     assertThat(stored).isZero();
     assertThat(PAYSTACK.promptCount()).isZero();
+  }
+
+  @Test
+  @Criterion("AC-CONTRIB-012")
+  void closedFrozenAndPastDeadlineGoalsRejectContributions() {
+    String closed = insertGoal("closed", "CLOSED", null);
+    String frozen = insertGoal("frozen", "FROZEN", null);
+    String pastDeadline = insertGoal("expired", "OPEN", Instant.now().minusSeconds(3_600));
+
+    for (String slug : new String[] {closed, frozen, pastDeadline}) {
+      ResponseEntity<Map<String, Object>> response = createContribution(slug, 5_000, "0240000001");
+
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+      assertThat(response.getBody()).containsEntry("code", "GOAL_NOT_ACCEPTING");
+    }
+
+    Integer stored =
+        jdbc.queryForObject(
+            """
+            select count(*) from contributions c
+            join goals g on g.id = c.goal_id
+            where g.slug in (?, ?, ?)
+            """,
+            Integer.class,
+            closed,
+            frozen,
+            pastDeadline);
+    assertThat(stored).isZero();
+    assertThat(PAYSTACK.promptCount()).isZero();
+  }
+
+  private String insertGoal(String slugPrefix, String status, Instant deadline) {
+    UUID goalId = UUID.randomUUID();
+    String slug = slugPrefix + "-" + goalId;
+    jdbc.update(
+        """
+        insert into goals
+            (id, slug, title, template, target_type, destination_type, second_approver,
+             hold_window_minutes, surplus_rule, status, deadline)
+        values (?, ?, 'Nyame biribi', 'FUNERAL', 'OPEN', 'BENEFICIARY_MOMO', 'OFF', 0,
+                'PAY_BENEFICIARY', ?, ?)
+        """,
+        goalId,
+        slug,
+        status,
+        deadline == null ? null : OffsetDateTime.ofInstant(deadline, ZoneOffset.UTC));
+    return slug;
+  }
+
+  private ResponseEntity<Map<String, Object>> createContribution(
+      String slug, long amountPesewas, String momoNumber) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("Idempotency-Key", "idem-" + UUID.randomUUID());
+    Map<String, Object> request =
+        Map.of("amountPesewas", amountPesewas, "momoNumber", momoNumber, "network", "MTN");
+    return rest.exchange(
+        "/public/goals/{slug}/contributions",
+        HttpMethod.POST,
+        new HttpEntity<>(request, headers),
+        new ParameterizedTypeReference<>() {},
+        slug);
   }
 
   private static FakePaystackServer startFakeServer() {

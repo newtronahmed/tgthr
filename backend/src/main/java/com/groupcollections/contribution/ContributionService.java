@@ -1,10 +1,12 @@
 package com.groupcollections.contribution;
 
 import com.groupcollections.goal.Goal;
+import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
 import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.Money;
 import com.groupcollections.payments.PaystackClient;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +35,9 @@ public class ContributionService {
   public ContributionStatus create(
       String slug, String idempotencyKey, CreateContributionRequest request) {
     Goal goal = goals.findBySlug(slug).orElseThrow(() -> new GoalNotFoundException(slug));
+    if (!goal.acceptsContributions(Instant.now())) {
+      throw new GoalNotAcceptingException(slug);
+    }
     Money amount = Money.ofPesewas(request.amountPesewas());
     goal.rules().check(amount);
 

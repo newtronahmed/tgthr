@@ -1,6 +1,7 @@
 package com.groupcollections.contribution;
 
 import com.groupcollections.goal.AmountValidationException;
+import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -15,6 +16,15 @@ public class ContributionProblemAdvice {
   @ExceptionHandler(GoalNotFoundException.class)
   ProblemDetail goalNotFound(GoalNotFoundException failure) {
     return problem(HttpStatus.NOT_FOUND, "Goal not found", "GOAL_NOT_FOUND", failure.getMessage());
+  }
+
+  @ExceptionHandler(GoalNotAcceptingException.class)
+  ProblemDetail goalNotAccepting(GoalNotAcceptingException failure) {
+    return problem(
+        HttpStatus.CONFLICT,
+        "Goal not accepting contributions",
+        "GOAL_NOT_ACCEPTING",
+        failure.getMessage());
   }
 
   @ExceptionHandler(AmountValidationException.class)
