@@ -122,3 +122,13 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 - T097: provider timeouts, event/status/currency validation, verify amount/currency, raw-byte signature, replay decision.
 - T098: re-poll EXPIRED/FAILED, claim semantics, concurrency barriers, contributor-count decision, stale INITIATED, grants.
 - T093/T094/T096: remove placeholders, mark the spec Implemented, run the sandbox suite.
+
+## 2026-11-06 — T097/T098 provider hardening and close-out
+
+- Verdict: pass with one residual hardening task.
+- Provider: connect/read timeouts (configurable), verified in the prompt-timeout test; callback event/status/currency validation; verify amount/currency validation with a mismatch alert; raw-byte HMAC verification; replay decision recorded (reference idempotency, no timestamp window).
+- Reconciliation: EXPIRED/FAILED rows are re-polled for 24 hours; a paid row confirms with a late-success alert. The `SKIP LOCKED` claim semantics are documented (duplicate polling is safe).
+- Test support: the fake now has slow, abandoned and wrong-amount scenarios, echoes amounts for verify, and runs on a thread pool.
+- Close-out: FEAT-001 placeholders removed; the only remaining disabled test is INV-LEDGER-003 (payout scope, FEAT-002). Spec marked Implemented. Traceability 29 active / 1 pending.
+- Residual: **T098** (goal-acceptance lock, UUID/randomness seams, concurrency test barriers, starvation/stale-INITIATED alerts) and **T092** (rate limits, secrets, phone redaction). T095 web and T096 sandbox remain for delivery.
+- CODEOWNER review for `ledger/` and `payments/` is still required before release.
