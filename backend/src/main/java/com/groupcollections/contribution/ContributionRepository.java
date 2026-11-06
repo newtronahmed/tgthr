@@ -97,10 +97,17 @@ public class ContributionRepository {
   public Optional<ContributionPayment> findByProviderReference(String providerReference) {
     List<ContributionPayment> rows =
         jdbc.query(
-            "select id, total_pesewas from contributions where provider_reference = ?",
+            """
+            select id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas, total_pesewas
+            from contributions
+            where provider_reference = ?
+            """,
             (resultSet, rowNumber) ->
                 new ContributionPayment(
                     resultSet.getObject("id", UUID.class),
+                    Money.ofPesewas(resultSet.getLong("amount_pesewas")),
+                    Money.ofPesewas(resultSet.getLong("processing_fee_pesewas")),
+                    Money.ofPesewas(resultSet.getLong("platform_fee_pesewas")),
                     Money.ofPesewas(resultSet.getLong("total_pesewas"))),
             providerReference);
     return rows.stream().findFirst();

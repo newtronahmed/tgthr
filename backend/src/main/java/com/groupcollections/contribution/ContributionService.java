@@ -22,6 +22,7 @@ public class ContributionService {
 
   private final GoalRepository goals;
   private final ContributionRepository contributions;
+  private final ContributionConfirmationService confirmation;
   private final FeeCalculator fees;
   private final PaystackClient paystack;
   private final PayerPhoneCipher phones;
@@ -29,11 +30,13 @@ public class ContributionService {
   public ContributionService(
       GoalRepository goals,
       ContributionRepository contributions,
+      ContributionConfirmationService confirmation,
       FeeCalculator fees,
       PaystackClient paystack,
       PayerPhoneCipher phones) {
     this.goals = goals;
     this.contributions = contributions;
+    this.confirmation = confirmation;
     this.fees = fees;
     this.paystack = paystack;
     this.phones = phones;
@@ -89,9 +92,7 @@ public class ContributionService {
       return;
     }
     if (result.success()) {
-      log.info(
-          "success callback for {}; the confirmation path posts the ledger",
-          result.providerReference());
+      confirmation.confirm(payment);
       return;
     }
     contributions.apply(payment.id(), ContributionEvent.PAYMENT_FAILED);
