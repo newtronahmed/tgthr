@@ -21,6 +21,10 @@ class ContributionStateMachineTest {
     assertTransition(
         ContributionState.INITIATED, ContributionEvent.PROMPT_REJECTED, ContributionState.FAILED);
     assertTransition(
+        ContributionState.INITIATED,
+        ContributionEvent.PAYMENT_SUCCEEDED,
+        ContributionState.CONFIRMED);
+    assertTransition(
         ContributionState.PENDING,
         ContributionEvent.PAYMENT_SUCCEEDED,
         ContributionState.CONFIRMED);
@@ -44,10 +48,6 @@ class ContributionStateMachineTest {
     assertThat(
             ContributionStateMachine.apply(
                 ContributionState.REFUNDED, ContributionEvent.PAYMENT_SUCCEEDED))
-        .isEmpty();
-    assertThat(
-            ContributionStateMachine.apply(
-                ContributionState.INITIATED, ContributionEvent.PAYMENT_SUCCEEDED))
         .isEmpty();
     assertThat(
             ContributionStateMachine.apply(

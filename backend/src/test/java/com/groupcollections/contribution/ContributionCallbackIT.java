@@ -168,6 +168,24 @@ class ContributionCallbackIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-018")
+  void successBeforePendingConfirmsAndPostsOnce() {
+    String slug = insertGoal("early-success", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    assertThat(created).isNotNull();
+    String contributionId = (String) created.get("id");
+    UUID id = UUID.fromString(contributionId);
+    long total = ((Number) created.get("totalPesewas")).longValue();
+
+    jdbc.update("update contributions set state = 'INITIATED' where id = ?", id);
+
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total)).isEqualTo(204);
+
+    assertConfirmedOnce(id);
+    assertThat(PAYSTACK.promptCount()).isEqualTo(1);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-016")
   void lateSuccessAfterFailureOrExpiryConfirmsOnceAndPosts() {
     String failedSlug = insertGoal("late-failed", "OPEN", null);

@@ -44,7 +44,7 @@ Criteria: AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-011, AC-CONTRIB-012, AC-CON
 
 ## Slice 3 (P1): Callbacks, state machine and ledger
 
-Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CONTRIB-016, INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004, INV-LEDGER-006, INV-STATE-001, INV-STATE-002, INV-STATE-003
+Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CONTRIB-016, AC-CONTRIB-018, INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004, INV-LEDGER-006, INV-STATE-001, INV-STATE-002, INV-STATE-003
 
 - [x] T040 Write `V2__ledger.sql`: ledger_entries, posting-set balance trigger, append-only triggers
 - [x] T041 Write the failing `ContributionStateMachineTest` for INV-STATE-001 and INV-STATE-003
@@ -65,15 +65,16 @@ Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CON
 - [x] T056 Write the failing integration test for INV-STATE-002: ledger entries exist only for CONFIRMED contributions
 - [x] T057 Implement the invariant check until T056 is green
 - [x] T058 Refactor the callback and posting path; keep the suite green
+- [x] T059 Write the failing integration test for AC-CONTRIB-018: a SUCCESS callback before PENDING confirms and posts once; then implement the INITIATED → CONFIRMED transition
 
 ## Slice 4 (P1): Timeout, status and receipt
 
 Criteria: AC-CONTRIB-008, AC-CONTRIB-013
 
-- [ ] T060 Write the failing integration test for AC-CONTRIB-008 with an injected clock and fake status lookup
+- [ ] T060 Write the failing integration test for AC-CONTRIB-008 with an injected clock (shared by create, acceptance and the timeout job) and fake status lookup
 - [ ] T061 Implement the timeout job with `FOR UPDATE SKIP LOCKED` until T060 is green
 - [ ] T062 Write the failing contract test for AC-CONTRIB-013: no receipt while PENDING, full receipt once CONFIRMED
-- [ ] T063 Implement the status and receipt response until T062 is green
+- [ ] T063 Implement the status and receipt response until T062 is green; write `confirmed_at` when a contribution is confirmed
 - [ ] T064 Refactor; keep the suite green
 
 ## Slice 5 (P2): Anonymous feed and retry
@@ -88,10 +89,11 @@ Criteria: AC-CONTRIB-009, AC-CONTRIB-010
 
 ## Hardening
 
-- [ ] T090 Failure-path tests for every row in the spec's failure table, including T007's new criteria
-- [ ] T091 Structured logs, metrics and alerts listed in the spec
-- [ ] T092 Rate limiting per IP and per MoMo number
+- [ ] T090 Failure-path tests for every row in the spec's failure table, including T007's new criteria; concurrency tests for idempotency and confirmation; goal-acceptance race; amount cap; malformed payload 4xx; append-only TRUNCATE/grants; UUID/randomness seams
+- [ ] T091 Structured logs with correlation IDs, metrics and alerts listed in the spec; late-success alert after commit; unknown-reference and amount-mismatch alerts; illegal transitions log the contribution id
+- [ ] T092 Rate limiting per IP and per MoMo number; remove dev credential defaults; redact phone numbers from DTO `toString`
 - [ ] T093 Run `make check`; remove every `@Disabled` marker for FEAT-001
 - [ ] T094 Update the spec status to Implemented
 - [ ] T095 Scaffold `web/` and implement the public goal, checkout and receipt pages after the backend slice is green
 - [ ] T096 Run the manual Paystack sandbox suite before the first live payment
+- [ ] T097 Provider hardening: bounded Paystack HTTP timeouts, callback currency and event whitelist, raw-byte signature verification, replay-window decision

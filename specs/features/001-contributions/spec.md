@@ -78,13 +78,14 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 | AC-CONTRIB-015 | P1 | Given a create request retried with the same Idempotency-Key, when it is received again, then the original contribution is returned and no second provider prompt is sent. | Integration |
 | AC-CONTRIB-016 | P1 | Given a contribution in EXPIRED or FAILED, when the partner sends a valid late SUCCESS callback or a poll returns SUCCESS, then the state becomes CONFIRMED, the ledger entries are posted exactly once, the goal total rises, and an alert is raised. | Integration |
 | AC-CONTRIB-017 | P1 | Given any allowed amount, when the platform fee is computed, then it equals 1.5% of the contribution rounded up to the nearest pesewa, is charged on top, and does not reduce the goal amount. | Unit |
+| AC-CONTRIB-018 | P1 | Given a contribution still INITIATED, when a valid SUCCESS callback arrives before the prompt was recorded as sent, then the contribution is confirmed, the posting set is posted exactly once, and no second prompt is sent. | Integration |
 
 ## Failure modes and edge cases
 
 | Situation | Expected behavior | Criterion |
 | --- | --- | --- |
 | Partner times out when we request the prompt | Contribution moves to FAILED; guest may retry | gap: needs a criterion |
-| Callback arrives before our PENDING commit | Handler waits or retries; never creates a second contribution | AC-CONTRIB-004 |
+| Callback arrives before our PENDING commit | Confirm from INITIATED and post once; the create path's later PROMPT_SENT is ignored, and never creates a second contribution | AC-CONTRIB-018 |
 | Callback for an unknown provider reference | Logged and alerted, no state change | gap: needs a criterion |
 | Callback amount differs from the contribution amount | Not applied; alert raised for review | gap: needs a criterion |
 | Guest double-taps Pay | Same contribution returned | AC-CONTRIB-015 |

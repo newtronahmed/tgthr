@@ -79,7 +79,8 @@ public class ContributionRepository {
     ContributionState current = currentState(id);
     Optional<ContributionTransition> transition = ContributionStateMachine.apply(current, event);
     if (transition.isEmpty()) {
-      log.warn("illegal contribution transition: event {} from state {}", event, current);
+      log.warn(
+          "illegal contribution transition for {}: event {} from state {}", id, event, current);
       return Optional.empty();
     }
     ContributionTransition legal = transition.get();
