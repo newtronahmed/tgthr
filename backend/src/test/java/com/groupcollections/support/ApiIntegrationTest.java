@@ -87,6 +87,10 @@ public abstract class ApiIntegrationTest {
         slug);
   }
 
+  protected String webhookUrl() {
+    return rest.getRootUri() + "/webhooks/momo";
+  }
+
   protected ResponseEntity<String> createContributionRaw(
       String slug, long amountPesewas, String momoNumber) {
     return rest.exchange(
@@ -112,7 +116,7 @@ public abstract class ApiIntegrationTest {
 
   private static FakePaystackServer startFakeServer() {
     try {
-      return new FakePaystackServer();
+      return new FakePaystackServer("test-secret");
     } catch (Exception failure) {
       throw new IllegalStateException("could not start the fake Paystack server", failure);
     }

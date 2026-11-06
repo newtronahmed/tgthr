@@ -20,4 +20,10 @@ class PaystackConfiguration {
             .build();
     return new PaystackHttpClient(restClient);
   }
+
+  @Bean
+  PaystackSignature paystackSignature(
+      @Value("${collections.payments.paystack.secret-key}") String secretKey) {
+    return new PaystackSignature(secretKey);
+  }
 }

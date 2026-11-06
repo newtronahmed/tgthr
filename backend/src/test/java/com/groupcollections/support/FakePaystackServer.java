@@ -8,11 +8,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * In-process stand-in for the Paystack charge API. Scenarios are selected deterministically by the
@@ -30,11 +39,14 @@ public final class FakePaystackServer implements AutoCloseable {
           "0240000004", "REQUEST_REJECTED");
 
   private final ObjectMapper mapper = new ObjectMapper();
+  private final HttpClient httpClient = HttpClient.newHttpClient();
+  private final String secret;
   private final List<String> chargeBodies = new CopyOnWriteArrayList<>();
   private final Map<String, String> scenarioByReference = new ConcurrentHashMap<>();
   private final HttpServer server;
 
-  public FakePaystackServer() throws IOException {
+  public FakePaystackServer(String secret) throws IOException {
+    this.secret = secret;
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext("/charge", this::handleCharge);
     server.createContext("/transaction/verify/", this::handleVerify);
@@ -58,6 +70,53 @@ public final class FakePaystackServer implements AutoCloseable {
 
   public List<String> chargeBodies() {
     return List.copyOf(chargeBodies);
+  }
+
+  public int sendSuccessCallback(String webhookUrl, String reference, long amount) {
+    return sendCallback(webhookUrl, "success", reference, amount, true);
+  }
+
+  public int sendFailedCallback(String webhookUrl, String reference, long amount) {
+    return sendCallback(webhookUrl, "failed", reference, amount, true);
+  }
+
+  public int sendCallbackWithBadSignature(
+      String webhookUrl, String reference, String outcome, long amount) {
+    return sendCallback(webhookUrl, outcome, reference, amount, false);
+  }
+
+  private int sendCallback(
+      String webhookUrl, String outcome, String reference, long amount, boolean validSignature) {
+    String event = "success".equals(outcome) ? "charge.success" : "charge.failed";
+    String body =
+        """
+        {"event":"%s","data":{"reference":"%s","status":"%s","amount":%d,"currency":"GHS","paid_at":"%s"}}
+        """
+            .formatted(event, reference, outcome, amount, Instant.now());
+    HttpRequest request =
+        HttpRequest.newBuilder(URI.create(webhookUrl))
+            .header("Content-Type", "application/json")
+            .header("x-paystack-signature", validSignature ? sign(body) : "not-a-signature")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+    try {
+      return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("interrupted while sending a fake callback", interrupted);
+    } catch (IOException failure) {
+      throw new IllegalStateException("could not send a fake callback", failure);
+    }
+  }
+
+  private String sign(String body) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA512");
+      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
+      return HexFormat.of().formatHex(mac.doFinal(body.getBytes(StandardCharsets.UTF_8)));
+    } catch (GeneralSecurityException failure) {
+      throw new IllegalStateException("could not sign the fake callback", failure);
+    }
   }
 
   @Override

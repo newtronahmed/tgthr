@@ -46,4 +46,4 @@ infra/                  docker-compose.yml for local PostgreSQL and Redis
 
 ## Status
 
-Backend scaffold. FEAT-001 is Ready and its plan and tasks are drafted. AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-003, AC-CONTRIB-011, AC-CONTRIB-012, AC-CONTRIB-014, AC-CONTRIB-015 and AC-CONTRIB-017 are implemented, as are INV-STATE-001 and INV-STATE-003 (creation and prompt, amount/acceptance rules, idempotency, phone-free public bodies, fees, balanced posting, transition table). 15 spec checks remain pending. `make check` passes with JDK 21 and the committed Gradle wrapper.
+Backend scaffold. FEAT-001 is Ready and its plan and tasks are drafted. AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-003, AC-CONTRIB-007, AC-CONTRIB-011, AC-CONTRIB-012, AC-CONTRIB-014, AC-CONTRIB-015 and AC-CONTRIB-017 are implemented, as are INV-STATE-001 and INV-STATE-003 (creation and prompt, amount/acceptance rules, idempotency, signed callbacks, phone-free public bodies, fees, balanced posting, transition table). 14 spec checks remain pending. `make check` passes with JDK 21 and the committed Gradle wrapper.

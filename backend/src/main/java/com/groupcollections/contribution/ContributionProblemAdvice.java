@@ -18,6 +18,12 @@ public class ContributionProblemAdvice {
     return problem(HttpStatus.NOT_FOUND, "Goal not found", "GOAL_NOT_FOUND", failure.getMessage());
   }
 
+  @ExceptionHandler(InvalidSignatureException.class)
+  ProblemDetail invalidSignature(InvalidSignatureException failure) {
+    return problem(
+        HttpStatus.UNAUTHORIZED, "Invalid signature", "INVALID_SIGNATURE", failure.getMessage());
+  }
+
   @ExceptionHandler(GoalNotAcceptingException.class)
   ProblemDetail goalNotAccepting(GoalNotAcceptingException failure) {
     return problem(
