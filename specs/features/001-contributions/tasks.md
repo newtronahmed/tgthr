@@ -10,7 +10,7 @@ Order is test-first: for each criterion, the failing test comes before the code.
 - [x] T004 Update `specs/api/openapi.yaml`: Paystack `x-paystack-signature` header and callback payload, keeping `POST /webhooks/momo`
 - [x] T005 Add configuration keys: `PAYSTACK_SECRET_KEY`, `PAYSTACK_BASE_URL`, `PAYER_PHONE_KEY`, `PLATFORM_FEE_BPS=150`, `PAYSTACK_FEE_BPS=195`, `CONTRIBUTION_TIMEOUT=PT5M`; no secrets in the repository
 - [ ] T006 Build the in-process `FakePaystackServer` with success, declined, timeout, duplicate, late, bad signature, wrong amount, request rejected and status lookup scenarios
-- [ ] T007 Add the three missing failure-table criteria (prompt request failure, unknown provider reference, amount mismatch) before implementing those paths
+- [x] T007 Add the three missing failure-table criteria (prompt request failure, unknown provider reference, amount mismatch) before implementing those paths
 - [ ] T008 Update the implementation plan and spec with any decision changed during setup
 
 ## Slice 1 (P1): Fees and amount rules
@@ -71,8 +71,8 @@ Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CON
 
 Criteria: AC-CONTRIB-008, AC-CONTRIB-013
 
-- [ ] T060 Write the failing integration test for AC-CONTRIB-008 with an injected clock (shared by create, acceptance and the timeout job) and fake status lookup
-- [ ] T061 Implement the timeout job with `FOR UPDATE SKIP LOCKED` until T060 is green
+- [x] T060 Write the failing integration test for AC-CONTRIB-008 with an injected clock (shared by create, acceptance and the timeout job) and fake status lookup
+- [x] T061 Implement the timeout job with `FOR UPDATE SKIP LOCKED` until T060 is green
 - [ ] T062 Write the failing contract test for AC-CONTRIB-013: no receipt while PENDING, full receipt once CONFIRMED
 - [ ] T063 Implement the status and receipt response until T062 is green; write `confirmed_at` when a contribution is confirmed
 - [ ] T064 Refactor; keep the suite green

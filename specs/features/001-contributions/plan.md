@@ -112,6 +112,9 @@ The automated tests use an in-process `FakePaystackServer` built on the JDK `Htt
 | AC-CONTRIB-016 | Integration | `ContributionCallbackIT` | Late SUCCESS after EXPIRED/FAILED confirms once and alerts |
 | AC-CONTRIB-017 | Unit | `FeeCalculatorTest` | 1.5% rounded up, charged on top, goal amount unchanged |
 | AC-CONTRIB-018 | Integration | `ContributionCallbackIT` | SUCCESS before PENDING confirms once; one posting set |
+| AC-CONTRIB-019 | Integration | `ContributionApiIT` | Fake rejection/timeout → FAILED, no ledger |
+| AC-CONTRIB-020 | Integration | `ContributionCallbackIT` | Unknown reference → alert, no state change |
+| AC-CONTRIB-021 | Integration | `ContributionCallbackIT` | Wrong amount → alert, no state change |
 | INV-LEDGER-001 | Integration | `LedgerPostingIT` | Every posting set nets to zero; deferred trigger catches violations |
 | INV-LEDGER-002 | Integration | `LedgerPostingIT` | UPDATE/DELETE on ledger entries rejected |
 | INV-LEDGER-003 | Integration | `LedgerPostingIT` | Deferred to FEAT-002 (payout); existing disabled test stays |

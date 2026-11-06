@@ -79,15 +79,18 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 | AC-CONTRIB-016 | P1 | Given a contribution in EXPIRED or FAILED, when the partner sends a valid late SUCCESS callback or a poll returns SUCCESS, then the state becomes CONFIRMED, the ledger entries are posted exactly once, the goal total rises, and an alert is raised. | Integration |
 | AC-CONTRIB-017 | P1 | Given any allowed amount, when the platform fee is computed, then it equals 1.5% of the contribution rounded up to the nearest pesewa, is charged on top, and does not reduce the goal amount. | Unit |
 | AC-CONTRIB-018 | P1 | Given a contribution still INITIATED, when a valid SUCCESS callback arrives before the prompt was recorded as sent, then the contribution is confirmed, the posting set is posted exactly once, and no second prompt is sent. | Integration |
+| AC-CONTRIB-019 | P1 | Given a prompt request that the partner rejects or times out, when the create request completes, then the contribution is FAILED, no ledger entries exist, and the response carries the FAILED state so the guest may retry. | Integration |
+| AC-CONTRIB-020 | P1 | Given a signed callback for an unknown provider reference, when it arrives, then no contribution or ledger row changes, the event is logged, and an alert is raised. | Integration |
+| AC-CONTRIB-021 | P1 | Given a signed callback whose amount differs from the contribution total, when it arrives, then the state and ledger are unchanged and an alert is raised for review. | Integration |
 
 ## Failure modes and edge cases
 
 | Situation | Expected behavior | Criterion |
 | --- | --- | --- |
-| Partner times out when we request the prompt | Contribution moves to FAILED; guest may retry | gap: needs a criterion |
+| Partner times out when we request the prompt | Contribution moves to FAILED; guest may retry | AC-CONTRIB-019 |
 | Callback arrives before our PENDING commit | Confirm from INITIATED and post once; the create path's later PROMPT_SENT is ignored, and never creates a second contribution | AC-CONTRIB-018 |
-| Callback for an unknown provider reference | Logged and alerted, no state change | gap: needs a criterion |
-| Callback amount differs from the contribution amount | Not applied; alert raised for review | gap: needs a criterion |
+| Callback for an unknown provider reference | Logged and alerted, no state change | AC-CONTRIB-020 |
+| Callback amount differs from the contribution amount | Not applied; alert raised for review | AC-CONTRIB-021 |
 | Guest double-taps Pay | Same contribution returned | AC-CONTRIB-015 |
 | Guest closes the page after approving | Callback still confirms; receipt reachable by contribution id | AC-CONTRIB-013 |
 | Late SUCCESS after the contribution was marked EXPIRED or FAILED | Confirm with an alert; never drop a confirmed payment | AC-CONTRIB-016 |

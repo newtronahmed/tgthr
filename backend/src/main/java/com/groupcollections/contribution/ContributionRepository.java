@@ -1,6 +1,8 @@
 package com.groupcollections.contribution;
 
 import com.groupcollections.ledger.Money;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +38,21 @@ public class ContributionRepository {
             processing + platform,
             resultSet.getLong("total_pesewas"));
       };
+
+  private static final String PAYMENT_COLUMNS =
+      """
+      select id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas, total_pesewas
+      from contributions
+      """;
+
+  private static final RowMapper<ContributionPayment> PAYMENT_MAPPER =
+      (resultSet, rowNumber) ->
+          new ContributionPayment(
+              resultSet.getObject("id", UUID.class),
+              Money.ofPesewas(resultSet.getLong("amount_pesewas")),
+              Money.ofPesewas(resultSet.getLong("processing_fee_pesewas")),
+              Money.ofPesewas(resultSet.getLong("platform_fee_pesewas")),
+              Money.ofPesewas(resultSet.getLong("total_pesewas")));
 
   private final JdbcTemplate jdbc;
 
@@ -99,20 +116,32 @@ public class ContributionRepository {
   public Optional<ContributionPayment> findByProviderReference(String providerReference) {
     List<ContributionPayment> rows =
         jdbc.query(
-            """
-            select id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas, total_pesewas
-            from contributions
-            where provider_reference = ?
-            """,
-            (resultSet, rowNumber) ->
-                new ContributionPayment(
-                    resultSet.getObject("id", UUID.class),
-                    Money.ofPesewas(resultSet.getLong("amount_pesewas")),
-                    Money.ofPesewas(resultSet.getLong("processing_fee_pesewas")),
-                    Money.ofPesewas(resultSet.getLong("platform_fee_pesewas")),
-                    Money.ofPesewas(resultSet.getLong("total_pesewas"))),
-            providerReference);
+            PAYMENT_COLUMNS + "where provider_reference = ?", PAYMENT_MAPPER, providerReference);
     return rows.stream().findFirst();
+  }
+
+  public Optional<ContributionPayment> findPayment(UUID id) {
+    List<ContributionPayment> rows =
+        jdbc.query(PAYMENT_COLUMNS + "where id = ?", PAYMENT_MAPPER, id);
+    return rows.stream().findFirst();
+  }
+
+  /** Locks PENDING contributions past the cutoff; concurrent instances skip locked rows. */
+  public List<ContributionPending> lockPendingDue(Instant cutoff, int limit) {
+    return jdbc.query(
+        """
+        select id, provider_reference
+        from contributions
+        where state = 'PENDING' and updated_at <= ?
+        order by updated_at
+        limit ?
+        for update skip locked
+        """,
+        (resultSet, rowNumber) ->
+            new ContributionPending(
+                resultSet.getObject("id", UUID.class), resultSet.getString("provider_reference")),
+        Timestamp.from(cutoff),
+        limit);
   }
 
   public Optional<ContributionStatus> findByIdempotencyKey(String idempotencyKey) {

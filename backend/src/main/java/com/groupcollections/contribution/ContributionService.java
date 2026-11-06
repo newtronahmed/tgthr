@@ -7,6 +7,7 @@ import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.Money;
 import com.groupcollections.payments.PaymentResult;
 import com.groupcollections.payments.PaystackClient;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +27,7 @@ public class ContributionService {
   private final FeeCalculator fees;
   private final PaystackClient paystack;
   private final PayerPhoneCipher phones;
+  private final Clock clock;
 
   public ContributionService(
       GoalRepository goals,
@@ -33,13 +35,15 @@ public class ContributionService {
       ContributionConfirmationService confirmation,
       FeeCalculator fees,
       PaystackClient paystack,
-      PayerPhoneCipher phones) {
+      PayerPhoneCipher phones,
+      Clock clock) {
     this.goals = goals;
     this.contributions = contributions;
     this.confirmation = confirmation;
     this.fees = fees;
     this.paystack = paystack;
     this.phones = phones;
+    this.clock = clock;
   }
 
   public ContributionStatus create(
@@ -50,7 +54,7 @@ public class ContributionService {
     }
 
     Goal goal = goals.findBySlug(slug).orElseThrow(() -> new GoalNotFoundException(slug));
-    if (!goal.acceptsContributions(Instant.now())) {
+    if (!goal.acceptsContributions(Instant.now(clock))) {
       throw new GoalNotAcceptingException(slug);
     }
     Money amount = Money.ofPesewas(request.amountPesewas());

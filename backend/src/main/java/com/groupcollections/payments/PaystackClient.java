@@ -9,4 +9,7 @@ public interface PaystackClient {
    * Requests the mobile money prompt. Returns true when the partner accepted the charge request.
    */
   boolean initiateCharge(UUID reference, long totalPesewas, String momoNumber, Network network);
+
+  /** Looks up the final status of a charge; UNKNOWN means the lookup failed and must be retried. */
+  PaymentVerification verify(String providerReference);
 }

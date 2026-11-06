@@ -111,4 +111,25 @@ class ContributionCriteriaTest {
   void lateSuccessAfterExpiryOrFailureConfirmsWithAlert() {
     fail("not implemented");
   }
+
+  @Test
+  @Disabled("pending: write the failing test first")
+  @Criterion("AC-CONTRIB-019")
+  void promptRequestRejectionOrTimeoutMarksContributionFailed() {
+    fail("not implemented");
+  }
+
+  @Test
+  @Disabled("pending: write the failing test first")
+  @Criterion("AC-CONTRIB-020")
+  void unknownProviderReferenceIsAlertedWithoutChange() {
+    fail("not implemented");
+  }
+
+  @Test
+  @Disabled("pending: write the failing test first")
+  @Criterion("AC-CONTRIB-021")
+  void callbackAmountMismatchIsAlertedWithoutChange() {
+    fail("not implemented");
+  }
 }
