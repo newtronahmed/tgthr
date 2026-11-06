@@ -60,11 +60,11 @@ Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CON
 - [x] T051 Enforce the unique posting set until T050 is green
 - [x] T052 Write the failing integration test for AC-CONTRIB-016: late SUCCESS after EXPIRED/FAILED confirms once and alerts
 - [x] T053 Implement the late-success transitions and alert until T052 is green
-- [ ] T054 Write the failing `LedgerPostingIT` for INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004 and INV-LEDGER-006
-- [ ] T055 Implement the remaining ledger guards and derived-balance queries until T054 is green
-- [ ] T056 Write the failing integration test for INV-STATE-002: ledger entries exist only for CONFIRMED contributions
-- [ ] T057 Implement the invariant check until T056 is green
-- [ ] T058 Refactor the callback and posting path; keep the suite green
+- [x] T054 Write the failing `LedgerPostingIT` for INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004 and INV-LEDGER-006
+- [x] T055 Implement the remaining ledger guards and derived-balance queries until T054 is green
+- [x] T056 Write the failing integration test for INV-STATE-002: ledger entries exist only for CONFIRMED contributions
+- [x] T057 Implement the invariant check until T056 is green
+- [x] T058 Refactor the callback and posting path; keep the suite green
 
 ## Slice 4 (P1): Timeout, status and receipt
 
