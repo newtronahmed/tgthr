@@ -55,6 +55,39 @@ class ContributionApiIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-009")
+  void retryAfterTerminalStateCreatesANewContribution() {
+    String slug = insertGoal("retry", "OPEN", null);
+
+    ResponseEntity<Map<String, Object>> failed = createContribution(slug, 5_000, "0240000002");
+    assertThat(failed.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(failed.getBody()).isNotNull();
+    assertThat(failed.getBody().get("state")).isEqualTo("FAILED");
+    String failedId = (String) failed.getBody().get("id");
+
+    ResponseEntity<Map<String, Object>> retried = createContribution(slug, 5_000, "0240000001");
+    assertThat(retried.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(retried.getBody()).isNotNull();
+    assertThat(retried.getBody().get("state")).isEqualTo("PENDING");
+    String retriedId = (String) retried.getBody().get("id");
+    assertThat(retriedId).isNotEqualTo(failedId);
+
+    assertThat(
+            jdbc.queryForObject(
+                "select state from contributions where id = ?",
+                String.class,
+                UUID.fromString(failedId)))
+        .isEqualTo("FAILED");
+    assertThat(
+            jdbc.queryForObject(
+                "select state from contributions where id = ?",
+                String.class,
+                UUID.fromString(retriedId)))
+        .isEqualTo("PENDING");
+    assertThat(PAYSTACK.promptCount()).isEqualTo(2);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-019")
   void rejectedPromptRequestMarksTheContributionFailed() {
     String slug = insertGoal("prompt-rejected", "OPEN", null);
