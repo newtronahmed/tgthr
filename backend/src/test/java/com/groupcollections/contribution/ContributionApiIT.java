@@ -8,6 +8,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -78,6 +82,59 @@ class ContributionApiIT extends ApiIntegrationTest {
             "select count(*) from contributions where goal_id = ?", Integer.class, goalId);
     assertThat(stored).isZero();
     assertThat(PAYSTACK.promptCount()).isZero();
+  }
+
+  @Test
+  void invalidRequestsReturnProblemDetails() {
+    String slug = insertGoal("validation", "OPEN", null);
+    Map<String, Object> body =
+        Map.of("amountPesewas", 5_000, "momoNumber", "0240000001", "network", "MTN");
+
+    HttpHeaders shortKey = new HttpHeaders();
+    shortKey.setContentType(MediaType.APPLICATION_JSON);
+    shortKey.set("Idempotency-Key", "short");
+    ResponseEntity<Map<String, Object>> shortKeyResponse =
+        rest.exchange(
+            "/public/goals/{slug}/contributions",
+            HttpMethod.POST,
+            new HttpEntity<>(body, shortKey),
+            new ParameterizedTypeReference<>() {},
+            slug);
+    assertThat(shortKeyResponse.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(shortKeyResponse.getBody()).containsEntry("code", "INVALID_REQUEST");
+
+    HttpHeaders missingKey = new HttpHeaders();
+    missingKey.setContentType(MediaType.APPLICATION_JSON);
+    ResponseEntity<Map<String, Object>> missingKeyResponse =
+        rest.exchange(
+            "/public/goals/{slug}/contributions",
+            HttpMethod.POST,
+            new HttpEntity<>(body, missingKey),
+            new ParameterizedTypeReference<>() {},
+            slug);
+    assertThat(missingKeyResponse.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(missingKeyResponse.getBody()).containsEntry("code", "INVALID_REQUEST");
+
+    HttpHeaders malformedHeaders = new HttpHeaders();
+    malformedHeaders.setContentType(MediaType.APPLICATION_JSON);
+    malformedHeaders.set("Idempotency-Key", "idem-" + UUID.randomUUID());
+    ResponseEntity<Map<String, Object>> malformedResponse =
+        rest.exchange(
+            "/public/goals/{slug}/contributions",
+            HttpMethod.POST,
+            new HttpEntity<>("{\"amountPesewas\":", malformedHeaders),
+            new ParameterizedTypeReference<>() {},
+            slug);
+    assertThat(malformedResponse.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(malformedResponse.getBody()).containsEntry("code", "INVALID_REQUEST");
+
+    assertThat(PAYSTACK.promptCount()).isZero();
+    Integer stored =
+        jdbc.queryForObject(
+            "select count(*) from contributions where goal_id = (select id from goals where slug = ?)",
+            Integer.class,
+            slug);
+    assertThat(stored).isZero();
   }
 
   @Test

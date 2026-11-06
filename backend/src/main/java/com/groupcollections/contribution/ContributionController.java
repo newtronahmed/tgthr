@@ -22,8 +22,11 @@ public class ContributionController {
   @PostMapping("/{slug}/contributions")
   public ResponseEntity<ContributionStatus> create(
       @PathVariable String slug,
-      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @Valid @RequestBody CreateContributionRequest request) {
+    if (idempotencyKey == null || idempotencyKey.length() < 8 || idempotencyKey.length() > 64) {
+      throw new InvalidRequestException("Idempotency-Key must be 8 to 64 characters");
+    }
     return ResponseEntity.accepted().body(contributions.create(slug, idempotencyKey, request));
   }
 }

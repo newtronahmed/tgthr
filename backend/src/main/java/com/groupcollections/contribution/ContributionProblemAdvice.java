@@ -5,6 +5,7 @@ import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,6 +41,17 @@ public class ContributionProblemAdvice {
         "Amount not allowed",
         failure.code(),
         failure.getMessage());
+  }
+
+  @ExceptionHandler({InvalidRequestException.class, HttpMessageNotReadableException.class})
+  ProblemDetail requestInvalid(Exception failure) {
+    return problem(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "Invalid request",
+        "INVALID_REQUEST",
+        failure instanceof InvalidRequestException
+            ? failure.getMessage()
+            : "malformed request body");
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
