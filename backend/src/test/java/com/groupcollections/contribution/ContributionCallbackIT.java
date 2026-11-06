@@ -127,6 +127,47 @@ class ContributionCallbackIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("INV-STATE-002")
+  void ledgerEntriesExistOnlyForConfirmedContributions() {
+    String slug = insertGoal("inv-ledger-state", "OPEN", null);
+
+    Map<String, Object> pending = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID pendingId = UUID.fromString((String) pending.get("id"));
+    assertThat(ledgerCount(pendingId)).isZero();
+
+    Map<String, Object> failed = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID failedId = UUID.fromString((String) failed.get("id"));
+    long failedTotal = ((Number) failed.get("totalPesewas")).longValue();
+    assertThat(PAYSTACK.sendFailedCallback(webhookUrl(), failedId.toString(), failedTotal))
+        .isEqualTo(204);
+    assertThat(ledgerCount(failedId)).isZero();
+
+    Map<String, Object> confirmed = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID confirmedId = UUID.fromString((String) confirmed.get("id"));
+    long confirmedTotal = ((Number) confirmed.get("totalPesewas")).longValue();
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), confirmedId.toString(), confirmedTotal))
+        .isEqualTo(204);
+    assertThat(ledgerCount(confirmedId)).isEqualTo(4);
+
+    Integer violations =
+        jdbc.queryForObject(
+            """
+            select count(*) from contributions c
+            where c.state not in ('CONFIRMED', 'REFUNDED')
+              and exists (select 1 from ledger_entries le where le.contribution_id = c.id)
+            """,
+            Integer.class);
+    assertThat(violations).isZero();
+  }
+
+  private Integer ledgerCount(UUID contributionId) {
+    return jdbc.queryForObject(
+        "select count(*) from ledger_entries where contribution_id = ?",
+        Integer.class,
+        contributionId);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-016")
   void lateSuccessAfterFailureOrExpiryConfirmsOnceAndPosts() {
     String failedSlug = insertGoal("late-failed", "OPEN", null);

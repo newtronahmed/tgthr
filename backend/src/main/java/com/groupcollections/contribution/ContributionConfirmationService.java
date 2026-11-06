@@ -30,8 +30,7 @@ public class ContributionConfirmationService {
     if (transition == null) {
       return;
     }
-    if (transition.from() == ContributionState.FAILED
-        || transition.from() == ContributionState.EXPIRED) {
+    if (isLateSuccess(transition.from())) {
       log.error(
           "ALERT: late SUCCESS confirmed contribution {} from {}", payment.id(), transition.from());
     }
@@ -39,5 +38,9 @@ public class ContributionConfirmationService {
         ContributionPosting.confirmation(
             payment.id(), payment.amount(), payment.processingFee(), payment.platformFee());
     ledger.post(payment.id(), posting);
+  }
+
+  private static boolean isLateSuccess(ContributionState previous) {
+    return previous == ContributionState.FAILED || previous == ContributionState.EXPIRED;
   }
 }
