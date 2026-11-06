@@ -47,8 +47,8 @@ Criteria: AC-CONTRIB-001, AC-CONTRIB-002, AC-CONTRIB-011, AC-CONTRIB-012, AC-CON
 Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CONTRIB-016, INV-LEDGER-001, INV-LEDGER-002, INV-LEDGER-004, INV-LEDGER-006, INV-STATE-001, INV-STATE-002, INV-STATE-003
 
 - [x] T040 Write `V2__ledger.sql`: ledger_entries, posting-set balance trigger, append-only triggers
-- [ ] T041 Write the failing `ContributionStateMachineTest` for INV-STATE-001 and INV-STATE-003
-- [ ] T042 Implement the transition table and history append until T041 is green
+- [x] T041 Write the failing `ContributionStateMachineTest` for INV-STATE-001 and INV-STATE-003
+- [x] T042 Implement the transition table and history append until T041 is green
 - [ ] T043 Add duplicate, declined and bad-signature scenarios to the fake server
 - [ ] T044 Write the failing integration test for AC-CONTRIB-007: invalid signature returns 401 and changes nothing
 - [ ] T045 Implement Paystack signature verification until T044 is green

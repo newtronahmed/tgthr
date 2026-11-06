@@ -3,6 +3,8 @@ package com.groupcollections.contribution;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -10,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class ContributionRepository {
+
+  private static final Logger log = LoggerFactory.getLogger(ContributionRepository.class);
 
   private static final String STATUS_COLUMNS =
       """
@@ -70,13 +74,19 @@ public class ContributionRepository {
   }
 
   @Transactional
-  public void markPending(UUID id) {
-    transition(id, ContributionState.INITIATED, ContributionState.PENDING, "PROMPT_SENT");
-  }
-
-  @Transactional
-  public void markFailed(UUID id) {
-    transition(id, ContributionState.INITIATED, ContributionState.FAILED, "PROMPT_REJECTED");
+  public void apply(UUID id, ContributionEvent event) {
+    ContributionState current = currentState(id);
+    Optional<ContributionTransition> transition = ContributionStateMachine.apply(current, event);
+    if (transition.isEmpty()) {
+      log.warn("illegal contribution transition: event {} from state {}", event, current);
+      return;
+    }
+    ContributionTransition legal = transition.get();
+    jdbc.update(
+        "update contributions set state = ?, updated_at = now() where id = ?",
+        legal.to().name(),
+        id);
+    appendHistory(id, legal.from(), legal.to(), legal.event().name());
   }
 
   public ContributionStatus status(UUID id) {
@@ -89,10 +99,11 @@ public class ContributionRepository {
     return rows.stream().findFirst();
   }
 
-  private void transition(UUID id, ContributionState from, ContributionState to, String event) {
-    jdbc.update(
-        "update contributions set state = ?, updated_at = now() where id = ?", to.name(), id);
-    appendHistory(id, from, to, event);
+  private ContributionState currentState(UUID id) {
+    String state =
+        jdbc.queryForObject(
+            "select state from contributions where id = ? for update", String.class, id);
+    return ContributionState.valueOf(state);
   }
 
   private void appendHistory(

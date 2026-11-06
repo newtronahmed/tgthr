@@ -60,9 +60,9 @@ public class ContributionService {
         paystack.initiateCharge(
             id, breakdown.total().pesewas(), request.momoNumber(), request.network());
     if (accepted) {
-      contributions.markPending(id);
+      contributions.apply(id, ContributionEvent.PROMPT_SENT);
     } else {
-      contributions.markFailed(id);
+      contributions.apply(id, ContributionEvent.PROMPT_REJECTED);
     }
     return contributions.status(id);
   }
