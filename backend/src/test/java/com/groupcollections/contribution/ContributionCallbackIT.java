@@ -44,4 +44,37 @@ class ContributionCallbackIT extends ApiIntegrationTest {
             "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
     assertThat(ledgerEntries).isZero();
   }
+
+  @Test
+  @Criterion("AC-CONTRIB-006")
+  void failedCallbackMarksTheContributionFailedAndWritesNoLedgerEntries() {
+    String slug = insertGoal("failed", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    assertThat(created).isNotNull();
+    String contributionId = (String) created.get("id");
+    long total = ((Number) created.get("totalPesewas")).longValue();
+
+    int status = PAYSTACK.sendFailedCallback(webhookUrl(), contributionId, total);
+
+    assertThat(status).isEqualTo(204);
+    UUID id = UUID.fromString(contributionId);
+    String state =
+        jdbc.queryForObject("select state from contributions where id = ?", String.class, id);
+    assertThat(state).isEqualTo("FAILED");
+
+    Integer ledgerEntries =
+        jdbc.queryForObject(
+            "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
+    assertThat(ledgerEntries).isZero();
+
+    Integer confirmedEvents =
+        jdbc.queryForObject(
+            """
+            select count(*) from contribution_events
+            where contribution_id = ? and to_state = 'CONFIRMED'
+            """,
+            Integer.class,
+            id);
+    assertThat(confirmedEvents).isZero();
+  }
 }

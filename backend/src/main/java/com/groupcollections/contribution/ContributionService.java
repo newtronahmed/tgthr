@@ -5,15 +5,20 @@ import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
 import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.Money;
+import com.groupcollections.payments.PaymentResult;
 import com.groupcollections.payments.PaystackClient;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ContributionService {
+
+  private static final Logger log = LoggerFactory.getLogger(ContributionService.class);
 
   private final GoalRepository goals;
   private final ContributionRepository contributions;
@@ -65,5 +70,30 @@ public class ContributionService {
       contributions.apply(id, ContributionEvent.PROMPT_REJECTED);
     }
     return contributions.status(id);
+  }
+
+  public void handle(PaymentResult result) {
+    Optional<ContributionPayment> found =
+        contributions.findByProviderReference(result.providerReference());
+    if (found.isEmpty()) {
+      log.warn("callback for unknown provider reference {}", result.providerReference());
+      return;
+    }
+    ContributionPayment payment = found.get();
+    if (payment.total().pesewas() != result.amountPesewas()) {
+      log.warn(
+          "callback amount mismatch for {}: expected {}, got {}",
+          result.providerReference(),
+          payment.total().pesewas(),
+          result.amountPesewas());
+      return;
+    }
+    if (result.success()) {
+      log.info(
+          "success callback for {}; the confirmation path posts the ledger",
+          result.providerReference());
+      return;
+    }
+    contributions.apply(payment.id(), ContributionEvent.PAYMENT_FAILED);
   }
 }

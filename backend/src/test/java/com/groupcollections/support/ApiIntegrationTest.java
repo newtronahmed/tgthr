@@ -1,5 +1,6 @@
 package com.groupcollections.support;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -28,7 +29,8 @@ public abstract class ApiIntegrationTest {
 
   @ServiceConnection
   protected static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
+      new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"))
+          .withStartupTimeout(Duration.ofMinutes(5));
 
   static {
     POSTGRES.start();

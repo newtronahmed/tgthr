@@ -52,8 +52,8 @@ Criteria: AC-CONTRIB-004, AC-CONTRIB-005, AC-CONTRIB-006, AC-CONTRIB-007, AC-CON
 - [x] T043 Add duplicate, declined and bad-signature scenarios to the fake server
 - [x] T044 Write the failing integration test for AC-CONTRIB-007: invalid signature returns 401 and changes nothing
 - [x] T045 Implement Paystack signature verification until T044 is green
-- [ ] T046 Write the failing integration test for AC-CONTRIB-006: FAILED callback leaves the ledger empty
-- [ ] T047 Implement the FAILED path until T046 is green
+- [x] T046 Write the failing integration test for AC-CONTRIB-006: FAILED callback leaves the ledger empty
+- [x] T047 Implement the FAILED path until T046 is green
 - [ ] T048 Write the failing integration test for AC-CONTRIB-005: SUCCESS confirms and posts balanced entries in one transaction
 - [ ] T049 Implement the posting engine and confirmation transaction until T048 is green
 - [ ] T050 Write the failing integration test for AC-CONTRIB-004: duplicate SUCCESS posts once

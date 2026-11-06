@@ -1,5 +1,6 @@
 package com.groupcollections.contribution;
 
+import com.groupcollections.ledger.Money;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -91,6 +92,18 @@ public class ContributionRepository {
 
   public ContributionStatus status(UUID id) {
     return jdbc.queryForObject(STATUS_COLUMNS + "where id = ?", STATUS_MAPPER, id);
+  }
+
+  public Optional<ContributionPayment> findByProviderReference(String providerReference) {
+    List<ContributionPayment> rows =
+        jdbc.query(
+            "select id, total_pesewas from contributions where provider_reference = ?",
+            (resultSet, rowNumber) ->
+                new ContributionPayment(
+                    resultSet.getObject("id", UUID.class),
+                    Money.ofPesewas(resultSet.getLong("total_pesewas"))),
+            providerReference);
+    return rows.stream().findFirst();
   }
 
   public Optional<ContributionStatus> findByIdempotencyKey(String idempotencyKey) {
