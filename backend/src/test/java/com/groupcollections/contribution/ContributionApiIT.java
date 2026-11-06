@@ -55,6 +55,44 @@ class ContributionApiIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-CONTRIB-019")
+  void rejectedPromptRequestMarksTheContributionFailed() {
+    String slug = insertGoal("prompt-rejected", "OPEN", null);
+
+    ResponseEntity<Map<String, Object>> response = createContribution(slug, 5_000, "0240000004");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().get("state")).isEqualTo("FAILED");
+    UUID id = UUID.fromString((String) response.getBody().get("id"));
+    Integer ledger =
+        jdbc.queryForObject(
+            "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
+    assertThat(ledger).isZero();
+    Integer rejectedEvents =
+        jdbc.queryForObject(
+            """
+            select count(*) from contribution_events
+            where contribution_id = ? and to_state = 'FAILED'
+            """,
+            Integer.class,
+            id);
+    assertThat(rejectedEvents).isEqualTo(1);
+  }
+
+  @Test
+  void contributionsAboveTheMaximumAreRejected() {
+    String slug = insertGoal("maximum", "OPEN", null);
+
+    ResponseEntity<Map<String, Object>> response =
+        createContribution(slug, 10_000_001, "0240000001");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(response.getBody()).containsEntry("code", "INVALID_REQUEST");
+    assertThat(PAYSTACK.promptCount()).isZero();
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-002")
   void fixedGoalRejectsADifferentAmount() {
     UUID goalId = UUID.randomUUID();

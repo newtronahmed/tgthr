@@ -78,3 +78,10 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 
 - Remaining should-fix: T090 (reconciliation, starvation, stale INITIATED, concurrency), T091 (structured events/metrics), T092 (rate limits, secrets), T097 (timeouts, verify amount/currency, raw bytes, replay decision).
 - CODEOWNER review for `ledger/` and `payments/` is still required before release; AI review does not replace it.
+
+## 2026-11-06 — hardening T090/T091
+
+- Verdict: pass with follow-ups (hardening partially closed).
+- Added: AC-CONTRIB-019 active test (prompt rejection → FAILED); concurrency tests for same-key creates and duplicate SUCCESS callbacks; amount cap (GHS 100,000) in spec/OpenAPI/validation; malformed signed webhook → 422 `INVALID_WEBHOOK`; TRUNCATE guards on both append-only tables; bootstrap `X-Correlation-Id` filter; key=value structured events; Micrometer counters for create/prompt/callback/confirm/timeout.
+- Split remaining should-fix into **T097** (provider timeouts, currency/event whitelist, raw-byte signature, replay decision) and **T098** (goal-acceptance lock, UUID/randomness seams, production grants, prompt-timeout coverage, reconciliation and alerts for stuck/starved PENDING and stale INITIATED).
+- Traceability: 27 active / 3 pending (AC-009 retry, AC-010 feed, INV-LEDGER-003 payout scope).

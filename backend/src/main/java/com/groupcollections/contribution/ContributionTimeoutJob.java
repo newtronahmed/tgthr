@@ -1,6 +1,7 @@
 package com.groupcollections.contribution;
 
 import com.groupcollections.payments.PaystackClient;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,18 +27,21 @@ public class ContributionTimeoutJob {
   private final PaystackClient paystack;
   private final Clock clock;
   private final Duration timeout;
+  private final MeterRegistry meters;
 
   public ContributionTimeoutJob(
       ContributionRepository contributions,
       ContributionConfirmationService confirmation,
       PaystackClient paystack,
       Clock clock,
-      @Value("${collections.contribution.timeout}") Duration timeout) {
+      @Value("${collections.contribution.timeout}") Duration timeout,
+      MeterRegistry meters) {
     this.contributions = contributions;
     this.confirmation = confirmation;
     this.paystack = paystack;
     this.clock = clock;
     this.timeout = timeout;
+    this.meters = meters;
   }
 
   @Scheduled(fixedDelay = 60_000)
@@ -59,18 +63,32 @@ public class ContributionTimeoutJob {
 
   private void resolve(ContributionPending pending) {
     switch (paystack.verify(pending.providerReference())) {
-      case PAID ->
-          contributions
-              .findPayment(pending.id())
-              .ifPresentOrElse(
-                  confirmation::confirm,
-                  () -> log.warn("pending contribution {} disappeared", pending.id()));
-      case FAILED -> contributions.apply(pending.id(), ContributionEvent.PAYMENT_FAILED);
-      case NO_PAYMENT -> contributions.apply(pending.id(), ContributionEvent.PAYMENT_TIMED_OUT);
-      case UNKNOWN ->
-          log.warn(
-              "could not verify contribution {}; leaving it pending for the next run",
-              pending.id());
+      case PAID -> {
+        contributions
+            .findPayment(pending.id())
+            .ifPresentOrElse(
+                confirmation::confirm,
+                () -> log.warn("pending contribution {} disappeared", pending.id()));
+        resolved(pending, "confirmed");
+      }
+      case FAILED -> {
+        contributions.apply(pending.id(), ContributionEvent.PAYMENT_FAILED);
+        resolved(pending, "failed");
+      }
+      case NO_PAYMENT -> {
+        contributions.apply(pending.id(), ContributionEvent.PAYMENT_TIMED_OUT);
+        resolved(pending, "expired");
+      }
+      case UNKNOWN -> {
+        meters.counter("contributions.timeout", "result", "unknown").increment();
+        log.warn(
+            "could not verify contribution {}; leaving it pending for the next run", pending.id());
+      }
     }
+  }
+
+  private void resolved(ContributionPending pending, String result) {
+    meters.counter("contributions.timeout", "result", result).increment();
+    log.info("event=timeout_resolved contributionId={} result={}", pending.id(), result);
   }
 }

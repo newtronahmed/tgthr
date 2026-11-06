@@ -20,7 +20,7 @@ public class PaystackWebhookMapper {
     try {
       PaystackWebhook webhook = mapper.readValue(rawBody, PaystackWebhook.class);
       if (webhook.data() == null) {
-        throw new IllegalArgumentException("Paystack webhook is missing data");
+        throw new InvalidWebhookPayloadException("Paystack webhook is missing data");
       }
       return new PaymentResult(
           webhook.data().reference(),
@@ -28,7 +28,7 @@ public class PaystackWebhookMapper {
           webhook.data().amount(),
           webhook.data().paidAt());
     } catch (JsonProcessingException failure) {
-      throw new IllegalArgumentException("invalid Paystack webhook payload", failure);
+      throw new InvalidWebhookPayloadException("invalid Paystack webhook payload");
     }
   }
 

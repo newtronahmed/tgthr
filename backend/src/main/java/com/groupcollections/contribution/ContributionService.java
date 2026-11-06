@@ -7,6 +7,7 @@ import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.Money;
 import com.groupcollections.payments.PaymentResult;
 import com.groupcollections.payments.PaystackClient;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -29,6 +30,7 @@ public class ContributionService {
   private final PayerPhoneCipher phones;
   private final Clock clock;
   private final AlertPublisher alerts;
+  private final MeterRegistry meters;
 
   public ContributionService(
       GoalRepository goals,
@@ -38,7 +40,8 @@ public class ContributionService {
       PaystackClient paystack,
       PayerPhoneCipher phones,
       Clock clock,
-      AlertPublisher alerts) {
+      AlertPublisher alerts,
+      MeterRegistry meters) {
     this.goals = goals;
     this.contributions = contributions;
     this.confirmation = confirmation;
@@ -47,6 +50,7 @@ public class ContributionService {
     this.phones = phones;
     this.clock = clock;
     this.alerts = alerts;
+    this.meters = meters;
   }
 
   public ContributionStatus create(
@@ -74,6 +78,9 @@ public class ContributionService {
     boolean accepted =
         paystack.initiateCharge(
             id, breakdown.total().pesewas(), request.momoNumber(), request.network());
+    meters
+        .counter("contributions.prompt", "result", accepted ? "accepted" : "rejected")
+        .increment();
     if (accepted) {
       contributions.apply(id, ContributionEvent.PROMPT_SENT);
     } else {
@@ -87,9 +94,14 @@ public class ContributionService {
   }
 
   public void handle(PaymentResult result) {
+    log.info(
+        "event=callback_received reference={} success={}",
+        result.providerReference(),
+        result.success());
     Optional<ContributionPayment> found =
         contributions.findByProviderReference(result.providerReference());
     if (found.isEmpty()) {
+      meters.counter("contributions.callback", "result", "unknown_reference").increment();
       alerts.publish(
           new Alert(
               Alert.AlertType.UNKNOWN_REFERENCE,
@@ -99,6 +111,7 @@ public class ContributionService {
     }
     ContributionPayment payment = found.get();
     if (payment.total().pesewas() != result.amountPesewas()) {
+      meters.counter("contributions.callback", "result", "amount_mismatch").increment();
       alerts.publish(
           new Alert(
               Alert.AlertType.AMOUNT_MISMATCH,
@@ -107,9 +120,11 @@ public class ContributionService {
       return;
     }
     if (result.success()) {
+      meters.counter("contributions.callback", "result", "success").increment();
       confirmation.confirm(payment);
       return;
     }
+    meters.counter("contributions.callback", "result", "failed").increment();
     contributions.apply(payment.id(), ContributionEvent.PAYMENT_FAILED);
   }
 }

@@ -51,6 +51,33 @@ class ContributionStatusIT extends ApiIntegrationTest {
   }
 
   @Test
+  void responsesCarryACorrelationId() {
+    String slug = insertGoal("correlation", "OPEN", null);
+    String contributionId =
+        (String) createContribution(slug, 5_000, "0240000001").getBody().get("id");
+
+    ResponseEntity<Map<String, Object>> generated =
+        rest.exchange(
+            "/public/contributions/{id}",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<>() {},
+            contributionId);
+    assertThat(generated.getHeaders().getFirst("X-Correlation-Id")).isNotBlank();
+
+    org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+    headers.set("X-Correlation-Id", "test-correlation-1");
+    ResponseEntity<Map<String, Object>> echoed =
+        rest.exchange(
+            "/public/contributions/{id}",
+            HttpMethod.GET,
+            new org.springframework.http.HttpEntity<>(headers),
+            new ParameterizedTypeReference<>() {},
+            contributionId);
+    assertThat(echoed.getHeaders().getFirst("X-Correlation-Id")).isEqualTo("test-correlation-1");
+  }
+
+  @Test
   void unknownContributionReturns404Problem() {
     ResponseEntity<Map<String, Object>> response =
         rest.exchange(

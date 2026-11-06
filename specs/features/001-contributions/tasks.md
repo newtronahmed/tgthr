@@ -89,11 +89,12 @@ Criteria: AC-CONTRIB-009, AC-CONTRIB-010
 
 ## Hardening
 
-- [ ] T090 Failure-path tests for every row in the spec's failure table, including T007's new criteria; concurrency tests for idempotency and confirmation; goal-acceptance race; amount cap; malformed payload 4xx; append-only TRUNCATE/grants; UUID/randomness seams
-- [ ] T091 Structured logs with correlation IDs, metrics and alerts listed in the spec; late-success alert after commit; unknown-reference and amount-mismatch alerts; illegal transitions log the contribution id
+- [x] T090 Failure-path tests for prompt rejection, unknown reference, amount mismatch, early/late success and duplicates; concurrency tests for idempotency and duplicate confirmation; amount cap; malformed payload 4xx; append-only TRUNCATE guard
+- [x] T091 Correlation-ID filter, structured key=value events, Micrometer counters for create/prompt/callback/confirm/timeout, alerts for unknown reference, amount mismatch and late success after commit; illegal transitions log the contribution id
 - [ ] T092 Rate limiting per IP and per MoMo number; remove dev credential defaults; redact phone numbers from DTO `toString`
 - [ ] T093 Run `make check`; remove every `@Disabled` marker for FEAT-001
 - [ ] T094 Update the spec status to Implemented
 - [ ] T095 Scaffold `web/` and implement the public goal, checkout and receipt pages after the backend slice is green
 - [ ] T096 Run the manual Paystack sandbox suite before the first live payment
 - [ ] T097 Provider hardening: bounded Paystack HTTP timeouts, callback currency and event whitelist, raw-byte signature verification, replay-window decision
+- [ ] T098 Remaining hardening: goal-acceptance lock, UUID/randomness seams, production role grants, prompt-timeout coverage with T097, reconciliation and alerts for stuck or starved PENDING rows and stale INITIATED rows

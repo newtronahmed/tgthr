@@ -2,6 +2,7 @@ package com.groupcollections.contribution;
 
 import com.groupcollections.payments.PaystackSignature;
 import com.groupcollections.payments.PaystackWebhookMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -18,14 +19,17 @@ public class ContributionWebhookController {
   private final PaystackSignature signatures;
   private final PaystackWebhookMapper mapper;
   private final ContributionService contributions;
+  private final MeterRegistry meters;
 
   public ContributionWebhookController(
       PaystackSignature signatures,
       PaystackWebhookMapper mapper,
-      ContributionService contributions) {
+      ContributionService contributions,
+      MeterRegistry meters) {
     this.signatures = signatures;
     this.mapper = mapper;
     this.contributions = contributions;
+    this.meters = meters;
   }
 
   @PostMapping("/webhooks/momo")
@@ -33,6 +37,7 @@ public class ContributionWebhookController {
       @RequestHeader(value = "x-paystack-signature", required = false) String signature,
       @RequestBody String body) {
     if (!signatures.isValid(body, signature)) {
+      meters.counter("contributions.callback", "result", "invalid_signature").increment();
       log.warn("rejected Paystack callback with an invalid signature");
       throw new InvalidSignatureException();
     }

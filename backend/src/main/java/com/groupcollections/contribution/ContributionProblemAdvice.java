@@ -3,6 +3,7 @@ package com.groupcollections.contribution;
 import com.groupcollections.goal.AmountValidationException;
 import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
+import com.groupcollections.payments.InvalidWebhookPayloadException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -25,6 +26,15 @@ public class ContributionProblemAdvice {
         HttpStatus.NOT_FOUND,
         "Contribution not found",
         "CONTRIBUTION_NOT_FOUND",
+        failure.getMessage());
+  }
+
+  @ExceptionHandler(InvalidWebhookPayloadException.class)
+  ProblemDetail invalidWebhook(InvalidWebhookPayloadException failure) {
+    return problem(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "Invalid webhook",
+        "INVALID_WEBHOOK",
         failure.getMessage());
   }
 

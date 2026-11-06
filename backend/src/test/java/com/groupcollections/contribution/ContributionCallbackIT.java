@@ -169,11 +169,22 @@ class ContributionCallbackIT extends ApiIntegrationTest {
   }
 
   @Test
+  void malformedSignedWebhookReturnsProblemWithoutChange() {
+    int status = PAYSTACK.sendRawCallback(webhookUrl(), "{\"event\":", true);
+
+    assertThat(status).isEqualTo(422);
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-020")
   void unknownProviderReferenceIsAlertedWithoutChange() {
     String reference = UUID.randomUUID().toString();
+    double before = counter("contributions.callback", "result", "unknown_reference");
 
     assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), reference, 5_000)).isEqualTo(204);
+
+    assertThat(counter("contributions.callback", "result", "unknown_reference"))
+        .isEqualTo(before + 1);
 
     assertThat(RecordingAlertPublisher.alerts())
         .anySatisfy(
@@ -198,9 +209,13 @@ class ContributionCallbackIT extends ApiIntegrationTest {
     String contributionId = (String) created.get("id");
     UUID id = UUID.fromString(contributionId);
     long total = ((Number) created.get("totalPesewas")).longValue();
+    double before = counter("contributions.callback", "result", "amount_mismatch");
 
     assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total + 1))
         .isEqualTo(204);
+
+    assertThat(counter("contributions.callback", "result", "amount_mismatch"))
+        .isEqualTo(before + 1);
 
     assertThat(
             jdbc.queryForObject("select state from contributions where id = ?", String.class, id))

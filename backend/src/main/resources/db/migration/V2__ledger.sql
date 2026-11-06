@@ -71,3 +71,21 @@ FOR EACH ROW EXECUTE FUNCTION reject_append_only_mutation();
 CREATE TRIGGER contribution_events_append_only
 BEFORE UPDATE OR DELETE ON contribution_events
 FOR EACH ROW EXECUTE FUNCTION reject_append_only_mutation();
+
+CREATE FUNCTION reject_append_only_truncate() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION '% is append-only; truncate is forbidden', TG_TABLE_NAME
+        USING ERRCODE = 'restrict_violation';
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER ledger_entries_no_truncate
+BEFORE TRUNCATE ON ledger_entries
+FOR EACH STATEMENT EXECUTE FUNCTION reject_append_only_truncate();
+
+CREATE TRIGGER contribution_events_no_truncate
+BEFORE TRUNCATE ON contribution_events
+FOR EACH STATEMENT EXECUTE FUNCTION reject_append_only_truncate();

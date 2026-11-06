@@ -112,6 +112,8 @@ paths:
           description: Callback accepted (also returned for a repeated callback)
         '401':
           $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
 components:
   parameters:
     GoalSlug:
@@ -212,6 +214,7 @@ components:
           type: integer
           format: int64
           minimum: 1
+          maximum: 10000000
         displayName:
           type: string
           maxLength: 80

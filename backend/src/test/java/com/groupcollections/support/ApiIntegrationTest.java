@@ -1,6 +1,8 @@
 package com.groupcollections.support;
 
 import com.groupcollections.contribution.AlertPublisher;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -65,11 +67,17 @@ public abstract class ApiIntegrationTest {
 
   @Autowired protected TestRestTemplate rest;
   @Autowired protected JdbcTemplate jdbc;
+  @Autowired protected MeterRegistry meterRegistry;
 
   @BeforeEach
   void resetFakePartner() {
     PAYSTACK.reset();
     RecordingAlertPublisher.reset();
+  }
+
+  protected double counter(String name, String... tags) {
+    Counter counter = meterRegistry.find(name).tags(tags).counter();
+    return counter == null ? 0 : counter.count();
   }
 
   protected String insertGoal(String slugPrefix, String status, Instant deadline) {

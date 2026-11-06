@@ -87,6 +87,10 @@ public final class FakePaystackServer implements AutoCloseable {
     return sendCallback(webhookUrl, outcome, reference, amount, false);
   }
 
+  public int sendRawCallback(String webhookUrl, String body, boolean validSignature) {
+    return post(webhookUrl, body, validSignature ? sign(body) : "not-a-signature");
+  }
+
   private int sendCallback(
       String webhookUrl, String outcome, String reference, long amount, boolean validSignature) {
     String event = "success".equals(outcome) ? "charge.success" : "charge.failed";
@@ -95,10 +99,14 @@ public final class FakePaystackServer implements AutoCloseable {
         {"event":"%s","data":{"reference":"%s","status":"%s","amount":%d,"currency":"GHS","paid_at":"%s"}}
         """
             .formatted(event, reference, outcome, amount, Instant.now());
+    return post(webhookUrl, body, validSignature ? sign(body) : "not-a-signature");
+  }
+
+  private int post(String webhookUrl, String body, String signature) {
     HttpRequest request =
         HttpRequest.newBuilder(URI.create(webhookUrl))
             .header("Content-Type", "application/json")
-            .header("x-paystack-signature", validSignature ? sign(body) : "not-a-signature")
+            .header("x-paystack-signature", signature)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
     try {

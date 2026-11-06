@@ -137,6 +137,7 @@ People who want to support a funeral, wedding or group goal are sent a WhatsApp 
 | 2026-11-05 | Late SUCCESS after EXPIRED or FAILED | Confirm with an alert; adds EXPIRED to CONFIRMED and FAILED to CONFIRMED |
 | 2026-11-05 | Response-time targets at the 95th percentile | Create 1.5 seconds including the partner prompt; status 300 milliseconds |
 | 2026-11-05 | Platform revenue model | 1.5% platform service fee on the contribution amount, rounded up to the nearest pesewa, paid by the contributor on top (ADR 0007) |
+| 2026-11-06 | Maximum contribution | GHS 100,000 (10,000,000 pesewas) per contribution; larger requests return 422 |
 
 ## Definition of ready
 
