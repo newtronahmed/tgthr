@@ -2,7 +2,9 @@ package com.groupcollections.contribution;
 
 import com.groupcollections.ledger.Money;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,7 +23,7 @@ public class ContributionRepository {
   private static final String STATUS_COLUMNS =
       """
       select id, state, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-             total_pesewas
+             total_pesewas, provider_reference, confirmed_at
       from contributions
       """;
 
@@ -29,14 +31,22 @@ public class ContributionRepository {
       (resultSet, rowNumber) -> {
         long processing = resultSet.getLong("processing_fee_pesewas");
         long platform = resultSet.getLong("platform_fee_pesewas");
+        ContributionState state = ContributionState.valueOf(resultSet.getString("state"));
+        OffsetDateTime confirmedAt = resultSet.getObject("confirmed_at", OffsetDateTime.class);
+        ContributionStatus.Receipt receipt =
+            state == ContributionState.CONFIRMED && confirmedAt != null
+                ? new ContributionStatus.Receipt(
+                    resultSet.getString("provider_reference"), confirmedAt.toInstant())
+                : null;
         return new ContributionStatus(
             resultSet.getObject("id", UUID.class),
-            ContributionState.valueOf(resultSet.getString("state")),
+            state,
             resultSet.getLong("amount_pesewas"),
             processing,
             platform,
             processing + platform,
-            resultSet.getLong("total_pesewas"));
+            resultSet.getLong("total_pesewas"),
+            receipt);
       };
 
   private static final String PAYMENT_COLUMNS =
@@ -55,9 +65,11 @@ public class ContributionRepository {
               Money.ofPesewas(resultSet.getLong("total_pesewas")));
 
   private final JdbcTemplate jdbc;
+  private final Clock clock;
 
-  public ContributionRepository(JdbcTemplate jdbc) {
+  public ContributionRepository(JdbcTemplate jdbc, Clock clock) {
     this.jdbc = jdbc;
+    this.clock = clock;
   }
 
   @Transactional
@@ -101,16 +113,28 @@ public class ContributionRepository {
       return Optional.empty();
     }
     ContributionTransition legal = transition.get();
-    jdbc.update(
-        "update contributions set state = ?, updated_at = now() where id = ?",
-        legal.to().name(),
-        id);
+    if (legal.to() == ContributionState.CONFIRMED) {
+      jdbc.update(
+          "update contributions set state = ?, updated_at = now(), confirmed_at = ? where id = ?",
+          legal.to().name(),
+          Timestamp.from(Instant.now(clock)),
+          id);
+    } else {
+      jdbc.update(
+          "update contributions set state = ?, updated_at = now() where id = ?",
+          legal.to().name(),
+          id);
+    }
     appendHistory(id, legal.from(), legal.to(), legal.event().name());
     return transition;
   }
 
+  public Optional<ContributionStatus> findStatus(UUID id) {
+    return jdbc.query(STATUS_COLUMNS + "where id = ?", STATUS_MAPPER, id).stream().findFirst();
+  }
+
   public ContributionStatus status(UUID id) {
-    return jdbc.queryForObject(STATUS_COLUMNS + "where id = ?", STATUS_MAPPER, id);
+    return findStatus(id).orElseThrow(() -> new ContributionNotFoundException(id));
   }
 
   public Optional<ContributionPayment> findByProviderReference(String providerReference) {

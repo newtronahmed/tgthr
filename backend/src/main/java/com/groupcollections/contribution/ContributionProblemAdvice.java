@@ -19,6 +19,15 @@ public class ContributionProblemAdvice {
     return problem(HttpStatus.NOT_FOUND, "Goal not found", "GOAL_NOT_FOUND", failure.getMessage());
   }
 
+  @ExceptionHandler(ContributionNotFoundException.class)
+  ProblemDetail contributionNotFound(ContributionNotFoundException failure) {
+    return problem(
+        HttpStatus.NOT_FOUND,
+        "Contribution not found",
+        "CONTRIBUTION_NOT_FOUND",
+        failure.getMessage());
+  }
+
   @ExceptionHandler(InvalidSignatureException.class)
   ProblemDetail invalidSignature(InvalidSignatureException failure) {
     return problem(

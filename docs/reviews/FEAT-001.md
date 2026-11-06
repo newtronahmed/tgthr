@@ -35,7 +35,7 @@ Append one section per review using `specs/_templates/review.md`. Do not rewrite
 ### Follow-ups
 
 - Blocker fixes landed with AC-CONTRIB-018/T059 and contract validation; re-run recorded below.
-- Should-fix owners: T007, T060, T063, T090, T091, T092, T097.
+- Should-fix owners: T007, T060, T063, T090, T091, T092, T097. T007, T060 and T063 were closed on 2026-11-06 (failure criteria, clock/timeout job, `confirmed_at` + receipt).
 - Invariant INV-LEDGER-003 stays pending with FEAT-002 (payout scope).
 
 ## 2026-11-06 — blocker fix verification

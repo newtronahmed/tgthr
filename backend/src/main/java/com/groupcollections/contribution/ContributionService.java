@@ -79,6 +79,10 @@ public class ContributionService {
     return contributions.status(id);
   }
 
+  public ContributionStatus status(UUID id) {
+    return contributions.findStatus(id).orElseThrow(() -> new ContributionNotFoundException(id));
+  }
+
   public void handle(PaymentResult result) {
     Optional<ContributionPayment> found =
         contributions.findByProviderReference(result.providerReference());
