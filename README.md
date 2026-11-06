@@ -15,6 +15,7 @@ specs/
   api/openapi.yaml      the single API contract
 docs/
   adr/                  architecture decision records
+  runbooks/             manual operational procedures (Paystack sandbox)
   solution.md           the solution document
 backend/                Spring Boot 3, Java 21, Gradle (modular monolith)
 web/                    Next.js PWA: public goal, checkout and receipt (design prototype in web/design)
