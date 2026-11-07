@@ -21,6 +21,6 @@ Everything built here starts as a spec in this folder.
 
 | Spec | Status | Blocking questions |
 | --- | --- | --- |
-| features/001-contributions | Ready | None. Plan and tasks drafted 2026-11-05. |
-| domain/ledger | Draft | None; settlement model, payout fee bearer and PLATFORM_FEE decided in ADRs 0006 and 0007. |
-| domain/contribution-state-machine | Draft | None; late-success transitions added 2026-11-05. |
+| features/001-contributions | Implemented | Backend and web complete; manual Paystack sandbox (T096) remains before the first live payment. |
+| domain/ledger | Accepted | Settlement model, payout fee bearer and PLATFORM_FEE decided in ADRs 0006 and 0007; contribution invariants implemented. Payout invariants follow FEAT-002. |
+| domain/contribution-state-machine | Accepted | Early- and late-success transitions implemented and tested. |

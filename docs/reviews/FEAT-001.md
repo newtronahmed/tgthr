@@ -182,3 +182,8 @@ Open follow-ups: T007, T060, T063, T090, T091, T092, T097. INV-LEDGER-003 remain
 - E2E: `@playwright/test` runs the full guest flow (goal → quote → PENDING → signed fake callback → receipt) against the real backend in CI and against the stub locally. The fake provider lives in `tools/paystack-fake`.
 - Traceability: 30 active / 1 pending (INV-LEDGER-003, FEAT-002).
 - Remaining before release: manual Paystack sandbox (T096), CODEOWNER review for `ledger/` and `payments/`, and a PR merge.
+
+## 2026-11-07 — merge
+
+- PR #1 merged as `5dde87e` after the owner review. CI on the PR passed all four jobs: specs/API, backend, web build, and Web E2E against the real stack.
+- FEAT-001 is closed. Before the first live payment: run the manual Paystack sandbox suite (`docs/runbooks/paystack-sandbox.md`) and rotate any credentials shared during development.
