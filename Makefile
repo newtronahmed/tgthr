@@ -1,4 +1,4 @@
-.PHONY: up down test trace trace-strict lint-api check format
+.PHONY: up down test trace trace-strict lint-api check format web-check
 
 GRADLE ?= $(shell test -x backend/gradlew && echo ./gradlew || echo gradle)
 
@@ -25,3 +25,6 @@ format:
 
 check: trace lint-api
 	cd backend && $(GRADLE) spotlessCheck check
+
+web-check:
+	cd web && npm run build

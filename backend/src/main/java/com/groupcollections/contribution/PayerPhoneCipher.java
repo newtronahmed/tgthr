@@ -21,12 +21,13 @@ public final class PayerPhoneCipher {
   private static final int MASTER_KEY_BYTES = 32;
   private static final int IV_BYTES = 12;
   private static final int TAG_BITS = 128;
-  private static final SecureRandom RANDOM = new SecureRandom();
 
   private final SecretKeySpec encryptionKey;
   private final SecretKeySpec lookupKey;
+  private final SecureRandom random;
 
-  public PayerPhoneCipher(String base64MasterKey) {
+  public PayerPhoneCipher(String base64MasterKey, SecureRandom random) {
+    this.random = random;
     byte[] master = Base64.getDecoder().decode(base64MasterKey);
     if (master.length != MASTER_KEY_BYTES) {
       throw new IllegalArgumentException("payer phone key must decode to 32 bytes");
@@ -38,7 +39,7 @@ public final class PayerPhoneCipher {
   public byte[] encrypt(String phone) {
     try {
       byte[] iv = new byte[IV_BYTES];
-      RANDOM.nextBytes(iv);
+      random.nextBytes(iv);
       Cipher cipher = Cipher.getInstance(CIPHER);
       cipher.init(Cipher.ENCRYPT_MODE, encryptionKey, new GCMParameterSpec(TAG_BITS, iv));
       byte[] sealed = cipher.doFinal(phone.getBytes(StandardCharsets.UTF_8));

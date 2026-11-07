@@ -6,6 +6,9 @@ backend/bin/
 web/node_modules/
 web/.next/
 web/out/
+web/test-results/
+web/playwright-report/
+web/blob-report/
 
 # IDE
 .idea/

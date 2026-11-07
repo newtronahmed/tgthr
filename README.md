@@ -15,9 +15,10 @@ specs/
   api/openapi.yaml      the single API contract
 docs/
   adr/                  architecture decision records
+  runbooks/             manual operational procedures (Paystack sandbox)
   solution.md           the solution document
 backend/                Spring Boot 3, Java 21, Gradle (modular monolith)
-web/                    Next.js PWA: public checkout, receipt, organizer app (not scaffolded yet)
+web/                    Next.js PWA: public goal, checkout and receipt (design prototype in web/design)
 tools/
   check_traceability.py spec ID to test mapping check
   momo-fake/            the local fake payment provider (to build)
@@ -42,8 +43,9 @@ infra/                  docker-compose.yml for local PostgreSQL and Redis
 | `make trace` | Check that every spec ID has a test |
 | `make trace-strict` | Same, but fail while any criterion is only covered by a disabled test |
 | `make lint-api` | Lint `specs/api/openapi.yaml` with Spectral |
-| `make check` | Everything CI runs |
+| `make check` | Everything the backend/spec CI runs |
+| `make web-check` | Build and type-check the Next.js app |
 
 ## Status
 
-Backend scaffold. FEAT-001 is Ready and its plan and tasks are drafted. AC-CONTRIB-001 to AC-CONTRIB-007 and AC-CONTRIB-011 to AC-CONTRIB-017 are implemented, along with INV-LEDGER-001/002/004/006 and INV-STATE-001/002/003 (creation and prompt, amount/acceptance rules, idempotency, signed, failed, successful, duplicate and late callbacks with balanced append-only postings, phone-free public bodies, fees, transition table, ledger invariants). 5 spec checks remain pending. `make check` passes with JDK 21 and the committed Gradle wrapper.
+FEAT-001 backend is Implemented. The public web slice (goal, checkout, receipt) is implemented against the design prototype; the manual Paystack sandbox and CODEOWNER review remain (PWA close-out and browser E2E are done). AC-CONTRIB-001 to AC-CONTRIB-007 and AC-CONTRIB-011 to AC-CONTRIB-018 are implemented, along with INV-LEDGER-001/002/004/006 and INV-STATE-001/002/003 (creation and prompt, amount/acceptance rules, idempotency, signed, failed, successful, duplicate, early and late callbacks with balanced append-only postings, phone-free public bodies, fees, transition table, ledger invariants). 1 spec check remains pending (INV-LEDGER-003, FEAT-002 payout scope). `make check` passes with JDK 21 and the committed Gradle wrapper.

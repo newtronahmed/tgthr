@@ -7,6 +7,7 @@ Read `specs/constitution.md` first. It is binding.
 1. Find the spec for the work in `specs/features/` or `specs/domain/`. If there is none, or it has an open `[NEEDS CLARIFICATION]` on a P1 story, stop and ask rather than guess.
 2. Work test first. Take the next pending criterion (a `@Disabled` test tagged `@Criterion("ID")`), enable it, run it and confirm it fails for the right reason, then implement the minimum to pass.
 3. Run `make check` before you say the work is done. Report what you ran and the result.
+4. Independent review at each slice boundary. Spawn read-only reviewer(s) with fresh context; give them the constitution, the relevant specs and ADRs, the slice diff and the result of `make check`. Record findings in `docs/reviews/FEAT-<id>.md`. Blockers (constitution MUST violations or wrong money behaviour) are fixed test-first before the next slice starts; should-fix items need an owner in `tasks.md`. AI review supplements — it never replaces — the CODEOWNER review required for `ledger/` and `payments/`.
 
 ## Rules that are easy to get wrong
 
@@ -25,3 +26,4 @@ Read `specs/constitution.md` first. It is binding.
 - New criterion: add a row to the spec table with a new permanent ID, then a tagged test.
 - New endpoint: change `specs/api/openapi.yaml` first, in the same pull request.
 - New decision with lasting consequences: a numbered ADR in `docs/adr/`.
+- Review record: append a section to `docs/reviews/FEAT-<id>.md` using `specs/_templates/review.md`.

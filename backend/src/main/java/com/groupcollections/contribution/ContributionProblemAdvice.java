@@ -3,8 +3,10 @@ package com.groupcollections.contribution;
 import com.groupcollections.goal.AmountValidationException;
 import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
+import com.groupcollections.payments.InvalidWebhookPayloadException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -16,6 +18,30 @@ public class ContributionProblemAdvice {
   @ExceptionHandler(GoalNotFoundException.class)
   ProblemDetail goalNotFound(GoalNotFoundException failure) {
     return problem(HttpStatus.NOT_FOUND, "Goal not found", "GOAL_NOT_FOUND", failure.getMessage());
+  }
+
+  @ExceptionHandler(ContributionNotFoundException.class)
+  ProblemDetail contributionNotFound(ContributionNotFoundException failure) {
+    return problem(
+        HttpStatus.NOT_FOUND,
+        "Contribution not found",
+        "CONTRIBUTION_NOT_FOUND",
+        failure.getMessage());
+  }
+
+  @ExceptionHandler(InvalidWebhookPayloadException.class)
+  ProblemDetail invalidWebhook(InvalidWebhookPayloadException failure) {
+    return problem(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "Invalid webhook",
+        "INVALID_WEBHOOK",
+        failure.getMessage());
+  }
+
+  @ExceptionHandler(RateLimitExceededException.class)
+  ProblemDetail rateLimited(RateLimitExceededException failure) {
+    return problem(
+        HttpStatus.TOO_MANY_REQUESTS, "Too many requests", "RATE_LIMITED", failure.getMessage());
   }
 
   @ExceptionHandler(InvalidSignatureException.class)
@@ -40,6 +66,17 @@ public class ContributionProblemAdvice {
         "Amount not allowed",
         failure.code(),
         failure.getMessage());
+  }
+
+  @ExceptionHandler({InvalidRequestException.class, HttpMessageNotReadableException.class})
+  ProblemDetail requestInvalid(Exception failure) {
+    return problem(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "Invalid request",
+        "INVALID_REQUEST",
+        failure instanceof InvalidRequestException
+            ? failure.getMessage()
+            : "malformed request body");
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

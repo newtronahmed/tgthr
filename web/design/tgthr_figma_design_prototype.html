@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tgthr • Figma Design System & Interactive Prototype</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        sage: {
+                            50: '#F7FAF8',
+                            100: '#EAF2ED',
+                            200: '#D5E5DA',
+                            300: '#B2CFBE',
+                            400: '#84B196',
+                            500: '#5C9373',
+                            600: '#3F7658',
+                            700: '#2E5B43',
+                            800: '#1F4230',
+                            900: '#0E291C',
+                            950: '#06170F'
+                        },
+                        forest: {
+                            50: '#E8F5E9',
+                            100: '#C8E6C9',
+                            500: '#00875A',
+                            600: '#006847',
+                            700: '#0B4F37',
+                            800: '#003D29',
+                            900: '#00261A'
+                        },
+                        accent: {
+                            blue: '#3B82F6',
+                            pink: '#EC4899',
+                            amber: '#F59E0B',
+                            purple: '#8B5CF6',
+                            teal: '#14B8A6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'soft-card': '0 8px 24px -4px rgba(14, 41, 28, 0.06), 0 2px 6px -1px rgba(14, 41, 28, 0.03)',
+                        'floating-btn': '0 12px 28px -6px rgba(0, 104, 71, 0.45), 0 6px 12px -4px rgba(0, 104, 71, 0.25)',
+                        'figma-frame': '0 24px 48px -12px rgba(0, 0, 0, 0.35)'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #101613;
+            color: #1F2937;
+            overflow-x: hidden;
+        }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #151D19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2E5B43;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #006847;
+        }
+        /* Figma Canvas pattern background */
+        .figma-canvas-bg {
+            background-color: #1A211D;
+            background-image: radial-gradient(#2D3832 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+        }
+        .phone-screen-bg {
+            background-color: #EAF2ED;
+        }
+        /* Animation */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(0.98); }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-sage-950 text-slate-100">
+
+    <!-- TOP FIGMA NAVIGATION & BRANDING TOOLBAR -->
+    <header class="h-14 border-b border-sage-800/80 bg-sage-900/90 px-4 flex items-center justify-between z-30 shrink-0 select-none backdrop-blur-md">
+        <!-- Left: Logo & tgthr Brand -->
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-2xl bg-forest-600 flex items-center justify-center text-white font-black text-lg tracking-tighter shadow-md border border-forest-500/30">
+                t
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-black text-base tracking-tight text-white font-sans">tgthr</span>
+                    <span class="bg-forest-800 text-sage-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-forest-600/50">Soft UI Sage Edition</span>
+                </div>
+                <p class="text-[11px] text-sage-300/80">Group Money, Simplified • Mobile Design Prototype</p>
+            </div>
+        </div>
+
+        <!-- Center: Screen & Canvas View Switcher -->
+        <div class="flex items-center bg-sage-950 p-1 rounded-xl border border-sage-800 text-xs">
+            <button onclick="switchView('canvas')" id="btn-view-canvas" class="px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1.5 bg-forest-600 text-white shadow">
+                <i class="fa-solid fa-border-all text-xs"></i>
+                <span>Figma Board</span>
+            </button>
+            <div class="h-4 w-[1px] bg-sage-800 mx-1"></div>
+            <button onclick="switchView('screen1')" id="btn-view-screen1" class="px-3 py-1.5 rounded-lg font-medium transition-all text-sage-300 hover:text-white flex items-center space-x-1.5">
+                <i class="fa-solid fa-house text-xs"></i>
+                <span>1. Home Hub</span>
+            </button>
+            <button onclick="switchView('screen2')" id="btn-view-screen2" class="px-3 py-1.5 rounded-lg font-medium transition-all text-sage-300 hover:text-white flex items-center space-x-1.5">
+                <i class="fa-solid fa-list-check text-xs"></i>
+                <span>2. Campaigns</span>
+            </button>
+            <button onclick="switchView('screen3')" id="btn-view-screen3" class="px-3 py-1.5 rounded-lg font-medium transition-all text-sage-300 hover:text-white flex items-center space-x-1.5">
+                <i class="fa-solid fa-mobile-screen-button text-xs"></i>
+                <span>3. MoMo Guest</span>
+            </button>
+            <button onclick="switchView('screen4')" id="btn-view-screen4" class="px-3 py-1.5 rounded-lg font-medium transition-all text-sage-300 hover:text-white flex items-center space-x-1.5">
+                <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                <span>4. Goal Wizard</span>
+            </button>
+            <button onclick="switchView('screen5')" id="btn-view-screen5" class="px-3 py-1.5 rounded-lg font-medium transition-all text-sage-300 hover:text-white flex items-center space-x-1.5">
+                <i class="fa-solid fa-shield-halved text-xs"></i>
+                <span>5. Payout Audit</span>
+            </button>
+        </div>
+
+        <!-- Right: Inspector Tools & Spec Viewer -->
+        <div class="flex items-center space-x-2.5">
+            <button onclick="toggleAdminView()" id="admin-toggle-btn" class="px-3 py-1.5 rounded-lg bg-sage-800 hover:bg-sage-700 text-sage-200 text-xs font-medium border border-sage-700 flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-eye-slash text-forest-500" id="admin-toggle-icon"></i>
+                <span id="admin-toggle-text">View: Public Guest</span>
+            </button>
+
+            <button onclick="toggleBrandAssetsModal()" class="px-3 py-1.5 rounded-lg bg-forest-600 hover:bg-forest-500 text-white text-xs font-bold border border-forest-400/30 flex items-center space-x-1.5 transition shadow">
+                <i class="fa-solid fa-vector-square text-xs"></i>
+                <span>SVG Assets</span>
+            </button>
+
+            <button onclick="toggleTokensModal()" class="px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-sage-100 text-xs font-semibold border border-forest-600/50 flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-swatchbook text-xs"></i>
+                <span>Tokens</span>
+            </button>
+
+            <button onclick="exportSpecs()" class="px-3 py-1.5 rounded-lg bg-sage-800 hover:bg-sage-700 text-white text-xs font-semibold border border-sage-700 flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-code text-xs text-amber-400"></i>
+                <span>Specs</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CANVAS AREA -->
+    <main class="flex-1 relative overflow-hidden flex">
+        
+        <!-- CANVAS / SCREEN CONTAINER -->
+        <div id="main-viewport" class="flex-1 h-full overflow-auto figma-canvas-bg p-8 relative transition-all duration-300">
+            
+            <!-- CANVAS MULTI-FRAME GRID VIEW (Default) -->
+            <div id="canvas-grid-view" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-8 min-w-[1750px] pb-12">
+                
+                <!-- CANVAS CARD 1 -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs text-sage-300 px-1">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-forest-500"></span> FLOW 01: tgthr Home Hub
+                        </span>
+                        <span class="font-mono text-[10px] text-sage-400">PWA Dashboard</span>
+                    </div>
+                    <div class="w-full max-w-[360px] mx-auto phone-screen-bg rounded-[40px] border-[8px] border-sage-900 shadow-figma-frame overflow-hidden h-[740px] flex flex-col relative text-slate-800">
+                        <div id="screen1-content-canvas" class="h-full overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- CANVAS CARD 2 -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs text-sage-300 px-1">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-forest-500"></span> FLOW 02: Campaigns Overview
+                        </span>
+                        <span class="font-mono text-[10px] text-sage-400">Pill Tabs & Feed</span>
+                    </div>
+                    <div class="w-full max-w-[360px] mx-auto phone-screen-bg rounded-[40px] border-[8px] border-sage-900 shadow-figma-frame overflow-hidden h-[740px] flex flex-col relative text-slate-800">
+                        <div id="screen2-content-canvas" class="h-full overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- CANVAS CARD 3 -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs text-sage-300 px-1">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-accent-blue"></span> FLOW 03: Guest MoMo Checkout
+                        </span>
+                        <span class="font-mono text-[10px] text-sage-400">WhatsApp Pay Link</span>
+                    </div>
+                    <div class="w-full max-w-[360px] mx-auto phone-screen-bg rounded-[40px] border-[8px] border-sage-900 shadow-figma-frame overflow-hidden h-[740px] flex flex-col relative text-slate-800">
+                        <div id="screen3-content-canvas" class="h-full overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- CANVAS CARD 4 -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs text-sage-300 px-1">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-accent-amber"></span> FLOW 04: Goal Creation Wizard
+                        </span>
+                        <span class="font-mono text-[10px] text-sage-400">7 Templates Config</span>
+                    </div>
+                    <div class="w-full max-w-[360px] mx-auto phone-screen-bg rounded-[40px] border-[8px] border-sage-900 shadow-figma-frame overflow-hidden h-[740px] flex flex-col relative text-slate-800">
+                        <div id="screen4-content-canvas" class="h-full overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- CANVAS CARD 5 -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs text-sage-300 px-1">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span> FLOW 05: Payout Hold & Audit
+                        </span>
+                        <span class="font-mono text-[10px] text-sage-400">60m Hold Window</span>
+                    </div>
+                    <div class="w-full max-w-[360px] mx-auto phone-screen-bg rounded-[40px] border-[8px] border-sage-900 shadow-figma-frame overflow-hidden h-[740px] flex flex-col relative text-slate-800">
+                        <div id="screen5-content-canvas" class="h-full overflow-y-auto"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- SINGLE FOCUSED DEVICE VIEW -->
+            <div id="single-device-view" class="hidden flex-col items-center justify-center min-h-[780px] py-4">
+                <div class="relative">
+                    <!-- Phone Frame -->
+                    <div class="w-[375px] h-[780px] phone-screen-bg rounded-[48px] border-[10px] border-sage-900 shadow-2xl overflow-hidden flex flex-col relative ring-1 ring-white/20 text-slate-800">
+                        
+                        <!-- Dynamic Screen Content -->
+                        <div id="focused-screen-container" class="flex-1 overflow-y-auto relative flex flex-col">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- CREATE CAMPAIGN QUICK DIAL / MODAL -->
+    <div id="create-modal" class="fixed inset-0 bg-sage-950/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl border border-slate-200 text-slate-800 animate-slide-up">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-full bg-forest-600 text-white flex items-center justify-center font-bold text-xs">t</div>
+                    <h3 class="font-extrabold text-sm text-slate-900">Create or Join on tgthr</h3>
+                </div>
+                <button onclick="toggleCreateModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-2">
+                <button onclick="toggleCreateModal(); switchView('screen4');" class="w-full p-3 bg-sage-50 hover:bg-sage-100 rounded-2xl border border-sage-200 flex items-center justify-between text-left transition group">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-full bg-forest-600 text-white flex items-center justify-center shadow-sm">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="font-extrabold text-xs text-slate-900 group-hover:text-forest-700">Create Campaign</div>
+                            <div class="text-[10px] text-slate-500">Start a group hub and collect funds together.</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400"></i>
+                </button>
+
+                <button onclick="toggleCreateModal(); switchView('screen3');" class="w-full p-3 bg-white hover:bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-left transition group">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-full bg-sage-200 text-forest-700 flex items-center justify-center">
+                            <i class="fa-solid fa-user-plus text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="font-extrabold text-xs text-slate-900">Join Campaign</div>
+                            <div class="text-[10px] text-slate-500">Open a link to contribute via WhatsApp.</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BRAND ASSETS & SVG SYSTEM MODAL -->
+    <div id="brand-assets-modal" class="fixed inset-0 bg-sage-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-sage-900 border border-sage-800 rounded-3xl w-full max-w-5xl h-[88vh] overflow-hidden flex flex-col shadow-2xl text-slate-100">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-sage-800 flex items-center justify-between bg-sage-950/60">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-xl bg-forest-600 flex items-center justify-center text-white font-black text-sm">t</div>
+                    <div>
+                        <h3 class="font-extrabold text-lg text-white leading-tight">tgthr • SVG Brand Assets & Design System</h3>
+                        <p class="text-xs text-sage-400">Scalable vector logos, app icons, badges, & raw SVG export</p>
+                    </div>
+                </div>
+                <button onclick="toggleBrandAssetsModal()" class="text-sage-400 hover:text-white p-1.5 rounded-lg hover:bg-sage-800">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content Grid -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-8">
+
+                <!-- SECTION 1: PRIMARY LOGO & WORDMARK VARIATIONS -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-sage-800 pb-2">
+                        <h4 class="text-sm font-extrabold uppercase tracking-wider text-forest-400 flex items-center gap-2">
+                            <i class="fa-solid fa-shapes"></i> 1. Primary Logos & Wordmarks
+                        </h4>
+                        <span class="text-[10px] text-sage-400 font-mono">Vector Format (Scalable)</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Primary Light Canvas Logo -->
+                        <div class="bg-sage-100 p-6 rounded-2xl border border-sage-200 flex flex-col items-center justify-between space-y-4 text-slate-900 shadow-sm relative group">
+                            <span class="text-[10px] font-bold uppercase text-forest-700 bg-sage-200 px-2 py-0.5 rounded-full self-start">Light Theme Primary</span>
+                            <div class="py-4">
+                                <svg width="180" height="48" viewBox="0 0 180 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="44" height="44" rx="14" fill="#006847"/>
+                                    <path d="M16 17H28M22 17V31" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                                    <circle cx="28" cy="17" r="3" fill="#DDF6EA"/>
+                                    <text x="56" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="28" fill="#0E291C" letter-spacing="-1">tgthr</text>
+                                </svg>
+                            </div>
+                            <button onclick="copySVGCode('primary-light')" class="w-full py-2 bg-white hover:bg-sage-50 text-forest-800 border border-sage-300 font-bold text-xs rounded-xl flex items-center justify-center space-x-1.5 shadow-sm">
+                                <i class="fa-solid fa-code text-xs"></i> <span>Copy SVG Code</span>
+                            </button>
+                        </div>
+
+                        <!-- Primary Dark Theme Logo -->
+                        <div class="bg-sage-950 p-6 rounded-2xl border border-sage-800 flex flex-col items-center justify-between space-y-4 text-white shadow-sm relative group">
+                            <span class="text-[10px] font-bold uppercase text-sage-300 bg-sage-900 px-2 py-0.5 rounded-full self-start">Dark Theme Primary</span>
+                            <div class="py-4">
+                                <svg width="180" height="48" viewBox="0 0 180 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="44" height="44" rx="14" fill="#006847"/>
+                                    <path d="M16 17H28M22 17V31" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                                    <circle cx="28" cy="17" r="3" fill="#25D366"/>
+                                    <text x="56" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="28" fill="#FFFFFF" letter-spacing="-1">tgthr</text>
+                                </svg>
+                            </div>
+                            <button onclick="copySVGCode('primary-dark')" class="w-full py-2 bg-sage-800 hover:bg-sage-700 text-sage-100 font-bold text-xs rounded-xl flex items-center justify-center space-x-1.5">
+                                <i class="fa-solid fa-code text-xs"></i> <span>Copy SVG Code</span>
+                            </button>
+                        </div>
+
+                        <!-- Monogram & Tagline Logo -->
+                        <div class="bg-forest-900 p-6 rounded-2xl border border-forest-800 flex flex-col items-center justify-between space-y-4 text-white shadow-sm relative group">
+                            <span class="text-[10px] font-bold uppercase text-forest-100 bg-forest-800 px-2 py-0.5 rounded-full self-start">Monogram + Tagline</span>
+                            <div class="py-2 text-center">
+                                <svg width="160" height="52" viewBox="0 0 160 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <text x="80" y="30" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="32" fill="#EAF2ED" text-anchor="middle" letter-spacing="-1.5">tgthr</text>
+                                    <text x="80" y="46" font-family="'Plus Jakarta Sans', sans-serif" font-weight="600" font-size="9" fill="#84B196" text-anchor="middle" letter-spacing="2">GROUP MONEY</text>
+                                </svg>
+                            </div>
+                            <button onclick="copySVGCode('monogram-tagline')" class="w-full py-2 bg-forest-800 hover:bg-forest-700 text-sage-100 font-bold text-xs rounded-xl flex items-center justify-center space-x-1.5">
+                                <i class="fa-solid fa-code text-xs"></i> <span>Copy SVG Code</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: APP ICON SUITE (PWA, iOS, ANDROID) -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-sage-800 pb-2">
+                        <h4 class="text-sm font-extrabold uppercase tracking-wider text-forest-400 flex items-center gap-2">
+                            <i class="fa-solid fa-mobile-screen"></i> 2. App Icons & Favicons
+                        </h4>
+                        <span class="text-[10px] text-sage-400 font-mono">1024x1024 SVG Masters</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <!-- App Icon 1: Soft 3D Mint Squircle -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex flex-col items-center space-y-3">
+                            <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="shadow-lg rounded-[22px]">
+                                <rect width="100" height="100" rx="28" fill="url(#mint-grad)"/>
+                                <path d="M34 38H66M50 38V70" stroke="#003D29" stroke-width="9" stroke-linecap="round"/>
+                                <circle cx="66" cy="38" r="7" fill="#006847"/>
+                                <defs>
+                                    <linearGradient id="mint-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#EAF2ED"/>
+                                        <stop offset="1" stop-color="#B2CFBE"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <span class="text-xs font-bold text-sage-200">Soft UI Squircle</span>
+                            <button onclick="copySVGCode('appicon-mint')" class="text-[10px] font-bold text-forest-400 hover:text-white">Copy Code</button>
+                        </div>
+
+                        <!-- App Icon 2: Forest Green Solid -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex flex-col items-center space-y-3">
+                            <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="shadow-lg rounded-[22px]">
+                                <rect width="100" height="100" rx="28" fill="#006847"/>
+                                <path d="M34 38H66M50 38V70" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+                                <circle cx="66" cy="38" r="7" fill="#25D366"/>
+                            </svg>
+                            <span class="text-xs font-bold text-sage-200">Forest Green Solid</span>
+                            <button onclick="copySVGCode('appicon-forest')" class="text-[10px] font-bold text-forest-400 hover:text-white">Copy Code</button>
+                        </div>
+
+                        <!-- App Icon 3: Dark Mode Glassmorphism -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex flex-col items-center space-y-3">
+                            <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="shadow-lg rounded-[22px]">
+                                <rect width="100" height="100" rx="28" fill="#0E291C"/>
+                                <rect x="10" y="10" width="80" height="80" rx="20" fill="#1F4230" fill-opacity="0.8"/>
+                                <path d="M34 38H66M50 38V70" stroke="#EAF2ED" stroke-width="9" stroke-linecap="round"/>
+                                <circle cx="66" cy="38" r="7" fill="#25D366"/>
+                            </svg>
+                            <span class="text-xs font-bold text-sage-200">Glass Dark Mode</span>
+                            <button onclick="copySVGCode('appicon-dark')" class="text-[10px] font-bold text-forest-400 hover:text-white">Copy Code</button>
+                        </div>
+
+                        <!-- App Icon 4: Minimal Outline Favicon -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex flex-col items-center space-y-3">
+                            <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="shadow-lg rounded-[22px]">
+                                <rect width="100" height="100" rx="28" fill="#FFFFFF"/>
+                                <rect x="6" y="6" width="88" height="88" rx="24" stroke="#006847" stroke-width="4"/>
+                                <path d="M34 38H66M50 38V70" stroke="#006847" stroke-width="9" stroke-linecap="round"/>
+                                <circle cx="66" cy="38" r="7" fill="#003D29"/>
+                            </svg>
+                            <span class="text-xs font-bold text-sage-200">Favicon Outline</span>
+                            <button onclick="copySVGCode('appicon-favicon')" class="text-[10px] font-bold text-forest-400 hover:text-white">Copy Code</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: 7 CATEGORY VECTOR BADGES -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-sage-800 pb-2">
+                        <h4 class="text-sm font-extrabold uppercase tracking-wider text-forest-400 flex items-center gap-2">
+                            <i class="fa-solid fa-icons"></i> 3. Category Template Badges
+                        </h4>
+                        <span class="text-[10px] text-sage-400 font-mono">Custom SVG Vectors</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+                        <!-- Trip -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#3B82F6"/>
+                                <path d="M22 12L25 19L32 21L27 26L28 33L22 29L16 33L17 26L12 21L19 19L22 12Z" fill="white"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Trip</span>
+                        </div>
+
+                        <!-- Wedding -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#EC4899"/>
+                                <path d="M22 16C22 16 17 11 14 14C11 17 16 22 22 28C28 22 33 17 30 14C27 11 22 16 22 16Z" fill="white"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Wedding</span>
+                        </div>
+
+                        <!-- Funeral -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#D97706"/>
+                                <path d="M22 12C20 12 18 16 18 20C18 26 22 32 22 32C22 32 26 26 26 20C26 16 24 12 22 12Z" fill="white"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Funeral</span>
+                        </div>
+
+                        <!-- Rent -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#475569"/>
+                                <path d="M14 20L22 13L30 20V31H14V20Z" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Rent</span>
+                        </div>
+
+                        <!-- Church / Community -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#8B5CF6"/>
+                                <path d="M22 12V32M15 18H29" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Church</span>
+                        </div>
+
+                        <!-- Gift -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#14B8A6"/>
+                                <rect x="13" y="20" width="18" height="12" rx="2" stroke="white" stroke-width="2"/>
+                                <path d="M22 20V32M13 20H31" stroke="white" stroke-width="2"/>
+                                <circle cx="18" cy="16" r="3" stroke="white" stroke-width="2"/>
+                                <circle cx="26" cy="16" r="3" stroke="white" stroke-width="2"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Gift</span>
+                        </div>
+
+                        <!-- Party -->
+                        <div class="bg-sage-950 p-3 rounded-2xl border border-sage-800 flex flex-col items-center space-y-2">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="44" height="44" rx="14" fill="#006847"/>
+                                <path d="M14 30L22 14L30 30H14Z" fill="white"/>
+                                <circle cx="22" cy="11" r="2.5" fill="#25D366"/>
+                            </svg>
+                            <span class="text-xs font-bold text-slate-200">Party</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: TRUST & FEATURE BADGES -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b border-sage-800 pb-2">
+                        <h4 class="text-sm font-extrabold uppercase tracking-wider text-forest-400 flex items-center gap-2">
+                            <i class="fa-solid fa-shield"></i> 4. Trust Seals & Feature Badges
+                        </h4>
+                        <span class="text-[10px] text-sage-400 font-mono">UI Integration Vectors</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- MoMo Push Direct Badge -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex items-center space-x-4">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="48" height="48" rx="16" fill="#F59E0B"/>
+                                <path d="M16 24H32M26 18L32 24L26 30" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <div>
+                                <div class="font-extrabold text-xs text-white">MoMo Direct Push</div>
+                                <div class="text-[10px] text-sage-400">Ghana Mobile Money API</div>
+                            </div>
+                        </div>
+
+                        <!-- 60m Hold Guarantee Seal -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex items-center space-x-4">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="48" height="48" rx="16" fill="#006847"/>
+                                <circle cx="24" cy="24" r="14" stroke="#25D366" stroke-width="3"/>
+                                <path d="M24 16V24L29 27" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                            <div>
+                                <div class="font-extrabold text-xs text-white">60-Min Hold Guarantee</div>
+                                <div class="text-[10px] text-sage-400">Cancellable Payout Window</div>
+                            </div>
+                        </div>
+
+                        <!-- Append-Only Ledger Seal -->
+                        <div class="bg-sage-950 p-4 rounded-2xl border border-sage-800 flex items-center space-x-4">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="48" height="48" rx="16" fill="#1E293B"/>
+                                <rect x="14" y="14" width="20" height="20" rx="4" stroke="#38BDF8" stroke-width="3"/>
+                                <path d="M18 22H30M18 26H26" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                            <div>
+                                <div class="font-extrabold text-xs text-white">Append-Only Ledger</div>
+                                <div class="text-[10px] text-sage-400">Immutable Audit Trail</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- DESIGN TOKENS MODAL -->
+    <div id="tokens-modal" class="fixed inset-0 bg-sage-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-sage-900 border border-sage-800 rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl text-slate-100">
+            <div class="px-6 py-4 border-b border-sage-800 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-swatchbook text-forest-500"></i>
+                    <h3 class="font-extrabold text-lg text-white">tgthr Design Tokens System</h3>
+                </div>
+                <button onclick="toggleTokensModal()" class="text-sage-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-6 text-sm">
+                <!-- Color Palette -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-forest-500 mb-3">1. Soft Sage & Forest Green Palette</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="p-3 bg-sage-950 rounded-2xl border border-sage-800">
+                            <div class="h-10 rounded-xl bg-sage-100 border border-sage-300 mb-2"></div>
+                            <div class="font-bold text-xs text-white">Soft Sage Canvas</div>
+                            <div class="font-mono text-[11px] text-sage-400">#EAF2ED</div>
+                        </div>
+                        <div class="p-3 bg-sage-950 rounded-2xl border border-sage-800">
+                            <div class="h-10 rounded-xl bg-forest-600 mb-2"></div>
+                            <div class="font-bold text-xs text-white">Forest Green Primary</div>
+                            <div class="font-mono text-[11px] text-sage-400">#006847</div>
+                        </div>
+                        <div class="p-3 bg-sage-950 rounded-2xl border border-sage-800">
+                            <div class="h-10 rounded-xl bg-forest-800 mb-2"></div>
+                            <div class="font-bold text-xs text-white">Deep Forest Badge</div>
+                            <div class="font-mono text-[11px] text-sage-400">#003D29</div>
+                        </div>
+                        <div class="p-3 bg-sage-950 rounded-2xl border border-sage-800">
+                            <div class="h-10 rounded-xl bg-white border border-slate-300 mb-2"></div>
+                            <div class="font-bold text-xs text-white">Pure White Surface</div>
+                            <div class="font-mono text-[11px] text-sage-400">#FFFFFF</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Component Pill Badges -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-forest-500 mb-3">2. Category Pill Badges & Icons</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-bold flex items-center gap-1.5"><i class="fa-solid fa-plane"></i> Maldives Trip</span>
+                        <span class="px-3 py-1.5 bg-pink-500 text-white rounded-full text-xs font-bold flex items-center gap-1.5"><i class="fa-solid fa-cake-candles"></i> Birthday</span>
+                        <span class="px-3 py-1.5 bg-slate-600 text-white rounded-full text-xs font-bold flex items-center gap-1.5"><i class="fa-solid fa-briefcase"></i> Workspace</span>
+                        <span class="px-3 py-1.5 bg-forest-800 text-forest-100 rounded-full text-xs font-bold">Due Oct 15</span>
+                        <span class="px-3 py-1.5 bg-forest-100 text-forest-700 rounded-full text-xs font-bold">Contributed GHS 2,450.97</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SPECS EXPORT MODAL -->
+    <div id="specs-modal" class="fixed inset-0 bg-sage-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-sage-900 border border-sage-800 rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl text-slate-100">
+            <div class="px-6 py-4 border-b border-sage-800 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-code text-amber-400"></i>
+                    <h3 class="font-extrabold text-lg text-white">tgthr Solution Specs & Architecture</h3>
+                </div>
+                <button onclick="toggleSpecsModal()" class="text-sage-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <p class="text-xs text-sage-300">Technical spec mapped directly to the tgthr Platform Solution Document & OpenAPI schema.</p>
+                <textarea id="spec-text-area" class="w-full h-80 bg-sage-950 border border-sage-800 rounded-2xl p-4 font-mono text-xs text-sage-200 focus:outline-none focus:border-forest-500" readonly></textarea>
+                <div class="flex justify-end">
+                    <button onclick="copySpecsToClipboard()" class="px-4 py-2 bg-forest-600 hover:bg-forest-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>Copy Specifications</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT STATE AND LOGIC -->
+    <script>
+        // State
+        let currentView = 'canvas';
+        let isAdminView = false;
+        let selectedTimeframe = '1M';
+        let selectedTab = 'All Campaigns';
+        let paymentState = 'idle'; // 'idle', 'prompt_sent', 'confirmed'
+        let amountGHS = 250;
+        let isAnonymous = false;
+        let selectedCategory = 'Trip';
+        let holdTimeRemaining = 3540; // 59m 00s
+        let holdTimerInterval = null;
+
+        // SVG Dictionary for Brand Assets
+        const svgDictionary = {
+            'primary-light': `<svg width="180" height="48" viewBox="0 0 180 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="44" height="44" rx="14" fill="#006847"/><path d="M16 17H28M22 17V31" stroke="white" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="17" r="3" fill="#DDF6EA"/><text x="56" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="28" fill="#0E291C" letter-spacing="-1">tgthr</text></svg>`,
+            'primary-dark': `<svg width="180" height="48" viewBox="0 0 180 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="44" height="44" rx="14" fill="#006847"/><path d="M16 17H28M22 17V31" stroke="white" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="17" r="3" fill="#25D366"/><text x="56" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="28" fill="#FFFFFF" letter-spacing="-1">tgthr</text></svg>`,
+            'monogram-tagline': `<svg width="160" height="52" viewBox="0 0 160 52" fill="none" xmlns="http://www.w3.org/2000/svg"><text x="80" y="30" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="32" fill="#EAF2ED" text-anchor="middle" letter-spacing="-1.5">tgthr</text><text x="80" y="46" font-family="'Plus Jakarta Sans', sans-serif" font-weight="600" font-size="9" fill="#84B196" text-anchor="middle" letter-spacing="2">GROUP MONEY</text></svg>`,
+            'appicon-mint': `<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="28" fill="url(#mint-grad)"/><path d="M34 38H66M50 38V70" stroke="#003D29" stroke-width="9" stroke-linecap="round"/><circle cx="66" cy="38" r="7" fill="#006847"/><defs><linearGradient id="mint-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#EAF2ED"/><stop offset="1" stop-color="#B2CFBE"/></linearGradient></defs></svg>`,
+            'appicon-forest': `<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="28" fill="#006847"/><path d="M34 38H66M50 38V70" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/><circle cx="66" cy="38" r="7" fill="#25D366"/></svg>`,
+            'appicon-dark': `<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="28" fill="#0E291C"/><rect x="10" y="10" width="80" height="80" rx="20" fill="#1F4230" fill-opacity="0.8"/><path d="M34 38H66M50 38V70" stroke="#EAF2ED" stroke-width="9" stroke-linecap="round"/><circle cx="66" cy="38" r="7" fill="#25D366"/></svg>`,
+            'appicon-favicon': `<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="28" fill="#FFFFFF"/><rect x="6" y="6" width="88" height="88" rx="24" stroke="#006847" stroke-width="4"/><path d="M34 38H66M50 38V70" stroke="#006847" stroke-width="9" stroke-linecap="round"/><circle cx="66" cy="38" r="7" fill="#003D29"/></svg>`
+        };
+
+        // Sample Campaigns Data
+        const campaigns = [
+            { id: 1, title: 'Maldives Vacation', category: 'Trip', desc: 'A dream getaway to the Maldives with good friends, beautiful beaches, and unforgettable memories.', raised: 150, target: 300, due: 'Oct 15', contributed: 25, icon: 'fa-plane', iconBg: 'bg-blue-500' },
+            { id: 2, title: "Vivian's Birthday", category: 'Party', desc: 'Help us celebrate the big day with catering, drinks and a secret group gift.', raised: 1200, target: 1600, due: 'Oct 28', contributed: 2900, icon: 'fa-cake-candles', iconBg: 'bg-pink-500' },
+            { id: 3, title: 'New Workspace', category: 'Rent', desc: 'Co-working lease deposit and setup equipment for the team.', raised: 2400, target: 3500, due: 'Sep 13', contributed: 119, icon: 'fa-briefcase', iconBg: 'bg-slate-600' },
+            { id: 4, title: 'Ember Shopping', category: 'Gift', desc: 'Group discount wholesale shopping basket for December festivities.', raised: 450, target: 600, due: 'Nov 02', contributed: 67, icon: 'fa-basket-shopping', iconBg: 'bg-teal-500' },
+            { id: 5, title: 'Funeral Welfare Fund', category: 'Funeral', desc: 'Community support for the late Elder Mensah family funeral arrangements.', raised: 8200, target: 10000, due: 'Dec 10', contributed: 500, icon: 'fa-ribbon', iconBg: 'bg-amber-600' }
+        ];
+
+        window.onload = function() {
+            lucide.createIcons();
+            renderAllScreens();
+            startHoldCountdown();
+        };
+
+        function toggleBrandAssetsModal() {
+            const modal = document.getElementById('brand-assets-modal');
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function copySVGCode(key) {
+            const svgText = svgDictionary[key];
+            if (svgText) {
+                const dummy = document.createElement("textarea");
+                document.body.appendChild(dummy);
+                dummy.value = svgText;
+                dummy.select();
+                document.execCommand("copy");
+                document.body.removeChild(dummy);
+                alert("SVG Code copied to clipboard!");
+            }
+        }
+
+        function switchView(viewName) {
+            currentView = viewName;
+            
+            const buttons = ['canvas', 'screen1', 'screen2', 'screen3', 'screen4', 'screen5'];
+            buttons.forEach(b => {
+                const btn = document.getElementById(`btn-view-${b}`);
+                if (btn) {
+                    if (b === viewName) {
+                        btn.className = "px-3 py-1.5 rounded-lg font-semibold transition-all bg-forest-600 text-white shadow flex items-center space-x-1.5";
+                    } else {
+                        btn.className = "px-3 py-1.5 rounded-lg font-medium transition-all text-sage-300 hover:text-white flex items-center space-x-1.5";
+                    }
+                }
+            });
+
+            const canvasGrid = document.getElementById('canvas-grid-view');
+            const singleDevice = document.getElementById('single-device-view');
+
+            if (viewName === 'canvas') {
+                canvasGrid.classList.remove('hidden');
+                singleDevice.classList.add('hidden');
+            } else {
+                canvasGrid.classList.add('hidden');
+                singleDevice.classList.remove('hidden');
+                singleDevice.classList.add('flex');
+                
+                const container = document.getElementById('focused-screen-container');
+                if (viewName === 'screen1') container.innerHTML = getScreen1HTML();
+                if (viewName === 'screen2') container.innerHTML = getScreen2HTML();
+                if (viewName === 'screen3') container.innerHTML = getScreen3HTML();
+                if (viewName === 'screen4') container.innerHTML = getScreen4HTML();
+                if (viewName === 'screen5') container.innerHTML = getScreen5HTML();
+            }
+
+            lucide.createIcons();
+        }
+
+        function renderAllScreens() {
+            document.getElementById('screen1-content-canvas').innerHTML = getScreen1HTML();
+            document.getElementById('screen2-content-canvas').innerHTML = getScreen2HTML();
+            document.getElementById('screen3-content-canvas').innerHTML = getScreen3HTML();
+            document.getElementById('screen4-content-canvas').innerHTML = getScreen4HTML();
+            document.getElementById('screen5-content-canvas').innerHTML = getScreen5HTML();
+            lucide.createIcons();
+        }
+
+        function toggleAdminView() {
+            isAdminView = !isAdminView;
+            const btnText = document.getElementById('admin-toggle-text');
+            const btnIcon = document.getElementById('admin-toggle-icon');
+
+            if (isAdminView) {
+                btnText.innerText = "View: Group Admin";
+                btnIcon.className = "fa-solid fa-eye text-amber-400";
+            } else {
+                btnText.innerText = "View: Public Guest";
+                btnIcon.className = "fa-solid fa-eye-slash text-forest-500";
+            }
+
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function toggleCreateModal() {
+            const modal = document.getElementById('create-modal');
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        // --- SCREEN 1: HOME HUB ---
+        function getScreen1HTML() {
+            return `
+                <div class="flex flex-col h-full phone-screen-bg justify-between relative p-4">
+                    <div class="space-y-4 pt-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-9 h-9 rounded-full bg-forest-600 text-white flex items-center justify-center font-black text-sm shadow">
+                                    t
+                                </div>
+                                <div>
+                                    <span class="font-extrabold text-base text-slate-900 leading-tight block">Hey @Clancy...</span>
+                                    <span class="text-[10px] text-forest-700 font-bold">tgthr member</span>
+                                </div>
+                            </div>
+                            <button class="w-8 h-8 rounded-full bg-white text-slate-600 flex items-center justify-center shadow-sm border border-slate-200">
+                                <i class="fa-regular fa-bell text-sm"></i>
+                            </button>
+                        </div>
+
+                        <div class="flex items-center justify-center space-x-1.5 bg-sage-200/60 p-1 rounded-full w-max mx-auto text-xs font-bold text-slate-500">
+                            ${['1D', '7D', '1M', '1Y'].map(t => `
+                                <button onclick="setTimeframe('${t}')" class="px-3 py-1 rounded-full transition ${selectedTimeframe === t ? 'bg-white text-slate-900 shadow-sm' : 'hover:text-slate-800'}">${t}</button>
+                            `).join('')}
+                        </div>
+
+                        <div class="text-center space-y-1 py-2">
+                            <span class="text-xs font-semibold text-slate-500">You've Contributed</span>
+                            <div class="text-3xl font-black text-slate-900 font-mono">GHS 2,450.97</div>
+                            <button onclick="switchView('screen2')" class="text-xs font-bold text-forest-600 hover:text-forest-700 inline-flex items-center gap-1 mt-1">
+                                View all Contributions <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                            </button>
+                        </div>
+
+                        <div class="bg-white rounded-3xl p-4 shadow-soft-card border border-slate-100 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-sm text-slate-900">Pending Contributions</h4>
+                                <span class="text-[10px] bg-sage-100 text-forest-800 font-extrabold px-2 py-0.5 rounded-full">tgthr feed</span>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                ${campaigns.slice(0, 4).map(c => `
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-9 h-9 rounded-full ${c.iconBg} text-white flex items-center justify-center text-sm shadow-sm shrink-0">
+                                                <i class="fa-solid ${c.icon}"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-xs text-slate-900">${c.title}</div>
+                                                <span class="text-[10px] text-slate-400 font-medium bg-slate-100 px-2 py-0.5 rounded-full">Due by ${c.due}</span>
+                                            </div>
+                                        </div>
+                                        <div class="font-mono font-black text-xs text-slate-900">GHS ${c.contributed}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 pb-2 sticky bottom-0">
+                        <div class="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-full px-6 py-2.5 flex items-center justify-between shadow-lg relative">
+                            <button onclick="switchView('screen1')" class="text-forest-600"><i class="fa-solid fa-house text-lg"></i></button>
+                            <button onclick="toggleCreateModal()" class="w-12 h-12 rounded-full bg-forest-600 text-white text-xl font-bold flex items-center justify-center shadow-floating-btn -mt-6 border-4 border-sage-100 hover:scale-105 transition">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                            <button onclick="switchView('screen2')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-users text-lg"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- SCREEN 2: CAMPAIGNS OVERVIEW ---
+        function getScreen2HTML() {
+            return `
+                <div class="flex flex-col h-full phone-screen-bg justify-between relative p-4">
+                    <div class="space-y-3 pt-2">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-[10px] font-black uppercase text-forest-700 tracking-wider">tgthr hubs</span>
+                                <h2 class="text-xl font-black text-slate-900">Campaigns</h2>
+                            </div>
+                            <button class="w-8 h-8 rounded-full bg-white text-slate-600 flex items-center justify-center shadow-sm border border-slate-200">
+                                <i class="fa-regular fa-bell text-sm"></i>
+                            </button>
+                        </div>
+
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                            <input type="text" placeholder="Search tgthr campaigns" class="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-4 py-2 text-xs text-slate-800 focus:outline-none focus:border-forest-600 shadow-sm">
+                        </div>
+
+                        <div class="flex items-center bg-sage-200/60 p-1 rounded-full text-xs font-semibold text-slate-500 space-x-1">
+                            ${['All Campaigns', 'Pending', 'Settled'].map(tab => `
+                                <button onclick="setTab('${tab}')" class="flex-1 py-1.5 rounded-full text-center transition ${selectedTab === tab ? 'bg-white text-slate-900 shadow-sm font-bold' : 'hover:text-slate-800'}">${tab}</button>
+                            `).join('')}
+                        </div>
+
+                        <div class="space-y-3 overflow-y-auto max-h-[500px] pr-0.5">
+                            ${campaigns.map(c => `
+                                <div class="bg-white rounded-3xl p-4 shadow-soft-card border border-slate-100 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2.5">
+                                            <div class="w-8 h-8 rounded-full ${c.iconBg} text-white flex items-center justify-center text-xs shadow-sm shrink-0">
+                                                <i class="fa-solid ${c.icon}"></i>
+                                            </div>
+                                            <h3 class="font-extrabold text-sm text-slate-900">${c.title}</h3>
+                                        </div>
+                                        <span class="text-[9px] font-bold text-forest-700 bg-sage-100 px-2 py-0.5 rounded-full">${c.category}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 leading-relaxed line-clamp-2">${c.desc}</p>
+
+                                    <div class="flex items-center space-x-2 text-xs font-bold text-slate-800">
+                                        <span class="w-3 h-3 rounded-full border-2 border-forest-600 border-t-transparent inline-block"></span>
+                                        <span class="font-mono">GHS ${c.raised} raised of GHS ${c.target}</span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between pt-1">
+                                        <span class="px-3 py-1 bg-forest-800 text-white text-[10px] font-bold rounded-full">Due by ${c.due}</span>
+                                        <span class="px-3 py-1 bg-sage-100 text-forest-700 text-[10px] font-bold rounded-full">You contributed GHS ${c.contributed}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-2 sticky bottom-0">
+                        <div class="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-full px-6 py-2.5 flex items-center justify-between shadow-lg">
+                            <button onclick="switchView('screen1')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-house text-lg"></i></button>
+                            <button onclick="toggleCreateModal()" class="w-10 h-10 rounded-full bg-forest-600 text-white text-lg font-bold flex items-center justify-center shadow-floating-btn"><i class="fa-solid fa-plus"></i></button>
+                            <button onclick="switchView('screen2')" class="text-forest-600"><i class="fa-solid fa-users text-lg"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- SCREEN 3: GUEST MOMO CHECKOUT ---
+        function getScreen3HTML() {
+            const fee = (amountGHS * 0.01).toFixed(2);
+            const total = (parseFloat(amountGHS) + parseFloat(fee)).toFixed(2);
+
+            if (paymentState === 'prompt_sent') {
+                return `
+                    <div class="p-5 flex-1 flex flex-col justify-center items-center text-center space-y-5 animate-fade-in my-auto">
+                        <div class="w-16 h-16 rounded-full bg-sage-200 text-forest-700 flex items-center justify-center text-2xl shadow-inner animate-bounce">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="px-3 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
+                                PENDING MOMO PROMPT
+                            </span>
+                            <h3 class="text-lg font-black text-slate-900">Check Your Phone</h3>
+                            <p class="text-xs text-slate-500 max-w-[240px]">
+                                tgthr MoMo prompt sent to <span class="font-mono text-slate-900 font-bold">024 882 1049</span>. Enter your PIN to approve.
+                            </p>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 w-full text-left space-y-1.5 font-mono text-xs shadow-soft-card">
+                            <div class="flex justify-between text-slate-500"><span>Contribution:</span> <span>GHS ${amountGHS}.00</span></div>
+                            <div class="flex justify-between text-slate-500"><span>MoMo Fee (1%):</span> <span>GHS ${fee}</span></div>
+                            <div class="border-t border-slate-100 pt-1.5 flex justify-between text-slate-900 font-bold"><span>Total:</span> <span class="text-forest-600">GHS ${total}</span></div>
+                        </div>
+                        <button onclick="simulateMoMoApproval()" class="w-full py-3 bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-xs rounded-2xl shadow-lg transition">
+                            Simulate MoMo PIN Entered <i class="fa-solid fa-check ml-1"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            if (paymentState === 'confirmed') {
+                return `
+                    <div class="p-5 flex-1 flex flex-col justify-between my-auto space-y-4">
+                        <div class="text-center space-y-3 pt-4">
+                            <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-300 flex items-center justify-center mx-auto text-xl shadow-sm">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-mono tracking-widest text-forest-600 font-bold uppercase">Transaction Confirmed</span>
+                                <h3 class="text-2xl font-black text-slate-900 font-mono">GHS ${amountGHS}.00</h3>
+                                <p class="text-xs text-slate-400">Ref: TGTHR-994820</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 font-mono text-xs shadow-soft-card">
+                            <div class="flex justify-between text-slate-500"><span>Goal:</span> <span class="text-slate-900 font-sans font-bold">Maldives Vacation</span></div>
+                            <div class="flex justify-between text-slate-500"><span>Payer:</span> <span class="text-slate-900 font-sans font-bold">${isAnonymous ? 'Anonymous (Masked)' : 'Ahmed Z.'}</span></div>
+                            <div class="flex justify-between text-slate-500"><span>Ledger Entry:</span> <span class="text-emerald-600 font-bold">POSTED</span></div>
+                        </div>
+
+                        <div class="bg-forest-800 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-xl bg-forest-600 flex items-center justify-center font-bold text-sm">
+                                    t
+                                </div>
+                                <div class="text-left">
+                                    <div class="text-xs font-bold">Install tgthr PWA</div>
+                                    <div class="text-[10px] text-sage-200">Track history & get push notifications</div>
+                                </div>
+                            </div>
+                            <button class="px-3 py-1.5 bg-white text-forest-800 font-bold text-xs rounded-xl hover:bg-sage-100">Install</button>
+                        </div>
+
+                        <button onclick="resetPaymentState()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl">Back to Checkout</button>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="p-5 flex-1 flex flex-col justify-between">
+                    <div class="space-y-3">
+                        <div class="bg-white border border-slate-200 p-2.5 rounded-2xl flex items-center space-x-2 text-xs shadow-sm">
+                            <i class="fa-brands fa-whatsapp text-emerald-500 text-base"></i>
+                            <span class="truncate text-slate-500 text-[11px]">Link: <strong class="text-slate-800 font-mono">tgthr.pay/maldives-trip</strong></span>
+                        </div>
+
+                        <div class="my-2">
+                            <span class="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px]">Trip Goal</span>
+                            <h2 class="text-lg font-black text-slate-900 mt-1">Maldives Vacation</h2>
+                            <p class="text-xs text-slate-500">Organized by <strong class="text-slate-800">Clancy</strong> on tgthr</p>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-soft-card">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Enter or Select Contribution</label>
+                            
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="setAmount(100)" class="py-2 rounded-xl text-xs font-bold ${amountGHS === 100 ? 'bg-forest-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">GHS 100</button>
+                                <button onclick="setAmount(250)" class="py-2 rounded-xl text-xs font-bold ${amountGHS === 250 ? 'bg-forest-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">GHS 250</button>
+                                <button onclick="setAmount(500)" class="py-2 rounded-xl text-xs font-bold ${amountGHS === 500 ? 'bg-forest-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">GHS 500</button>
+                            </div>
+
+                            <div class="relative flex items-center">
+                                <span class="absolute left-3.5 text-xs font-bold text-forest-700">GHS</span>
+                                <input type="number" value="${amountGHS}" onchange="setAmount(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-2 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-forest-600">
+                            </div>
+
+                            <div class="flex items-center justify-between pt-1">
+                                <span class="text-xs text-slate-600 font-medium flex items-center gap-1.5"><i class="fa-solid fa-user-ninja text-slate-400"></i> Contribute Anonymously</span>
+                                <button onclick="toggleAnonymous()" class="w-9 h-5 rounded-full ${isAnonymous ? 'bg-forest-600' : 'bg-slate-300'} relative transition-colors">
+                                    <div class="w-4 h-4 rounded-full bg-white absolute top-0.5 ${isAnonymous ? 'right-0.5' : 'left-0.5'} transition-all"></div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-sage-100 p-3 rounded-2xl border border-sage-200 space-y-1 font-mono text-xs">
+                            <div class="flex justify-between text-slate-600"><span>Amount:</span> <span>GHS ${amountGHS}.00</span></div>
+                            <div class="flex justify-between text-slate-600"><span>MoMo Fee (1%):</span> <span>GHS ${fee}</span></div>
+                            <div class="border-t border-sage-200 pt-1 flex justify-between font-bold text-slate-900"><span>Total:</span> <span class="text-forest-700">GHS ${total}</span></div>
+                        </div>
+                    </div>
+
+                    <button onclick="startMoMoFlow()" class="w-full py-3 bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-xs rounded-2xl shadow-floating-btn transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Pay Mobile Money</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        // --- SCREEN 4: GOAL CREATOR WIZARD ---
+        function getScreen4HTML() {
+            return `
+                <div class="p-5 flex-1 flex flex-col justify-between overflow-y-auto">
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-[10px] font-bold text-forest-600 uppercase tracking-wider">tgthr Goal Wizard</span>
+                            <h3 class="text-lg font-black text-slate-900">Choose Collection Template</h3>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Select Template</label>
+                            <div class="grid grid-cols-4 gap-2">
+                                ${['Trip', 'Wedding', 'Funeral', 'Rent', 'Church', 'Gift', 'Party'].map(cat => `
+                                    <button onclick="selectCategory('${cat}')" class="p-2 rounded-2xl border flex flex-col items-center space-y-1 text-center transition ${selectedCategory === cat ? 'bg-forest-800 text-white border-forest-800 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}">
+                                        <i class="fa-solid fa-star text-xs"></i>
+                                        <span class="text-[10px] font-bold">${cat}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 text-xs shadow-soft-card">
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Goal Title</label>
+                                <input type="text" value="Cape Coast Reunion Trip" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-forest-600">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Target Type</label>
+                                    <select class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-slate-900 focus:outline-none">
+                                        <option>Fixed Target</option>
+                                        <option>Open Target</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Target (GHS)</label>
+                                    <input type="number" value="5000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-bold focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Payout MoMo Destination (Locked)</label>
+                                <div class="bg-sage-100 p-2.5 rounded-xl border border-sage-200 flex items-center justify-between">
+                                    <div class="text-[11px]">
+                                        <div class="font-bold text-slate-900">024 491 8023</div>
+                                        <div class="text-[9px] text-slate-500">MTN MoMo • Name Matched</div>
+                                    </div>
+                                    <span class="px-2 py-0.5 bg-emerald-600 text-white text-[9px] font-mono font-bold rounded">LOCKED</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="switchView('screen5')" class="w-full py-3 bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-xs rounded-2xl shadow-floating-btn mt-4">
+                        Create Goal & View Hold Window <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        // --- SCREEN 5: PAYOUT AUDIT & HOLD WINDOW ---
+        function getScreen5HTML() {
+            const minutes = Math.floor(holdTimeRemaining / 60);
+            const seconds = holdTimeRemaining % 60;
+            const timeFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            return `
+                <div class="p-5 flex-1 flex flex-col justify-between overflow-y-auto">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                            <div>
+                                <span class="px-2 py-0.5 bg-red-100 text-red-700 font-bold text-[10px] rounded">tgthr TRUST CONTROL</span>
+                                <h3 class="text-base font-extrabold text-slate-900 mt-0.5">Payout Safety Hold</h3>
+                            </div>
+                            <i class="fa-solid fa-shield-halved text-forest-600 text-xl"></i>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-amber-300 space-y-3 shadow-soft-card">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-amber-700">60-Min Hold Window</span>
+                                    <div class="text-2xl font-black font-mono text-slate-900" id="hold-timer-display">${timeFormatted}</div>
+                                </div>
+                                <span class="px-2.5 py-1 bg-amber-100 text-amber-800 font-bold text-[10px] rounded-full">HOLD ACTIVE</span>
+                            </div>
+
+                            <p class="text-[11px] text-slate-600 leading-snug">
+                                Payout of <strong class="text-slate-900 font-mono">GHS 3,250.00</strong> held. All contributors notified via SMS & PWA Push.
+                            </p>
+
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                                <div class="flex justify-between font-semibold">
+                                    <span class="text-slate-500">Approvals:</span>
+                                    <span class="text-forest-700 font-mono">1 / 2 Approved</span>
+                                </div>
+                                <div class="text-[11px] text-slate-700 flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-600"></i> Organizer Approved</div>
+                                <div class="text-[11px] text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-clock text-amber-500"></i> Awaiting 2nd Admin</div>
+                            </div>
+
+                            <button onclick="alert('Payout cancelled. Funds remain safely in the tgthr append-only ledger.')" class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs rounded-xl">
+                                Cancel Payout During Hold Window
+                            </button>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <h4 class="text-xs font-extrabold text-slate-800 uppercase">tgthr Ledger Entries</h4>
+                            <div class="bg-white p-3 rounded-2xl border border-slate-200 font-mono text-[11px] space-y-1.5 shadow-sm">
+                                <div class="flex justify-between text-slate-500"><span>PAYOUT_INITIATED</span> <span class="text-slate-900">GHS 3,250.00</span></div>
+                                <div class="flex justify-between text-slate-500"><span>DESTINATION_LOCK</span> <span class="text-emerald-600">VERIFIED</span></div>
+                                <div class="flex justify-between text-slate-500"><span>NOTIFICATIONS</span> <span class="text-forest-600">18 SMS SENT</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="switchView('canvas')" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl mt-4">
+                        Return to Figma Board
+                    </button>
+                </div>
+            `;
+        }
+
+        // --- INTERACTIVE HANDLERS ---
+        function setTimeframe(t) {
+            selectedTimeframe = t;
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function setTab(tab) {
+            selectedTab = tab;
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function setAmount(val) {
+            amountGHS = val;
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function toggleAnonymous() {
+            isAnonymous = !isAnonymous;
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function selectCategory(cat) {
+            selectedCategory = cat;
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function startMoMoFlow() {
+            paymentState = 'prompt_sent';
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function simulateMoMoApproval() {
+            paymentState = 'confirmed';
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function resetPaymentState() {
+            paymentState = 'idle';
+            renderAllScreens();
+            if (currentView !== 'canvas') switchView(currentView);
+        }
+
+        function startHoldCountdown() {
+            if (holdTimerInterval) clearInterval(holdTimerInterval);
+            holdTimerInterval = setInterval(() => {
+                if (holdTimeRemaining > 0) {
+                    holdTimeRemaining--;
+                    const minutes = Math.floor(holdTimeRemaining / 60);
+                    const seconds = holdTimeRemaining % 60;
+                    const formatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    const elem = document.getElementById('hold-timer-display');
+                    if (elem) elem.innerText = formatted;
+                }
+            }, 1000);
+        }
+
+        function toggleTokensModal() {
+            const modal = document.getElementById('tokens-modal');
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function toggleSpecsModal() {
+            const modal = document.getElementById('specs-modal');
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function exportSpecs() {
+            const specText = `
+tgthr GROUP COLLECTIONS PLATFORM - UI & ARCHITECTURE SPECS
+Document Date: Nov 4, 2026 | Brand: tgthr
+
+1. BRAND & DESIGN TOKENS
+- Brand Name: tgthr
+- Canvas Background: Soft Mint/Sage Green (#EAF2ED)
+- Primary Brand Accent: Forest Green (#006847)
+- Dark Badges: Deep Forest (#003D29)
+- Surface Cards: Pure White (#FFFFFF) with Soft Shadows (0 8px 24px -4px rgba(14, 41, 28, 0.06))
+
+2. CORE SCREEN FLOWS
+- Screen 1: tgthr Home Hub (@Clancy, Total Contributed GHS 2,450.97, Pending Cards, Floating Action Button).
+- Screen 2: Campaigns Overview (Pill Tabs: All, Pending, Settled; Search box; Progress indicators).
+- Screen 3: Guest MoMo Checkout (WhatsApp link entry, GHS amount quick buttons, 1% MoMo fee breakdown, Anonymous toggle, Instant PWA conversion prompt).
+- Screen 4: Goal Creator (7 Templates: Trip, Wedding, Funeral, Rent, Church, Gift, Party; Locked MoMo Destination).
+- Screen 5: Payout Hold Window (60-minute countdown timer, 2-step approval, Double-entry ledger log).
+            `.trim();
+
+            document.getElementById('spec-text-area').value = specText;
+            toggleSpecsModal();
+        }
+
+        function copySpecsToClipboard() {
+            const copyText = document.getElementById("spec-text-area");
+            copyText.select();
+            document.execCommand("copy");
+            alert("tgthr Specifications copied to clipboard!");
+        }
+    </script>
+</body>
+</html>

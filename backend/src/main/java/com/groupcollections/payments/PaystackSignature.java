@@ -19,6 +19,10 @@ public final class PaystackSignature {
   }
 
   public boolean isValid(String rawBody, String providedHex) {
+    return isValid(rawBody.getBytes(StandardCharsets.UTF_8), providedHex);
+  }
+
+  public boolean isValid(byte[] rawBody, String providedHex) {
     if (providedHex == null || providedHex.isBlank()) {
       return false;
     }
@@ -31,11 +35,11 @@ public final class PaystackSignature {
     return MessageDigest.isEqual(sign(rawBody), provided);
   }
 
-  private byte[] sign(String rawBody) {
+  private byte[] sign(byte[] rawBody) {
     try {
       Mac mac = Mac.getInstance(ALGORITHM);
       mac.init(key);
-      return mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8));
+      return mac.doFinal(rawBody);
     } catch (GeneralSecurityException failure) {
       throw new IllegalStateException("could not verify the Paystack signature", failure);
     }

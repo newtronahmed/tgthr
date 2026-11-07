@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -36,18 +38,31 @@ public final class FakePaystackServer implements AutoCloseable {
           "0240000001", "SUCCESS",
           "0240000002", "DECLINED",
           "0240000003", "TIMEOUT",
-          "0240000004", "REQUEST_REJECTED");
+          "0240000004", "REQUEST_REJECTED",
+          "0240000005", "PENDING_THEN_FAILED",
+          "0240000006", "PENDING_THEN_ABANDONED",
+          "0240000007", "SLOW",
+          "0240000008", "PENDING_THEN_WRONG_AMOUNT");
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient httpClient = HttpClient.newHttpClient();
   private final String secret;
   private final List<String> chargeBodies = new CopyOnWriteArrayList<>();
   private final Map<String, String> scenarioByReference = new ConcurrentHashMap<>();
+  private final Map<String, Long> amountByReference = new ConcurrentHashMap<>();
   private final HttpServer server;
 
   public FakePaystackServer(String secret) throws IOException {
     this.secret = secret;
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    ExecutorService executor =
+        Executors.newCachedThreadPool(
+            runnable -> {
+              Thread thread = new Thread(runnable);
+              thread.setDaemon(true);
+              return thread;
+            });
+    server.setExecutor(executor);
     server.createContext("/charge", this::handleCharge);
     server.createContext("/transaction/verify/", this::handleVerify);
     server.start();
@@ -66,6 +81,7 @@ public final class FakePaystackServer implements AutoCloseable {
   public void reset() {
     chargeBodies.clear();
     scenarioByReference.clear();
+    amountByReference.clear();
   }
 
   public List<String> chargeBodies() {
@@ -85,6 +101,14 @@ public final class FakePaystackServer implements AutoCloseable {
     return sendCallback(webhookUrl, outcome, reference, amount, false);
   }
 
+  public int sendRawCallback(String webhookUrl, String body, boolean validSignature) {
+    return post(webhookUrl, body, validSignature ? sign(body) : "not-a-signature");
+  }
+
+  public String signature(String body) {
+    return sign(body);
+  }
+
   private int sendCallback(
       String webhookUrl, String outcome, String reference, long amount, boolean validSignature) {
     String event = "success".equals(outcome) ? "charge.success" : "charge.failed";
@@ -93,10 +117,14 @@ public final class FakePaystackServer implements AutoCloseable {
         {"event":"%s","data":{"reference":"%s","status":"%s","amount":%d,"currency":"GHS","paid_at":"%s"}}
         """
             .formatted(event, reference, outcome, amount, Instant.now());
+    return post(webhookUrl, body, validSignature ? sign(body) : "not-a-signature");
+  }
+
+  private int post(String webhookUrl, String body, String signature) {
     HttpRequest request =
         HttpRequest.newBuilder(URI.create(webhookUrl))
             .header("Content-Type", "application/json")
-            .header("x-paystack-signature", validSignature ? sign(body) : "not-a-signature")
+            .header("x-paystack-signature", signature)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
     try {
@@ -132,6 +160,7 @@ public final class FakePaystackServer implements AutoCloseable {
     String phone = request.path("mobile_money").path("phone").asText();
     String scenario = SCENARIO_BY_PHONE.getOrDefault(phone, "SUCCESS");
     scenarioByReference.put(reference, scenario);
+    amountByReference.put(reference, request.path("amount").asLong());
 
     switch (scenario) {
       case "REQUEST_REJECTED" ->
@@ -145,6 +174,10 @@ public final class FakePaystackServer implements AutoCloseable {
         sleep(2_000);
         respond(exchange, 200, accepted(reference));
       }
+      case "SLOW" -> {
+        sleep(5_000);
+        respond(exchange, 200, accepted(reference));
+      }
       default -> respond(exchange, 200, accepted(reference));
     }
   }
@@ -153,12 +186,28 @@ public final class FakePaystackServer implements AutoCloseable {
     String reference =
         exchange.getRequestURI().getPath().substring("/transaction/verify/".length());
     String scenario = scenarioByReference.getOrDefault(reference, "SUCCESS");
-    String status = "DECLINED".equals(scenario) ? "failed" : "success";
+    String status =
+        switch (scenario) {
+          case "DECLINED", "PENDING_THEN_FAILED" -> "failed";
+          case "PENDING_THEN_ABANDONED" -> "abandoned";
+          default -> "success";
+        };
+    long amount = amountByReference.getOrDefault(reference, 0L);
+    if ("PENDING_THEN_WRONG_AMOUNT".equals(scenario)) {
+      amount += 100;
+    }
     respond(
         exchange,
         200,
         Map.of(
-            "status", true, "data", Map.of("reference", reference, "status", status, "amount", 0)));
+            "status",
+            true,
+            "data",
+            Map.of(
+                "reference", reference,
+                "status", status,
+                "amount", amount,
+                "currency", "GHS")));
   }
 
   private static Map<String, Object> accepted(String reference) {

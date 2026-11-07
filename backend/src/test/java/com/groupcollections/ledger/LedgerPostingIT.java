@@ -80,6 +80,15 @@ class LedgerPostingIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("INV-LEDGER-002")
+  void appendOnlyTablesCannotBeTruncated() {
+    assertThatThrownBy(() -> jdbc.execute("truncate table ledger_entries"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    assertThatThrownBy(() -> jdbc.execute("truncate table contribution_events"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
   @Criterion("INV-LEDGER-006")
   void balancesAreDerivedFromEntriesAndNeverStored() {
     Integer balanceColumns =

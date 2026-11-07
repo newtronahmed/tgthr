@@ -1,10 +1,8 @@
 package com.groupcollections.contribution;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.groupcollections.support.Criterion;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -20,6 +18,14 @@ class ContributionStateMachineTest {
         ContributionState.INITIATED, ContributionEvent.PROMPT_SENT, ContributionState.PENDING);
     assertTransition(
         ContributionState.INITIATED, ContributionEvent.PROMPT_REJECTED, ContributionState.FAILED);
+    assertTransition(
+        ContributionState.INITIATED,
+        ContributionEvent.PAYMENT_SUCCEEDED,
+        ContributionState.CONFIRMED);
+    assertTransition(
+        ContributionState.INITIATED,
+        ContributionEvent.PAYMENT_TIMED_OUT,
+        ContributionState.EXPIRED);
     assertTransition(
         ContributionState.PENDING,
         ContributionEvent.PAYMENT_SUCCEEDED,
@@ -47,23 +53,12 @@ class ContributionStateMachineTest {
         .isEmpty();
     assertThat(
             ContributionStateMachine.apply(
-                ContributionState.INITIATED, ContributionEvent.PAYMENT_SUCCEEDED))
-        .isEmpty();
-    assertThat(
-            ContributionStateMachine.apply(
                 ContributionState.PENDING, ContributionEvent.REFUND_APPROVED))
         .isEmpty();
     assertThat(
             ContributionStateMachine.apply(
                 ContributionState.EXPIRED, ContributionEvent.PAYMENT_FAILED))
         .isEmpty();
-  }
-
-  @Test
-  @Disabled("pending: write the failing test first")
-  @Criterion("INV-STATE-002")
-  void ledgerEntriesExistOnlyForConfirmedContributions() {
-    fail("not implemented");
   }
 
   @Test

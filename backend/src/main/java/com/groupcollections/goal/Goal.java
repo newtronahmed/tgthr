@@ -4,14 +4,22 @@ import com.groupcollections.ledger.Money;
 import java.time.Instant;
 import java.util.UUID;
 
-/** The goal fields a contribution needs to apply the amount policy and the acceptance rule. */
+/** The goal fields the public page and contribution policy need. */
 public record Goal(
     UUID id,
+    String slug,
+    String title,
+    String template,
     TargetType targetType,
     Money fixedAmount,
+    Money targetAmount,
     Money minimumAmount,
     GoalStatus status,
-    Instant deadline) {
+    Instant deadline,
+    String destinationType,
+    String secondApprover,
+    int holdWindowMinutes,
+    String surplusRule) {
 
   public GoalRules rules() {
     return new GoalRules(targetType, fixedAmount, minimumAmount);

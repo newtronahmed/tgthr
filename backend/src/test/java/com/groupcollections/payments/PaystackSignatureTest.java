@@ -43,6 +43,13 @@ class PaystackSignatureTest {
     assertThat(signatures.isValid(BODY, "not-a-hex-signature")).isFalse();
   }
 
+  @Test
+  void verifiesRawBytesForNonAsciiBodies() {
+    String body = "{\"note\":\"café\"}";
+    assertThat(signatures.isValid(body.getBytes(StandardCharsets.UTF_8), sign(body, SECRET)))
+        .isTrue();
+  }
+
   private static String sign(String body, String secret) {
     try {
       Mac mac = Mac.getInstance("HmacSHA512");

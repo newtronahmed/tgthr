@@ -29,7 +29,7 @@ CREATE TABLE goals (
         CHECK (fixed_amount_pesewas IS NULL OR fixed_amount_pesewas > 0),
     CONSTRAINT goals_target_amount_positive_check
         CHECK (target_amount_pesewas IS NULL OR target_amount_pesewas > 0),
-    CONSTRAINT goals_minimum_amount_positive_check CHECK (minimum_amount_pesewas > 0),
+    CONSTRAINT goals_minimum_amount_floor_check CHECK (minimum_amount_pesewas >= 1000),
     CONSTRAINT goals_status_check CHECK (status IN ('OPEN', 'CLOSED', 'FROZEN')),
     CONSTRAINT goals_destination_type_check
         CHECK (destination_type IN ('BENEFICIARY_MOMO', 'ADMIN_MOMO')),
@@ -71,8 +71,8 @@ CREATE TABLE contributions (
 
 CREATE INDEX idx_contributions_goal_id ON contributions (goal_id);
 CREATE INDEX idx_contributions_payer_phone_hash ON contributions (payer_phone_hash);
-CREATE INDEX idx_contributions_pending_created_at
-    ON contributions (created_at)
+CREATE INDEX idx_contributions_pending_updated_at
+    ON contributions (updated_at)
     WHERE state = 'PENDING';
 
 CREATE TABLE contribution_events (

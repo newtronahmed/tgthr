@@ -66,6 +66,32 @@ paths:
           $ref: '#/components/responses/Problem'
         '429':
           $ref: '#/components/responses/Problem'
+  /public/goals/{slug}/contribution-quote:
+    post:
+      tags: [Public]
+      operationId: quoteContribution
+      summary: Preview the exact fees for an amount without starting a payment
+      parameters:
+        - $ref: '#/components/parameters/GoalSlug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContributionQuote'
+      responses:
+        '200':
+          description: Fee breakdown for the amount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeQuote'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
   /public/contributions/{id}:
     get:
       tags: [Public]
@@ -112,6 +138,8 @@ paths:
           description: Callback accepted (also returned for a repeated callback)
         '401':
           $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
 components:
   parameters:
     GoalSlug:
@@ -133,7 +161,7 @@ components:
   schemas:
     PublicGoal:
       type: object
-      required: [slug, title, template, targetType, raisedPesewas, contributorCount, status, payoutRules, feed]
+      required: [slug, title, template, targetType, minimumAmountPesewas, raisedPesewas, contributorCount, status, payoutRules, feed]
       properties:
         slug:
           type: string
@@ -154,11 +182,16 @@ components:
           type: integer
           format: int64
           nullable: true
+        minimumAmountPesewas:
+          type: integer
+          format: int64
+          description: Smallest amount an open goal accepts.
         raisedPesewas:
           type: integer
           format: int64
         contributorCount:
           type: integer
+          description: Number of confirmed contributions (not distinct people).
         deadline:
           type: string
           format: date-time
@@ -170,6 +203,7 @@ components:
           $ref: '#/components/schemas/PayoutRules'
         feed:
           type: array
+          description: Up to 20 confirmed contributions, newest first.
           items:
             $ref: '#/components/schemas/FeedItem'
     PayoutRules:
@@ -212,6 +246,7 @@ components:
           type: integer
           format: int64
           minimum: 1
+          maximum: 10000000
         displayName:
           type: string
           maxLength: 80
@@ -225,6 +260,31 @@ components:
         network:
           type: string
           enum: [MTN, TELECEL, AT]
+    ContributionQuote:
+      type: object
+      required: [amountPesewas]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 10000000
+    FeeQuote:
+      type: object
+      required: [amountPesewas, processingFeePesewas, platformFeePesewas, totalPesewas]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+        processingFeePesewas:
+          type: integer
+          format: int64
+        platformFeePesewas:
+          type: integer
+          format: int64
+        totalPesewas:
+          type: integer
+          format: int64
     ContributionStatus:
       type: object
       required: [id, state, amountPesewas, processingFeePesewas, platformFeePesewas, feePesewas, totalPesewas]

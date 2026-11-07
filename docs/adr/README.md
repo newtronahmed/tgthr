@@ -11,3 +11,4 @@ One decision per file, numbered, never edited once accepted (supersede instead).
 | [0005](0005-payout-safeguards.md) | Payout safeguards: hold window and optional second approver | Accepted |
 | [0006](0006-paystack-payment-partner.md) | Paystack as payment partner | Superseded in part by 0007 |
 | [0007](0007-platform-service-fee.md) | Platform service fee | Accepted |
+| [0008](0008-web-performance-budget.md) | Web performance budget | Accepted |
