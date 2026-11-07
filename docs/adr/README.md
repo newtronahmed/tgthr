@@ -12,3 +12,5 @@ One decision per file, numbered, never edited once accepted (supersede instead).
 | [0006](0006-paystack-payment-partner.md) | Paystack as payment partner | Superseded in part by 0007 |
 | [0007](0007-platform-service-fee.md) | Platform service fee | Accepted |
 | [0008](0008-web-performance-budget.md) | Web performance budget | Accepted |
+| [0009](0009-sms-otp-provider.md) | SMS OTP provider through an adapter | Proposed |
+| [0010](0010-opaque-sessions.md) | Opaque server-side sessions | Proposed |
