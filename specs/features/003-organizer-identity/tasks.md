@@ -13,7 +13,7 @@ green on `main`; release still requires a pull request.
 - [x] T005 Write `V3__organizer_identity.sql`: users, user_sessions, otp_challenges, goals additions, goal_events, indexes, append-only triggers
 - [x] T006 Extract the shared `PhoneCipher` from `PayerPhoneCipher`; keep contribution behaviour green; add unit tests for normalize/encrypt/hash
 - [x] T007 Build `FakeSmsSender` and a fake `AccountResolver` for tests; wire them in the test harness
-- [ ] T008 [P] Build the generic scoped rate limiter for OTP and goal creation; unit tests with a mutable clock
+- [x] T008 [P] Build the generic scoped rate limiter for OTP and goal creation; unit tests with a mutable clock
 
 ## Slice 1 (P1): Sign-in, sessions and limits
 
@@ -33,8 +33,8 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-003, AC-ORG-004, AC-ORG-010, AC-ORG-011
 - [x] T121 Implement the same-origin filter and configure `WEB_ORIGIN` until T120 is green
 - [x] T122 Write the failing test for AC-ORG-014: logout revokes the session
 - [x] T123 Implement logout and cookie clearing until T122 is green
-- [ ] T124 Write the failing `OrganizerIdentityInvariantsTest` for INV-IDENT-001/002/003
-- [ ] T125 Implement the remaining session/challenge/phone invariants until T124 is green
+- [x] T124 Write the failing `OrganizerIdentityInvariantsTest` for INV-IDENT-001/002/003
+- [x] T125 Implement the remaining session/challenge/phone invariants until T124 is green
 - [ ] T126 Refactor the identity module; keep the suite green
 
 ## Slice 2 (P1): Goal creation, destination lock and ownership
@@ -71,20 +71,20 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 
 ## Hardening
 
-- [ ] T160 Add events, metrics and alerts for OTP, sessions, goal creation and destination failures
-- [ ] T161 Abuse tests: OTP pumping, enumeration, cross-tenant access, session theft and replay
+- [x] T160 Add events, metrics and alerts for OTP, sessions, goal creation and destination failures
+- [x] T161 Abuse tests: OTP pumping, enumeration, cross-tenant access, session theft and replay
 - [ ] T162 Update `docs/runbooks/` with SMS provider and organizer sign-in operations
-- [ ] T163 Run `make check`, the web checks and E2E; remove every `@Disabled` marker for FEAT-003
+- [x] T163 Run `make check`, the web checks and E2E; remove every `@Disabled` marker for FEAT-003
 - [x] T164 Independent review at the slice boundaries; fix blockers before the next slice
-- [ ] T165 Add retention/cleanup for expired `otp_challenges` and `user_sessions` (scheduled job and index review)
-- [ ] T166 Block updates to `goals.destination_*` once the create path lands (trigger or constraint), proving destination immutability
+- [x] T165 Add retention/cleanup for expired `otp_challenges` and `user_sessions` (scheduled job and index review)
+- [x] T166 Block updates to `goals.destination_*` once the create path lands (trigger or constraint), proving destination immutability
 - [x] T167 Decide whether a display name is required at first verification; amend the spec and OpenAPI together, then enforce in the service
 - [x] T168 Forward `Origin`, `Cookie` and `X-Forwarded-For` in the BFF auth/organizer routes and cover the relay in the web E2E
 - [ ] T169 Add a deterministic `Clock` test seam for OTP/session expiry and assert the 60-second and 30-day production defaults
-- [ ] T170 Serialize OTP requests per phone (advisory lock or one-active-challenge index) and add a concurrency test
+- [x] T170 Serialize OTP requests per phone (advisory lock or one-active-challenge index) and add a concurrency test
 - [ ] T171 Add the production `AccountResolver` (Paystack `/bank/resolve` with the MoMo telco code) after T001 and test it against the fake partner
 - [x] T172 Use only the stored legal name for ADMIN_MOMO, require the destination to be the organizer's own phone, and stop mutating identity at goal create
-- [ ] T173 Add a same-key concurrency test for goal creation (fix landed: resolution outside the write transaction)
+- [x] T173 Add a same-key concurrency test for goal creation (fix landed: resolution outside the write transaction)
 - [ ] T174 Add a slug-collision test with an injectable slug source (fix landed: all-constraint ON CONFLICT)
 - [x] T175 Add AC-ORG-007 unresolvable, legal-name-required, wrong-owner and name-normalization coverage
 - [x] T176 Assert organizer raised totals with a confirmed contribution and a reversal
@@ -92,24 +92,24 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 - [x] T178 Assert organizer phone at rest and scan public/get/close bodies for phones
 - [x] T179 Expose `secondApproverThresholdPesewas` in the public payout rules
 - [ ] T180 Add concurrent same-key, key-reuse-after-422 and unique test-phone fixtures
-- [ ] T181 Move `GoalNotFoundException` mapping to a goal/shared advice
-- [ ] T182 Decide whether payout destinations accept E.164 as well as local numbers
+- [x] T181 Move `GoalNotFoundException` mapping to a goal/shared advice
+- [x] T182 Decide whether payout destinations accept E.164 as well as local numbers
 - [x] T183 Fix null-body 204/205/304 in the BFF and cover logout in E2E
 - [x] T184 Reuse one wizard idempotency key per attempt
 - [x] T185 Add try/finally and retry errors to the web mutations
 - [x] T186 Add `aria-pressed` and a non-colour selected marker to the template picker
 - [x] T187 Allow a zero approver threshold and hide it when approval is off
 - [x] T188 Require the `e2e` profile for dev SMS/OTP/resolver beans
-- [ ] T189 Add mobile viewport and closed-goal 409 coverage to the organizer E2E
+- [x] T189 Add mobile viewport and closed-goal 409 coverage to the organizer E2E
 - [x] T190 Ignore `*.tsbuildinfo`
 - [x] T191 Bound BFF request bodies
 - [x] T192 Map malformed goal ids to 404
 - [ ] T193 Consider a `__Host-` session cookie name
 - [x] T194 Normalize the phone in the sign-in UI before sending
-- [ ] T195 Tighten the web CSP and add HSTS
+- [ ] T195 Finish CSP tightening (HSTS added; nonce/hash CSP and header tests remain)
 - [x] T196 Align OpenAPI goal defaults/nullability and update status/docs
 - [x] T197 Add the `(phone_hash, created_at DESC)` OTP index
-- [ ] T198 Trust only a platform client IP; strip/ignore inbound X-Forwarded-For and test per-IP limits
+- [ ] T198 Complete the trusted-IP contract for all BFF routes and add forged-header/per-IP tests (auth routes now use x-real-ip only)
 
 ## Review follow-ups (FEAT-003 identity slice)
 
@@ -132,4 +132,8 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 | `__Host-` cookie naming | backend | T193 |
 | CSP/HSTS hardening | web | T195 |
 | Trusted client IP / per-IP tests | web/backend | T198 |
+| Slug-collision test | backend | T174 |
+| Unique fixture cleanup | test | T180 |
+| Deterministic clock tests | test | T169 |
+| CSP nonce/hash tests | web | T195 |
 | Retention for OTP challenges and sessions | backend | T165 |
