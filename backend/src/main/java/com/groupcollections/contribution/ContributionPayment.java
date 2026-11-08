@@ -5,4 +5,4 @@ import java.util.UUID;
 
 /** The contribution amounts a callback needs to confirm and post. */
 public record ContributionPayment(
-    UUID id, Money amount, Money processingFee, Money platformFee, Money total) {}
+    UUID id, UUID goalId, Money amount, Money processingFee, Money platformFee, Money total) {}

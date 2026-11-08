@@ -26,3 +26,4 @@ Everything built here starts as a spec in this folder.
 | domain/ledger | Accepted | Settlement model, payout fee bearer and PLATFORM_FEE decided in ADRs 0006 and 0007; contribution invariants implemented. Payout invariants follow FEAT-002. |
 | domain/contribution-state-machine | Accepted | Early- and late-success transitions implemented and tested. |
 | domain/organizer-identity | Accepted | Session, challenge and phone invariants for FEAT-003 and FEAT-004. |
+| domain/settlement | Accepted | Phase 1 schema/repository and goal-owned eligibility (ADR 0014) implemented; CODEOWNER review of ledger/payment changes remains. |

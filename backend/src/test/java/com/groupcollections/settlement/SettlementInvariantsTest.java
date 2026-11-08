@@ -1,0 +1,170 @@
+package com.groupcollections.settlement;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.ledger.Money;
+import com.groupcollections.support.ApiIntegrationTest;
+import com.groupcollections.support.Criterion;
+import com.groupcollections.support.RecordingAlertPublisher;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
+
+class SettlementInvariantsTest extends ApiIntegrationTest {
+
+  @Autowired private SettlementRepository settlements;
+
+  @Test
+  @Criterion("INV-SETTLE-002")
+  void settlementItemContributionMustExistAndNullIsAllowedForAdjustments() {
+    Settlement settlement = settlement("missing-contribution");
+    settlements.save(settlement);
+
+    assertThatThrownBy(
+            () -> settlements.saveItem(item(settlement.id(), UUID.randomUUID(), 1_000, 0)))
+        .isInstanceOf(DataIntegrityViolationException.class);
+
+    settlements.saveItem(
+        new SettlementItem(
+            UUID.randomUUID(),
+            settlement.id(),
+            null,
+            SettlementItemType.ADJUSTMENT,
+            SettlementDirection.CREDIT,
+            Money.of(1_000, "GHS"),
+            Money.of(0, "GHS"),
+            Money.of(1_000, "GHS"),
+            Money.of(0, "GHS"),
+            Instant.now()));
+    assertThat(settlements.findByContributionId(null)).isEmpty();
+  }
+
+  @Test
+  @Criterion("INV-SETTLE-003")
+  void markSettledRejectsMismatchedItemTotalsAndAcceptsMatchingOnes() {
+    Settlement mismatched = settlement("mismatch");
+    settlements.save(mismatched);
+    settlements.saveItem(item(mismatched.id(), null, 4_000, 0));
+    assertThatThrownBy(() -> settlements.markSettled(mismatched.id(), Instant.now()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("totals");
+    assertThat(settlements.findById(mismatched.id()).orElseThrow().status())
+        .isEqualTo(SettlementStatus.PENDING);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.SETTLEMENT_TOTAL_MISMATCH);
+
+    Settlement matched = settlement("matched");
+    settlements.save(matched);
+    settlements.saveItem(item(matched.id(), null, 5_000, 100));
+    assertThat(settlements.markSettled(matched.id(), Instant.now())).isEqualTo(1);
+    assertThat(settlements.findById(matched.id()).orElseThrow().status())
+        .isEqualTo(SettlementStatus.SETTLED);
+  }
+
+  @Test
+  @Criterion("INV-SETTLE-004")
+  void duplicateContributionRaisesAndIsRejectedButFailedBatchesCanRetry() {
+    String slug = insertGoal("settlement-duplicate", "OPEN", null);
+    Map<String, Object> contribution = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID contributionId = UUID.fromString((String) contribution.get("id"));
+
+    Settlement first = settlement("duplicate-first");
+    Settlement second = settlement("duplicate-second");
+    settlements.save(first);
+    settlements.save(second);
+    settlements.saveItem(item(first.id(), contributionId, 5_000, 100));
+
+    assertThatThrownBy(() -> settlements.saveItem(item(second.id(), contributionId, 5_000, 100)))
+        .isInstanceOf(DuplicateKeyException.class);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.DUPLICATE_SETTLEMENT);
+
+    assertThat(settlements.markFailed(first.id())).isEqualTo(1);
+    Settlement retry = settlement("retry");
+    settlements.save(retry);
+    settlements.saveItem(item(retry.id(), contributionId, 5_000, 100));
+    assertThat(
+            count(
+                "select count(*) from settlement_items where contribution_id = ?", contributionId))
+        .isEqualTo(2);
+  }
+
+  @Test
+  void settlementItemsAreAppendOnlyAndOnlyPendingBatchesAcceptItems() {
+    Settlement settlement = settlement("append-only");
+    settlements.save(settlement);
+    settlements.saveItem(item(settlement.id(), null, 5_000, 100));
+
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "update settlement_items set goal_amount_minor_units = 1 where settlement_id = ?",
+                    settlement.id()))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "delete from settlement_items where settlement_id = ?", settlement.id()))
+        .isInstanceOf(DataIntegrityViolationException.class);
+
+    assertThat(settlements.markSettled(settlement.id(), Instant.now())).isEqualTo(1);
+
+    assertThatThrownBy(() -> settlements.saveItem(item(settlement.id(), null, 1_000, 0)))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  @Disabled("pending: payout eligibility (T220/T240)")
+  @Criterion("INV-SETTLE-001")
+  void payoutCannotExceedSettledBalance() {
+    org.junit.jupiter.api.Assertions.fail("pending: payout eligibility (T220/T240)");
+  }
+
+  private Settlement settlement(String reference) {
+    Instant now = Instant.now();
+    return new Settlement(
+        UUID.randomUUID(),
+        SettlementProvider.PAYSTACK,
+        reference,
+        LocalDate.now(),
+        Money.of(5_000, "GHS"),
+        Money.of(100, "GHS"),
+        Money.of(4_900, "GHS"),
+        SettlementDirection.CREDIT,
+        SettlementStatus.PENDING,
+        null,
+        now,
+        now);
+  }
+
+  private SettlementItem item(
+      UUID settlementId, UUID contributionId, long grossMinorUnits, long feeMinorUnits) {
+    Money gross = Money.of(grossMinorUnits, "GHS");
+    Money fee = Money.of(feeMinorUnits, "GHS");
+    Money net = gross.minus(fee);
+    return new SettlementItem(
+        UUID.randomUUID(),
+        settlementId,
+        contributionId,
+        contributionId == null ? SettlementItemType.ADJUSTMENT : SettlementItemType.CONTRIBUTION,
+        SettlementDirection.CREDIT,
+        gross,
+        fee,
+        net,
+        gross,
+        Instant.now());
+  }
+
+  private int count(String sql, Object... args) {
+    Integer value = jdbc.queryForObject(sql, Integer.class, args);
+    return value == null ? 0 : value;
+  }
+}

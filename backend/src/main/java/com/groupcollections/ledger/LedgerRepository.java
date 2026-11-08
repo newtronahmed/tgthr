@@ -21,15 +21,17 @@ public class LedgerRepository {
       jdbc.update(
           """
           insert into ledger_entries
-              (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas)
-          values (?, ?, ?, ?, ?, ?)
+              (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas,
+               currency_code)
+          values (?, ?, ?, ?, ?, ?, ?)
           """,
           postingSet.id(),
           contributionId,
           entry.account().name(),
           entry.type().name(),
           entry.direction().name(),
-          entry.amount().pesewas());
+          entry.amount().minorUnits(),
+          entry.amount().currencyCode());
     }
   }
 }

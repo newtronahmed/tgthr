@@ -19,6 +19,8 @@ The ledger is the only record of money state. Everything a user sees about balan
 | Posting set | All entries created for one business event. A posting set nets to zero. |
 | Goal pool | The account holding what has been collected for a goal and is owed to its destination. |
 | Partner held | The account representing funds held for us by the licensed payment partner. |
+| Suspense | Holding account for payments requiring operator investigation and reclassification (ADR 0013). |
+| Platform loss | Records unrecoverable losses allocated to the platform after failed recovery attempts (ADR 0013). |
 
 ## Entry types
 
@@ -32,13 +34,17 @@ The ledger is the only record of money state. Everything a user sees about balan
 | REVERSAL | Undoes an earlier posting set | A refund or correction is approved |
 | ADJUSTMENT | Operator correction, always paired with a reason | Reconciliation finds a difference |
 | RESERVE_ROLLOVER | Surplus moves to the group's welfare reserve | Only for goals that opted in |
+| SUSPENSE_HOLD | Late or exceptional payment parked pending investigation | Payment confirmed after goal closure or other exception (ADR 0013) |
+| LOSS_ALLOCATION | Platform absorbs an unrecoverable shortfall | Post-payout refund with failed beneficiary recovery (ADR 0013) |
 
 Confirmed account mapping (ADR 0006):
 
 | Business event | Debit | Credit |
 | --- | --- | --- |
 | CONTRIBUTION of A plus FEE of F plus PLATFORM_FEE of P | Partner held A + F + P | Goal pool A; FEE F; PLATFORM_FEE P |
+| SUSPENSE_HOLD of A plus fees requiring reconciliation | Partner held A + F + P | Suspense A; FEE F; PLATFORM_FEE P |
 | PAYOUT of X less PAYOUT_FEE of G | Goal pool X | Partner held X − G; PAYOUT_FEE G |
+| LOSS_ALLOCATION of L after failed recovery | Platform loss L | Goal pool L (to clear negative) OR Partner held L (if partner compensates) |
 | RESERVE_ROLLOVER of S | Goal pool S | Welfare reserve S |
 
 `FEE` and `PAYOUT_FEE` are clearing accounts. They are cleared when the partner retains or deducts the fee; the settlement postings are in ADR 0006. `PLATFORM_FEE` is platform revenue, not a clearing account; see ADR 0007.
@@ -56,10 +62,12 @@ Confirmed account mapping (ADR 0006):
 | --- | --- |
 | INV-LEDGER-001 | Every posting set nets to zero: total debits equal total credits. |
 | INV-LEDGER-002 | Entries are never updated or deleted. A correction is a new entry. |
-| INV-LEDGER-003 | A goal pool balance is never negative, and a payout cannot exceed it. |
+| INV-LEDGER-003 | A goal pool balance is never negative; payouts cannot exceed the settled available balance (post-ADR 0012). |
 | INV-LEDGER-004 | An idempotency key appears at most once, enforced by a database unique constraint. |
 | INV-LEDGER-005 | Every amount is a non-negative integer number of pesewas, and posted entries are strictly positive. |
 | INV-LEDGER-006 | Balances are derived from entries on every read; no column stores a balance. |
+| INV-LEDGER-007 | Every ledger entry records a currency code; cross-currency arithmetic is rejected (ADR 0011). |
+| INV-LEDGER-008 | Payments to SUSPENSE account are flagged for reconciliation; automatic reclassification is prohibited (ADR 0013). |
 
 ## Settled partner model
 

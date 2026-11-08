@@ -19,13 +19,13 @@ public class ContributionQuoteService {
 
   public FeeQuote quote(String slug, long amountPesewas) {
     Goal goal = goals.findBySlug(slug).orElseThrow(() -> new GoalNotFoundException(slug));
-    Money amount = Money.ofPesewas(amountPesewas);
+    Money amount = Money.of(amountPesewas, "GHS");
     goal.rules().check(amount);
     FeeBreakdown breakdown = fees.calculate(amount);
     return new FeeQuote(
-        breakdown.amount().pesewas(),
-        breakdown.processingFee().pesewas(),
-        breakdown.platformFee().pesewas(),
-        breakdown.total().pesewas());
+        breakdown.amount().minorUnits(),
+        breakdown.processingFee().minorUnits(),
+        breakdown.platformFee().minorUnits(),
+        breakdown.total().minorUnits());
   }
 }

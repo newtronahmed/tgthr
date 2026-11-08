@@ -52,7 +52,8 @@ public class ContributionRepository {
 
   private static final String PAYMENT_COLUMNS =
       """
-      select id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas, total_pesewas
+      select id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
+             total_pesewas, currency_code
       from contributions
       """;
 
@@ -60,10 +61,14 @@ public class ContributionRepository {
       (resultSet, rowNumber) ->
           new ContributionPayment(
               resultSet.getObject("id", UUID.class),
-              Money.ofPesewas(resultSet.getLong("amount_pesewas")),
-              Money.ofPesewas(resultSet.getLong("processing_fee_pesewas")),
-              Money.ofPesewas(resultSet.getLong("platform_fee_pesewas")),
-              Money.ofPesewas(resultSet.getLong("total_pesewas")));
+              resultSet.getObject("goal_id", UUID.class),
+              Money.of(resultSet.getLong("amount_pesewas"), resultSet.getString("currency_code")),
+              Money.of(
+                  resultSet.getLong("processing_fee_pesewas"),
+                  resultSet.getString("currency_code")),
+              Money.of(
+                  resultSet.getLong("platform_fee_pesewas"), resultSet.getString("currency_code")),
+              Money.of(resultSet.getLong("total_pesewas"), resultSet.getString("currency_code")));
 
   private final JdbcTemplate jdbc;
   private final Clock clock;
@@ -85,17 +90,18 @@ public class ContributionRepository {
             """
         insert into contributions
             (id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-             total_pesewas, state, provider_reference, payer_phone_ciphertext, payer_phone_hash,
-             display_name, anonymous, idempotency_key, created_at, updated_at)
-        values (?, ?, ?, ?, ?, ?, 'INITIATED', ?, ?, ?, ?, ?, ?, ?, ?)
+             total_pesewas, currency_code, state, provider_reference, payer_phone_ciphertext,
+             payer_phone_hash, display_name, anonymous, idempotency_key, created_at, updated_at)
+        values (?, ?, ?, ?, ?, ?, ?, 'INITIATED', ?, ?, ?, ?, ?, ?, ?, ?)
         on conflict (idempotency_key) do nothing
         """,
             id,
             goalId,
-            fees.amount().pesewas(),
-            fees.processingFee().pesewas(),
-            fees.platformFee().pesewas(),
-            fees.total().pesewas(),
+            fees.amount().minorUnits(),
+            fees.processingFee().minorUnits(),
+            fees.platformFee().minorUnits(),
+            fees.total().minorUnits(),
+            fees.amount().currencyCode(),
             id.toString(),
             phones.encrypt(request.momoNumber()),
             phones.hash(request.momoNumber()),
@@ -140,6 +146,32 @@ public class ContributionRepository {
     return transition;
   }
 
+  public void markRequiresReconciliation(UUID id, Instant now) {
+    jdbc.update(
+        "update contributions set requires_reconciliation = true, updated_at = ? where id = ?",
+        Timestamp.from(now),
+        id);
+  }
+
+  public List<ReconciliationItem> findRequiringReconciliation() {
+    return jdbc.query(
+        """
+        select id, provider_reference, amount_pesewas, currency_code, updated_at
+        from contributions
+        where requires_reconciliation = true and state = 'CONFIRMED'
+        order by updated_at
+        """,
+        (resultSet, rowNumber) ->
+            new ReconciliationItem(
+                resultSet.getObject("id", UUID.class),
+                resultSet.getString("provider_reference"),
+                Money.of(resultSet.getLong("amount_pesewas"), resultSet.getString("currency_code")),
+                resultSet.getObject("updated_at", OffsetDateTime.class).toInstant()));
+  }
+
+  public record ReconciliationItem(
+      UUID id, String providerReference, Money amount, Instant updatedAt) {}
+
   public Optional<ContributionStatus> findStatus(UUID id) {
     return jdbc.query(STATUS_COLUMNS + "where id = ?", STATUS_MAPPER, id).stream().findFirst();
   }
@@ -178,7 +210,7 @@ public class ContributionRepository {
             """,
             Long.class,
             goalId);
-    return Money.ofPesewas(sum == null ? 0 : sum);
+    return Money.of(sum == null ? 0 : sum, "GHS");
   }
 
   public long confirmedCount(UUID goalId) {

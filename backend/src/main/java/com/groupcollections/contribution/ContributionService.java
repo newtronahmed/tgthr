@@ -81,13 +81,16 @@ public class ContributionService {
       return;
     }
     ContributionPayment payment = found.get();
-    if (payment.total().pesewas() != result.amountPesewas()) {
+    if (payment.total().minorUnits() != result.amountPesewas()) {
       meters.counter("contributions.callback", "result", "amount_mismatch").increment();
       alerts.publish(
           new Alert(
               Alert.AlertType.AMOUNT_MISMATCH,
               result.providerReference(),
-              "expected " + payment.total().pesewas() + " pesewas, got " + result.amountPesewas()));
+              "expected "
+                  + payment.total().minorUnits()
+                  + " pesewas, got "
+                  + result.amountPesewas()));
       return;
     }
     if (result.success()) {
