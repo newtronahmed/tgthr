@@ -18,10 +18,9 @@ export function backendHeaders(
   if (origin) {
     headers.origin = origin;
   }
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip");
-  if (ip) {
-    headers["x-forwarded-for"] = ip;
+  const platformIp = request.headers.get("x-real-ip");
+  if (platformIp) {
+    headers["x-forwarded-for"] = platformIp;
   }
   return headers;
 }
