@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Feature ID | FEAT-003 |
-| Status | Ready |
+| Status | In progress |
 | Owner | Ahmed Zubairu |
 | Area code | ORG |
 | Created | 2026-11-06 |
@@ -134,7 +134,7 @@ FEAT-001 assumes a goal already exists, but organizers have no account and no wa
   - `GET /organizer/goals/{id}`
   - `POST /organizer/goals/{id}/close`
 - `specs/api/openapi.yaml` gains the cookie security scheme, request and response schemas, and 401/403/404/409/422/429/503 responses.
-- The public goal contract does not change; the destination phone is never public.
+- The public goal contract gains the second-approver threshold (money-affecting safeguard); the destination phone is never public.
 - Backward compatible; no existing endpoint changes.
 
 ## Security, privacy and fraud

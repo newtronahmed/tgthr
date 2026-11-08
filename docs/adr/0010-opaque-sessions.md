@@ -1,6 +1,6 @@
 # ADR 0010: Opaque server-side sessions
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-06
 - Deciders: Ahmed Zubairu
 - Constitution articles touched: VIII
@@ -11,7 +11,7 @@ Organizers sign in on phones, often shared. Sessions must be revocable immediate
 
 ## Decision
 
-We will use opaque 256-bit random session tokens stored hashed in PostgreSQL, sent in an HttpOnly, Secure, SameSite=Lax cookie. Sign-in rotates the token, logout revokes the row, and expiry is absolute at 30 days. No session secret is needed beyond the stored hash.
+We will use opaque 256-bit random session tokens stored hashed in PostgreSQL, sent in an HttpOnly, Secure, SameSite=Lax cookie. Sign-in issues a new token for the signing-in device and does not revoke other sessions (multi-device); logout revokes the presented session, and expiry is absolute at 30 days. No session secret is needed beyond the stored hash.
 
 ## Consequences
 

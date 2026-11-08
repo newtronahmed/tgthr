@@ -11,6 +11,7 @@ spring:
 
 collections:
   payments:
+    account-resolver: ${ACCOUNT_RESOLVER:none}
     paystack:
       base-url: ${PAYSTACK_BASE_URL:https://api.paystack.co}
       secret-key: ${PAYSTACK_SECRET_KEY:}
@@ -18,6 +19,16 @@ collections:
       read-timeout: ${PAYSTACK_READ_TIMEOUT:PT5S}
   security:
     payer-phone-key: ${PAYER_PHONE_KEY:}
+    cookie-secure: ${COOKIE_SECURE:true}
+  identity:
+    otp-ttl: ${OTP_TTL:PT5M}
+    otp-max-attempts: ${OTP_MAX_ATTEMPTS:5}
+    otp-resend-seconds: ${OTP_RESEND_SECONDS:60}
+    session-ttl: ${SESSION_TTL:P30D}
+  sms:
+    provider: ${SMS_PROVIDER:none}
+  web:
+    origin: ${WEB_ORIGIN:http://localhost:3000}
   contribution:
     platform-fee-bps: ${PLATFORM_FEE_BPS:150}
     paystack-fee-bps: ${PAYSTACK_FEE_BPS:195}
@@ -26,6 +37,10 @@ collections:
     enabled: ${RATE_LIMIT_ENABLED:true}
     per-ip-per-minute: ${RATE_LIMIT_PER_IP_PER_MINUTE:30}
     per-phone-per-minute: ${RATE_LIMIT_PER_PHONE_PER_MINUTE:5}
+    otp-per-phone-per-minute: ${OTP_RATE_LIMIT_PER_PHONE_PER_MINUTE:3}
+    otp-per-ip-per-minute: ${OTP_RATE_LIMIT_PER_IP_PER_MINUTE:10}
+    otp-verify-per-phone-per-minute: ${OTP_VERIFY_RATE_LIMIT_PER_PHONE_PER_MINUTE:10}
+    otp-verify-per-ip-per-minute: ${OTP_VERIFY_RATE_LIMIT_PER_IP_PER_MINUTE:20}
 
 logging:
   pattern:

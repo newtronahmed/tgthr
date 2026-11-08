@@ -1,4 +1,4 @@
-package com.groupcollections.contribution;
+package com.groupcollections.security;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -10,11 +10,11 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Encrypts the payer's phone number with AES-GCM and builds a keyed lookup hash, as required by the
- * spec's security section. The configured master key is split into separate encryption and lookup
- * keys so the same key material is never reused across primitives.
+ * Encrypts phone numbers and builds keyed lookup hashes. The configured master key is split into
+ * separate encryption, lookup and OTP keys so the same key material is never reused across
+ * primitives.
  */
-public final class PayerPhoneCipher {
+public final class PhoneCipher {
 
   private static final String CIPHER = "AES/GCM/NoPadding";
   private static final String MAC = "HmacSHA256";
@@ -24,16 +24,18 @@ public final class PayerPhoneCipher {
 
   private final SecretKeySpec encryptionKey;
   private final SecretKeySpec lookupKey;
+  private final SecretKeySpec otpKey;
   private final SecureRandom random;
 
-  public PayerPhoneCipher(String base64MasterKey, SecureRandom random) {
+  public PhoneCipher(String base64MasterKey, SecureRandom random) {
     this.random = random;
     byte[] master = Base64.getDecoder().decode(base64MasterKey);
     if (master.length != MASTER_KEY_BYTES) {
-      throw new IllegalArgumentException("payer phone key must decode to 32 bytes");
+      throw new IllegalArgumentException("phone key must decode to 32 bytes");
     }
     encryptionKey = new SecretKeySpec(derive(master, "encryption"), "AES");
     lookupKey = new SecretKeySpec(derive(master, "lookup"), MAC);
+    otpKey = new SecretKeySpec(derive(master, "otp"), MAC);
   }
 
   public byte[] encrypt(String phone) {
@@ -48,17 +50,25 @@ public final class PayerPhoneCipher {
       System.arraycopy(sealed, 0, result, iv.length, sealed.length);
       return result;
     } catch (GeneralSecurityException failure) {
-      throw new IllegalStateException("could not encrypt the payer phone", failure);
+      throw new IllegalStateException("could not encrypt the phone", failure);
     }
   }
 
   public byte[] hash(String phone) {
+    return mac(lookupKey, phone, "could not hash the phone");
+  }
+
+  public byte[] hashOtpCode(String code) {
+    return mac(otpKey, code, "could not hash the OTP code");
+  }
+
+  private static byte[] mac(SecretKeySpec key, String value, String message) {
     try {
       Mac mac = Mac.getInstance(MAC);
-      mac.init(lookupKey);
-      return mac.doFinal(phone.getBytes(StandardCharsets.UTF_8));
+      mac.init(key);
+      return mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
     } catch (GeneralSecurityException failure) {
-      throw new IllegalStateException("could not hash the payer phone", failure);
+      throw new IllegalStateException(message, failure);
     }
   }
 
@@ -68,7 +78,7 @@ public final class PayerPhoneCipher {
       mac.init(new SecretKeySpec(key, MAC));
       return mac.doFinal(label.getBytes(StandardCharsets.UTF_8));
     } catch (GeneralSecurityException failure) {
-      throw new IllegalStateException("could not derive a payer phone key", failure);
+      throw new IllegalStateException("could not derive a phone key", failure);
     }
   }
 }

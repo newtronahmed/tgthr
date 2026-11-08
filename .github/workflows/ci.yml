@@ -110,7 +110,7 @@ jobs:
       - name: Start backend
         run: |
           cd backend
-          nohup env             DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/collections             DATABASE_USER=collections             DATABASE_PASSWORD=collections             SERVER_PORT=8090             PAYSTACK_BASE_URL=http://127.0.0.1:9099             PAYSTACK_SECRET_KEY=test-secret             PAYER_PHONE_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=             ./gradlew bootRun > /tmp/backend.log 2>&1 &
+          nohup env             DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/collections             DATABASE_USER=collections             DATABASE_PASSWORD=collections             SERVER_PORT=8090             PAYSTACK_BASE_URL=http://127.0.0.1:9099             PAYSTACK_SECRET_KEY=test-secret             PAYER_PHONE_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=             SPRING_PROFILES_ACTIVE=e2e             SMS_PROVIDER=dev             ACCOUNT_RESOLVER=dev             COOKIE_SECURE=false             WEB_ORIGIN=http://127.0.0.1:3200             ./gradlew bootRun > /tmp/backend.log 2>&1 &
           echo $! > /tmp/backend.pid
           for i in $(seq 1 120); do
             curl -sf http://127.0.0.1:8090/v1/actuator/health >/dev/null && break
@@ -142,4 +142,5 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:3200
           PAYSTACK_FAKE_URL: http://127.0.0.1:9099
+          BACKEND_URL: http://127.0.0.1:8090/v1
         run: npm run e2e

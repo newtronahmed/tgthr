@@ -1,6 +1,6 @@
 # ADR 0009: SMS OTP provider through an adapter
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-06
 - Deciders: Ahmed Zubairu
 - Constitution articles touched: VI, VII, VIII
@@ -24,7 +24,7 @@ We will deliver codes through an `SmsSender` adapter. Tests use an in-memory fak
 
 - Per-message cost and SMS pumping abuse; rate limits per phone/IP and spend alerts are required.
 - Deliverability varies by network; failures must return 503 and be alerted.
-- The vendor and its terms are not yet accepted; this ADR stays Proposed until the sandbox check and owner sign-off.
+- Accepted on 2026-11-07 on the maintainer's instruction to proceed. The live sandbox check, vendor terms and credentials are still required before production; the production adapter is T162.
 
 ## Alternatives considered
 

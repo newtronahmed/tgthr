@@ -66,6 +66,8 @@ public abstract class ApiIntegrationTest {
     registry.add("collections.payments.paystack.connect-timeout", () -> "PT1S");
     registry.add("collections.payments.paystack.read-timeout", () -> "PT1S");
     registry.add("collections.rate-limit.enabled", () -> "false");
+    registry.add("collections.identity.otp-resend-seconds", () -> "1");
+    registry.add("collections.web.origin", () -> "http://localhost:3000");
   }
 
   @Autowired protected TestRestTemplate rest;

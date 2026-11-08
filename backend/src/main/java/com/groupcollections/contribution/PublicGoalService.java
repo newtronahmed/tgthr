@@ -38,6 +38,7 @@ public class PublicGoalService {
         new PublicGoalView.PayoutRules(
             goal.destinationType(),
             goal.secondApprover(),
+            goal.secondApproverThresholdPesewas(),
             goal.holdWindowMinutes(),
             goal.surplusRule()),
         contributions.feed(goal.id(), FEED_LIMIT));

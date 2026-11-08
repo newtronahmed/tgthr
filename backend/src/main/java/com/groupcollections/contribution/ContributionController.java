@@ -1,5 +1,6 @@
 package com.groupcollections.contribution;
 
+import com.groupcollections.security.PhoneCipher;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -18,14 +19,14 @@ public class ContributionController {
   private final ContributionService contributions;
   private final PublicGoalService publicGoals;
   private final RateLimiter rateLimiter;
-  private final PayerPhoneCipher phones;
+  private final PhoneCipher phones;
   private final ContributionQuoteService quotes;
 
   public ContributionController(
       ContributionService contributions,
       PublicGoalService publicGoals,
       RateLimiter rateLimiter,
-      PayerPhoneCipher phones,
+      PhoneCipher phones,
       ContributionQuoteService quotes) {
     this.contributions = contributions;
     this.publicGoals = publicGoals;

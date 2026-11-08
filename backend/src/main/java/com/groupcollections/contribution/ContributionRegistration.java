@@ -5,6 +5,7 @@ import com.groupcollections.goal.GoalNotAcceptingException;
 import com.groupcollections.goal.GoalNotFoundException;
 import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.Money;
+import com.groupcollections.security.PhoneCipher;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,7 +31,7 @@ public class ContributionRegistration {
   private final GoalRepository goals;
   private final ContributionRepository contributions;
   private final FeeCalculator fees;
-  private final PayerPhoneCipher phones;
+  private final PhoneCipher phones;
   private final IdGenerator ids;
   private final MeterRegistry meters;
   private final Clock clock;
@@ -39,7 +40,7 @@ public class ContributionRegistration {
       GoalRepository goals,
       ContributionRepository contributions,
       FeeCalculator fees,
-      PayerPhoneCipher phones,
+      PhoneCipher phones,
       IdGenerator ids,
       MeterRegistry meters,
       Clock clock) {

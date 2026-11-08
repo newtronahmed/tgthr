@@ -21,7 +21,11 @@ public record PublicGoalView(
     List<FeedItem> feed) {
 
   public record PayoutRules(
-      String destinationType, String secondApprover, int holdWindowMinutes, String surplusRule) {}
+      String destinationType,
+      String secondApprover,
+      long secondApproverThresholdPesewas,
+      int holdWindowMinutes,
+      String surplusRule) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record FeedItem(String displayName, boolean anonymous, long amountPesewas, Instant at) {}
