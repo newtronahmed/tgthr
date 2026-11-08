@@ -25,6 +25,7 @@ collections:
     otp-max-attempts: ${OTP_MAX_ATTEMPTS:5}
     otp-resend-seconds: ${OTP_RESEND_SECONDS:60}
     session-ttl: ${SESSION_TTL:P30D}
+    retention: ${IDENTITY_RETENTION:P1D}
   sms:
     provider: ${SMS_PROVIDER:none}
   web:
@@ -41,6 +42,7 @@ collections:
     otp-per-ip-per-minute: ${OTP_RATE_LIMIT_PER_IP_PER_MINUTE:10}
     otp-verify-per-phone-per-minute: ${OTP_VERIFY_RATE_LIMIT_PER_PHONE_PER_MINUTE:10}
     otp-verify-per-ip-per-minute: ${OTP_VERIFY_RATE_LIMIT_PER_IP_PER_MINUTE:20}
+    goal-per-user-per-minute: ${GOAL_RATE_LIMIT_PER_USER_PER_MINUTE:10}
 
 logging:
   pattern:

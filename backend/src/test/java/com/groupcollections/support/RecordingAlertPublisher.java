@@ -1,7 +1,7 @@
 package com.groupcollections.support;
 
-import com.groupcollections.contribution.Alert;
-import com.groupcollections.contribution.AlertPublisher;
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.alerts.AlertPublisher;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 

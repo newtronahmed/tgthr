@@ -48,13 +48,28 @@ test("organizer signs in, creates a goal and closes it", async ({ page, request 
   const detailUrl = page.url();
 
   await page.getByRole("link", { name: "View public page" }).click();
+  await expect(page).toHaveURL(/\/g\//);
   await expect(page.getByRole("heading", { name: "E2E Organizer Goal" })).toBeVisible();
+  const slug = page.url().split("/g/")[1];
+  expect(slug).toBeTruthy();
   await page.goto(detailUrl);
 
   await expect(page.getByTestId("goal-status")).toHaveText("OPEN");
   await page.getByRole("button", { name: "Close goal" }).click();
   await page.getByRole("button", { name: "Confirm close" }).click();
   await expect(page.getByTestId("goal-status")).toHaveText("CLOSED");
+
+  const contribution = await request.post(
+    `${BACKEND}/public/goals/${encodeURIComponent(slug!)}/contributions`,
+    {
+      headers: {
+        "content-type": "application/json",
+        "Idempotency-Key": `closed-${Date.now()}`,
+      },
+      data: { amountPesewas: 1_000, momoNumber: "0240000001", network: "MTN" },
+    },
+  );
+  expect(contribution.status()).toBe(409);
 
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/$/);

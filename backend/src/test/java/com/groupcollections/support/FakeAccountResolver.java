@@ -21,11 +21,15 @@ public final class FakeAccountResolver implements AccountResolver {
     if (unresolvable) {
       return null;
     }
-    return NAMES.getOrDefault(momoNumber, "Kofi Mensah");
+    return NAMES.getOrDefault(local(momoNumber), "Kofi Mensah");
   }
 
   public static void name(String momoNumber, String accountName) {
-    NAMES.put(momoNumber, accountName);
+    NAMES.put(local(momoNumber), accountName);
+  }
+
+  private static String local(String value) {
+    return value.startsWith("+233") ? "0" + value.substring(4) : value;
   }
 
   public static void outage(boolean unavailable) {

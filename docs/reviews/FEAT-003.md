@@ -94,3 +94,31 @@
 ## Follow-ups
 
 - T008 goal limiter; T124/T125 invariants; T165 retention; T166 destination guard; T171 production resolver; T173/T174/T180 tests; T181/T182 decisions; T189 mobile/409 E2E; T193 `__Host-` cookie; T195 CSP/HSTS; T198 trusted client IP.
+
+## Hardening slice
+
+- Date: 2026-11-08
+- Range: web slice working tree..hardening working tree (branch `feat/003-hardening`)
+- Reviewer: fresh-context subagent (read-only); supplements CODEOWNER review
+- Verdict: pass with follow-ups (blockers fixed)
+
+| Severity | Location | Finding | Reference | Action |
+| --- | --- | --- | --- | --- |
+| Blocker | `alerts/LoggingAlertPublisher` | Moving alerts downgraded the production channel to WARN and dropped the `ALERT` token, risking silent money-alert paging. | Article I.5/IX.2 | Fixed: ERROR + `ALERT` restored; `LoggingAlertPublisherTest` asserts level and token. |
+| Blocker | `goal/GoalRateLimiter` path | 429 had no counter or event. | Article IX.1 | Fixed: `goals.rate_limited` counter and log in the service. |
+| Should-fix | `goal/OrganizerGoalService` | Unexpected resolver failures escaped as 500 without an alert/metric. | AC-ORG-007 | Fixed: caught, alerted and mapped to 503 `DESTINATION_CHECK_UNAVAILABLE`. |
+| Should-fix | `goal/OrganizerGoalService` | Resolver received the raw phone while the stored hash was normalized. | T171/T182 | Fixed: normalize once, pass E.164 to the resolver; fake normalizes too. |
+| Should-fix | `IdentityRetentionJob` | Hard-coded retention, unindexed predicate, no purge metric/alert. | T165 | Fixed: configurable `IDENTITY_RETENTION`, expression indexes, counters and a failure alert. |
+| Should-fix | tests | Known-account enumeration, E.164 hash equivalence, per-column destination lock and alert publisher lacked evidence. | T161/T166/T182 | Fixed with new/expanded tests; all pass. |
+| Should-fix | `specs/.../spec.md` | SMS failure was a “gap: needs a criterion”. | Article II | Added AC-ORG-016 and tagged the test; trace is now 50 defined / 49 active / 1 pending. |
+| Should-fix | BFF/Next | Trusted-IP contract only partially solved; public contribution routes still trust XFF. | T198 | Auth/organizer routes now use `x-real-ip`; remaining routes/tests T198. |
+| Should-fix | Goal limiter / retention | Endpoint 429/window-rollover and purge-failure tests still missing. | T008/T165 | Remaining in T008/T165. |
+| Should-fix | Invariant tests | INV-IDENT-002/003 evidence can be stronger (scoped fixtures, keyed-hash proof, log scan). | T124/T178 | Remaining in T124/T178/T180. |
+| Note | V4 trigger | Protects all six destination columns and allows close; INSERT/legacy null-lock rows remain outside its scope. | Article V.1 | Accepted; future destination-change path needs a spec decision. |
+| Note | OTP lock | Transaction-scoped advisory lock works; `hashtext` is 32-bit. | T170 | Accepted for current volume; consider `hashtextextended`. |
+| Note | `next.config.ts` | HSTS added; CSP nonce/hash and header tests remain. | T195 | T195. |
+| Verified | Tests | Full backend suite, web unit/lint/build/budget and Playwright desktop + mobile (checkout + organizer, including closed-goal 409) pass locally. | Article III | None. |
+
+## Follow-ups
+
+- T008/T165 test depth; T124/T178/T180 invariant evidence; T169 deterministic clock; T174 slug collision; T193 `__Host-` cookie; T195 CSP; T198 all-route trusted IP/per-IP tests; T171/T162/T001/T096 production adapters and live sandbox.

@@ -1,5 +1,7 @@
 package com.groupcollections.contribution;
 
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.alerts.AlertPublisher;
 import com.groupcollections.payments.PaymentStatus;
 import com.groupcollections.payments.PaymentVerification;
 import com.groupcollections.payments.PaystackClient;

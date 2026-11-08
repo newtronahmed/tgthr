@@ -1,5 +1,7 @@
 package com.groupcollections.identity;
 
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.alerts.AlertPublisher;
 import com.groupcollections.security.PhoneCipher;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.security.MessageDigest;
@@ -37,6 +39,7 @@ public class OtpService {
   private final int maxAttempts;
   private final long resendSeconds;
   private final MeterRegistry meters;
+  private final AlertPublisher alerts;
   private final TransactionTemplate transactionTemplate;
 
   public OtpService(
@@ -49,6 +52,7 @@ public class OtpService {
       SecureRandom random,
       Clock clock,
       MeterRegistry meters,
+      AlertPublisher alerts,
       PlatformTransactionManager transactionManager,
       @Value("${collections.identity.otp-ttl:PT5M}") Duration ttl,
       @Value("${collections.identity.otp-max-attempts:5}") int maxAttempts,
@@ -62,6 +66,7 @@ public class OtpService {
     this.random = random;
     this.clock = clock;
     this.meters = meters;
+    this.alerts = alerts;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.ttl = ttl;
     this.maxAttempts = maxAttempts;
@@ -86,6 +91,11 @@ public class OtpService {
     } catch (RuntimeException failure) {
       challenges.consume(prepared.challengeId(), Instant.now(clock));
       meters.counter("identity.sms.failed").increment();
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.SMS_FAILURE,
+              prepared.challengeId().toString(),
+              "OTP SMS delivery failed"));
       log.warn("OTP SMS delivery failed");
       if (failure instanceof IdentityException identity) {
         throw identity;
@@ -97,6 +107,7 @@ public class OtpService {
   }
 
   private Prepared prepare(byte[] phoneHash, Instant now) {
+    challenges.lock(phoneHash);
     Optional<OtpChallengeRepository.Challenge> latest = challenges.findLatest(phoneHash);
     if (latest.isPresent() && latest.get().createdAt().plusSeconds(resendSeconds).isAfter(now)) {
       throw IdentityException.resendTooSoon();

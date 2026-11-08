@@ -277,6 +277,8 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
         '503':
           $ref: '#/components/responses/Problem'
   /organizer/goals/{id}:
@@ -640,8 +642,8 @@ components:
           enum: [BENEFICIARY_MOMO, ADMIN_MOMO]
         destinationPhone:
           type: string
-          description: Payout MoMo number. Encrypted at rest, never returned.
-          pattern: '^0[0-9]{9}$'
+          description: Payout MoMo number (local or E.164). Encrypted at rest, never returned.
+          pattern: '^(\+233|0)[0-9]{9}$'
         network:
           type: string
           enum: [MTN, TELECEL, AT]

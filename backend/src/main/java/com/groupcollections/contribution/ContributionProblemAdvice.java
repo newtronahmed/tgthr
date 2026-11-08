@@ -2,7 +2,6 @@ package com.groupcollections.contribution;
 
 import com.groupcollections.goal.AmountValidationException;
 import com.groupcollections.goal.GoalNotAcceptingException;
-import com.groupcollections.goal.GoalNotFoundException;
 import com.groupcollections.payments.InvalidWebhookPayloadException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -14,11 +13,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /** Maps domain failures to RFC 9457 problems with the stable codes in the spec. */
 @RestControllerAdvice
 public class ContributionProblemAdvice {
-
-  @ExceptionHandler(GoalNotFoundException.class)
-  ProblemDetail goalNotFound(GoalNotFoundException failure) {
-    return problem(HttpStatus.NOT_FOUND, "Goal not found", "GOAL_NOT_FOUND", failure.getMessage());
-  }
 
   @ExceptionHandler(ContributionNotFoundException.class)
   ProblemDetail contributionNotFound(ContributionNotFoundException failure) {

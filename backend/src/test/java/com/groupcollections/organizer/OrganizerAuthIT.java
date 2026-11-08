@@ -2,15 +2,23 @@ package com.groupcollections.organizer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.groupcollections.alerts.Alert;
 import com.groupcollections.identity.SmsSender;
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
 import com.groupcollections.support.FakeSmsSender;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -118,6 +126,77 @@ class OrganizerAuthIT extends ApiIntegrationTest {
     assertThat(second.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(me(sessionToken(second)).getBody()).isNotNull();
     assertThat(me(sessionToken(second)).getBody().get("legalName")).isEqualTo("Ama M. Mensah");
+  }
+
+  @Test
+  void otpRequestDoesNotRevealAccountExistence() throws Exception {
+    requestOtp("0240000070");
+    assertThat(
+            verifyOtp("0240000070", FakeSmsSender.latestCode(), "Ama", "Ama Mensah")
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+    Thread.sleep(1_100);
+    ResponseEntity<Map<String, Object>> known = requestOtpRaw("0240000070");
+    ResponseEntity<Map<String, Object>> unknown = requestOtpRaw("0240000071");
+    assertThat(known.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(known.getBody()).isNull();
+    assertThat(unknown.getBody()).isNull();
+  }
+
+  @Test
+  void knownAndUnknownPhonesGetTheSameInvalidCodeError() throws Exception {
+    requestOtp("0240000072");
+    assertThat(
+            verifyOtp("0240000072", FakeSmsSender.latestCode(), "Ama", "Ama Mensah")
+                .getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+    Thread.sleep(1_100);
+    requestOtp("0240000072");
+    ResponseEntity<Map<String, Object>> known =
+        verifyOtp("0240000072", wrongCode(FakeSmsSender.latestCode()), null, null);
+    requestOtp("0240000073");
+    String secondCode = FakeSmsSender.latestCode();
+    ResponseEntity<Map<String, Object>> unknown =
+        verifyOtp("0240000073", wrongCode(secondCode), null, null);
+    assertThat(known.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(known.getBody().get("code")).isEqualTo("INVALID_OTP");
+    assertThat(unknown.getBody().get("code")).isEqualTo("INVALID_OTP");
+  }
+
+  @Test
+  @Criterion("AC-ORG-016")
+  void smsFailureReturns503AndLeavesNoUsableChallenge() {
+    FakeSmsSender.failNext(true);
+    ResponseEntity<Map<String, Object>> response = requestOtpRaw("0240000061");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.SMS_FAILURE);
+    byte[] phoneHash = latestPhoneHash();
+    assertThat(
+            count(
+                "select count(*) from otp_challenges where phone_hash = ? and consumed_at is null",
+                phoneHash))
+        .isZero();
+  }
+
+  @Test
+  void concurrentRequestsForOnePhoneSendOneCode() throws Exception {
+    String phone = "0240000060";
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    CountDownLatch start = new CountDownLatch(1);
+    try {
+      Future<Integer> first = pool.submit(() -> requestStatusAfter(start, phone));
+      Future<Integer> second = pool.submit(() -> requestStatusAfter(start, phone));
+      start.countDown();
+      List<Integer> statuses =
+          List.of(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS));
+      assertThat(statuses).containsExactlyInAnyOrder(202, 429);
+      assertThat(FakeSmsSender.sent()).hasSize(1);
+    } finally {
+      pool.shutdownNow();
+    }
   }
 
   @Test
@@ -321,6 +400,19 @@ class OrganizerAuthIT extends ApiIntegrationTest {
     } catch (Exception failure) {
       throw new IllegalStateException(failure);
     }
+  }
+
+  private int requestStatusAfter(CountDownLatch start, String phone) throws Exception {
+    start.await();
+    return requestOtpRaw(phone).getStatusCode().value();
+  }
+
+  private ResponseEntity<Map<String, Object>> requestOtpRaw(String phone) {
+    return rest.exchange(
+        "/auth/otp/request",
+        HttpMethod.POST,
+        json(Map.of("phone", phone)),
+        new ParameterizedTypeReference<>() {});
   }
 
   private ResponseEntity<Map<String, Object>> requestOtp(String phone) {

@@ -1,5 +1,7 @@
 package com.groupcollections.contribution;
 
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.alerts.AlertPublisher;
 import com.groupcollections.payments.PaymentResult;
 import com.groupcollections.payments.PaystackClient;
 import io.micrometer.core.instrument.MeterRegistry;

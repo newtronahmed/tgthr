@@ -39,6 +39,11 @@ public final class OrganizerGoalException extends RuntimeException {
         "The destination could not be checked; try again later");
   }
 
+  public static OrganizerGoalException rateLimited() {
+    return new OrganizerGoalException(
+        429, "Too many requests", "RATE_LIMITED", "Too many goal attempts; try again later");
+  }
+
   public static OrganizerGoalException notClosable() {
     return new OrganizerGoalException(
         409, "Goal not closable", "GOAL_NOT_CLOSABLE", "This goal cannot be closed");

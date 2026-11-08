@@ -100,6 +100,8 @@ FEAT-001 assumes a goal already exists, but organizers have no account and no wa
 | AC-ORG-014 | P2 | Given a live session, when the organizer logs out, then the session is revoked and subsequent organizer calls return 401. | Integration |
 | AC-ORG-015 | P2 | Given a code issued less than 60 seconds ago, when a resend is requested, then it is refused; after 60 seconds a new code is sent and the previous code no longer works. | Integration |
 
+| AC-ORG-016 | P1 | Given SMS delivery fails, when a code is requested, then the response is 503 with no usable challenge and an SMS-failure alert and metric are emitted. | Integration |
+
 ## Failure modes and edge cases
 
 | Situation | Expected behavior | Criterion |
