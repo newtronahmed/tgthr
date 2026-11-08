@@ -19,6 +19,15 @@ public class OrganizerGoalProblemAdvice {
     return problem;
   }
 
+  @ExceptionHandler(GoalNotFoundException.class)
+  ProblemDetail goalNotFound(GoalNotFoundException failure) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, failure.getMessage());
+    problem.setTitle("Goal not found");
+    problem.setProperty("code", "GOAL_NOT_FOUND");
+    return problem;
+  }
+
   @ExceptionHandler(OrganizerGoalException.class)
   ProblemDetail organizerGoal(OrganizerGoalException failure) {
     ProblemDetail problem =

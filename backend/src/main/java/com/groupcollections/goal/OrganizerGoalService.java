@@ -1,5 +1,7 @@
 package com.groupcollections.goal;
 
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.alerts.AlertPublisher;
 import com.groupcollections.identity.OrganizerUser;
 import com.groupcollections.identity.PhoneNormalizer;
 import com.groupcollections.identity.UserRepository;
@@ -33,6 +35,8 @@ public class OrganizerGoalService {
   private final SlugGenerator slugs;
   private final Clock clock;
   private final MeterRegistry meters;
+  private final AlertPublisher alerts;
+  private final GoalRateLimiter rateLimiter;
   private final TransactionTemplate transactionTemplate;
 
   public OrganizerGoalService(
@@ -43,6 +47,8 @@ public class OrganizerGoalService {
       SlugGenerator slugs,
       Clock clock,
       MeterRegistry meters,
+      AlertPublisher alerts,
+      GoalRateLimiter rateLimiter,
       PlatformTransactionManager transactionManager) {
     this.goals = goals;
     this.users = users;
@@ -51,6 +57,8 @@ public class OrganizerGoalService {
     this.slugs = slugs;
     this.clock = clock;
     this.meters = meters;
+    this.alerts = alerts;
+    this.rateLimiter = rateLimiter;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
@@ -68,30 +76,37 @@ public class OrganizerGoalService {
       return original.get();
     }
 
+    try {
+      rateLimiter.check(user.id());
+    } catch (OrganizerGoalException failure) {
+      meters.counter("goals.rate_limited").increment();
+      log.warn("goal creation rate limited");
+      throw failure;
+    }
     Instant now = Instant.now(clock);
     validate(request, now);
     String legalName = clean(user.legalName());
     if (request.destinationType() == DestinationType.ADMIN_MOMO && legalName == null) {
-      destinationFailed("legal_name");
+      destinationFailed("legal_name", user.id());
       throw OrganizerGoalException.legalNameRequired();
     }
 
-    String accountName = resolve(request);
+    String normalizedDestination = PhoneNormalizer.normalize(request.destinationPhone());
+    String accountName = resolve(normalizedDestination, request.network(), user.id());
     if (accountName == null || accountName.isBlank()) {
-      destinationFailed("unresolved");
+      destinationFailed("unresolved", user.id());
       throw OrganizerGoalException.destinationUnverified();
     }
     if (request.destinationType() == DestinationType.ADMIN_MOMO
         && !NameMatcher.matches(accountName, legalName)) {
-      destinationFailed("name_mismatch");
+      destinationFailed("name_mismatch", user.id());
       throw OrganizerGoalException.destinationUnverified();
     }
     if (request.destinationType() == DestinationType.ADMIN_MOMO && !ownsPhone(user, request)) {
-      destinationFailed("not_owner");
+      destinationFailed("not_owner", user.id());
       throw OrganizerGoalException.destinationUnverified();
     }
 
-    String normalizedDestination = PhoneNormalizer.normalize(request.destinationPhone());
     long minimum =
         request.targetType() == TargetType.OPEN
             ? request.minimumAmountPesewas()
@@ -179,13 +194,17 @@ public class OrganizerGoalService {
     return after;
   }
 
-  private String resolve(CreateGoalRequest request) {
+  private String resolve(String phone, com.groupcollections.payments.Network network, UUID userId) {
     try {
-      return resolver.resolve(request.destinationPhone(), request.network());
+      return resolver.resolve(phone, network);
     } catch (OrganizerGoalException failure) {
-      destinationFailed("unavailable");
+      destinationFailed("unavailable", userId);
       log.warn("destination resolution unavailable");
       throw failure;
+    } catch (RuntimeException failure) {
+      destinationFailed("unavailable", userId);
+      log.warn("destination resolution failed", failure);
+      throw OrganizerGoalException.destinationUnavailable();
     }
   }
 
@@ -197,8 +216,13 @@ public class OrganizerGoalService {
         .orElse(false);
   }
 
-  private void destinationFailed(String reason) {
+  private void destinationFailed(String reason, UUID userId) {
     meters.counter("destination.resolve.failed", "reason", reason).increment();
+    Alert.AlertType type =
+        "unavailable".equals(reason)
+            ? Alert.AlertType.DESTINATION_UNAVAILABLE
+            : Alert.AlertType.DESTINATION_UNVERIFIED;
+    alerts.publish(new Alert(type, userId.toString(), reason));
   }
 
   private static void validate(CreateGoalRequest request, Instant now) {

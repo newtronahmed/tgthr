@@ -1,13 +1,16 @@
 package com.groupcollections.organizer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.groupcollections.alerts.Alert;
 import com.groupcollections.goal.AccountResolver;
 import com.groupcollections.identity.SmsSender;
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
 import com.groupcollections.support.FakeAccountResolver;
 import com.groupcollections.support.FakeSmsSender;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -15,6 +18,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -200,6 +208,8 @@ class OrganizerGoalIT extends ApiIntegrationTest {
     assertThat(rejected.getBody().get("code")).isEqualTo("DESTINATION_UNVERIFIED");
     assertThat(counter("destination.resolve.failed", "reason", "name_mismatch"))
         .isGreaterThan(failedBefore);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.DESTINATION_UNVERIFIED);
     assertThat(count("select count(*) from goals where created_by_user_id = ?", mismatch.userId()))
         .isZero();
 
@@ -238,6 +248,8 @@ class OrganizerGoalIT extends ApiIntegrationTest {
     assertThat(unavailable.getBody().get("code")).isEqualTo("DESTINATION_CHECK_UNAVAILABLE");
     assertThat(count("select count(*) from goals where created_by_user_id = ?", outage.userId()))
         .isZero();
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.DESTINATION_UNAVAILABLE);
   }
 
   @Test
@@ -420,6 +432,84 @@ class OrganizerGoalIT extends ApiIntegrationTest {
         .isZero();
   }
 
+  @Test
+  void concurrentSameKeyCreatesOneGoal() throws Exception {
+    Session session = session("0240000170", "Ama Mensah");
+    Map<String, Object> body = body("0240000171", "BENEFICIARY_MOMO", "FIXED", 5_000L, null);
+    String key = uniqueKey();
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    CountDownLatch start = new CountDownLatch(1);
+    try {
+      Future<ResponseEntity<Map<String, Object>>> first =
+          pool.submit(() -> createAfter(start, session, body, key));
+      Future<ResponseEntity<Map<String, Object>>> second =
+          pool.submit(() -> createAfter(start, session, body, key));
+      start.countDown();
+      ResponseEntity<Map<String, Object>> one = first.get(10, TimeUnit.SECONDS);
+      ResponseEntity<Map<String, Object>> two = second.get(10, TimeUnit.SECONDS);
+      assertThat(one.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+      assertThat(two.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+      assertThat(one.getBody().get("id")).isEqualTo(two.getBody().get("id"));
+      assertThat(count("select count(*) from goals where created_by_user_id = ?", session.userId()))
+          .isEqualTo(1);
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void payoutAcceptsE164Destination() {
+    Session session = session("0240000160", "Ama Mensah");
+    ResponseEntity<Map<String, Object>> local =
+        create(session, body("0240000161", "BENEFICIARY_MOMO", "FIXED", 5_000L, null), uniqueKey());
+    ResponseEntity<Map<String, Object>> e164 =
+        create(
+            session, body("+233240000161", "BENEFICIARY_MOMO", "FIXED", 5_000L, null), uniqueKey());
+    assertThat(local.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(e164.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    byte[] localHash =
+        jdbc.queryForObject(
+            "select destination_phone_hash from goals where id = ?",
+            byte[].class,
+            UUID.fromString((String) local.getBody().get("id")));
+    byte[] e164Hash =
+        jdbc.queryForObject(
+            "select destination_phone_hash from goals where id = ?",
+            byte[].class,
+            UUID.fromString((String) e164.getBody().get("id")));
+    assertThat(e164Hash).isEqualTo(localHash);
+  }
+
+  @Test
+  void destinationCannotBeChangedAfterLocking() {
+    Session session = session("0240000150", "Ama Mensah");
+    ResponseEntity<Map<String, Object>> created =
+        create(session, body("0240000151", "BENEFICIARY_MOMO", "FIXED", 5_000L, null), uniqueKey());
+    UUID goalId = UUID.fromString((String) created.getBody().get("id"));
+
+    for (String sql :
+        List.of(
+            "update goals set destination_phone_hash = ? where id = ?",
+            "update goals set destination_account_name = 'Other' where id = ?",
+            "update goals set destination_network = 'TELECEL' where id = ?",
+            "update goals set destination_type = 'ADMIN_MOMO' where id = ?",
+            "update goals set destination_locked_at = now() where id = ?")) {
+      if (sql.contains("phone_hash")) {
+        assertThatThrownBy(() -> jdbc.update(sql, new byte[32], goalId))
+            .hasMessageContaining("goal destination is locked");
+      } else {
+        assertThatThrownBy(() -> jdbc.update(sql, goalId))
+            .hasMessageContaining("goal destination is locked");
+      }
+    }
+    assertThat(
+            jdbc.update(
+                "update goals set destination_account_name = destination_account_name where id = ?",
+                goalId))
+        .isEqualTo(1);
+    assertThat(close(session, goalId.toString()).getBody().get("status")).isEqualTo("CLOSED");
+  }
+
   private Session session(String phone, String legalName) {
     requestOtp(phone);
     ResponseEntity<Map<String, Object>> verified =
@@ -453,6 +543,13 @@ class OrganizerGoalIT extends ApiIntegrationTest {
         HttpMethod.POST,
         new HttpEntity<>(body, headers),
         new ParameterizedTypeReference<>() {});
+  }
+
+  private ResponseEntity<Map<String, Object>> createAfter(
+      CountDownLatch start, Session session, Map<String, Object> body, String key)
+      throws Exception {
+    start.await();
+    return create(session, body, key);
   }
 
   private void requestOtp(String phone) {
