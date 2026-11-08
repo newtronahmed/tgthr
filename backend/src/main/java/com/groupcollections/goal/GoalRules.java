@@ -25,9 +25,9 @@ public final class GoalRules {
         throw new AmountValidationException(
             "AMOUNT_NOT_ALLOWED", "a fixed goal accepts only its fixed amount");
       }
-    } else if (amount.pesewas() < minimumAmount.pesewas()) {
+    } else if (amount.minorUnits() < minimumAmount.minorUnits()) {
       throw new AmountValidationException(
-          "AMOUNT_TOO_LOW", "amount must be at least " + minimumAmount.pesewas() + " pesewas");
+          "AMOUNT_TOO_LOW", "amount must be at least " + minimumAmount.minorUnits() + " pesewas");
     }
   }
 }

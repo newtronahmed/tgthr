@@ -65,7 +65,7 @@ public class ContributionRegistration {
     if (!goal.acceptsContributions(Instant.now(clock))) {
       throw new GoalNotAcceptingException(slug);
     }
-    Money amount = Money.ofPesewas(request.amountPesewas());
+    Money amount = Money.of(request.amountPesewas(), "GHS");
     goal.rules().check(amount);
     FeeBreakdown breakdown = fees.calculate(amount);
     UUID id = ids.next();
@@ -85,7 +85,7 @@ public class ContributionRegistration {
         "event=contribution_created contributionId={} goalId={} amountPesewas={}",
         id,
         goal.id(),
-        amount.pesewas());
-    return new Registration(contributions.status(id), id, breakdown.total().pesewas(), true);
+        amount.minorUnits());
+    return new Registration(contributions.status(id), id, breakdown.total().minorUnits(), true);
   }
 }

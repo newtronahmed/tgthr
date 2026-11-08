@@ -6,5 +6,7 @@ public enum LedgerAccount {
   FEE,
   PLATFORM_FEE,
   BANK,
-  WELFARE_RESERVE
+  WELFARE_RESERVE,
+  SUSPENSE,
+  PLATFORM_LOSS
 }

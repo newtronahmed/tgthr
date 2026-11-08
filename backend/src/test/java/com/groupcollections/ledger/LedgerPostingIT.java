@@ -89,6 +89,34 @@ class LedgerPostingIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("INV-LEDGER-007")
+  void everyPostingRecordsCurrencyAndRejectsMixedCurrencySets() {
+    UUID postingSet = UUID.randomUUID();
+    insertBalanced(postingSet, 1_000);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from ledger_entries where posting_set_id = ? and currency_code = 'GHS'",
+                Integer.class,
+                postingSet))
+        .isEqualTo(2);
+
+    UUID mixed = UUID.randomUUID();
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    """
+                    insert into ledger_entries
+                        (posting_set_id, account, entry_type, direction, amount_pesewas,
+                         currency_code)
+                    values (?, 'PARTNER_HELD', 'CONTRIBUTION', 'DEBIT', 100, 'GHS'),
+                           (?, 'GOAL_POOL', 'CONTRIBUTION', 'CREDIT', 100, 'NGN')
+                    """,
+                    mixed,
+                    mixed))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
   @Criterion("INV-LEDGER-006")
   void balancesAreDerivedFromEntriesAndNeverStored() {
     Integer balanceColumns =

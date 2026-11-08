@@ -25,7 +25,7 @@ public class GoalRepository {
       select id, slug, title, template, target_type, fixed_amount_pesewas,
              target_amount_pesewas, minimum_amount_pesewas, status, deadline,
              destination_type, second_approver, second_approver_threshold_pesewas,
-             hold_window_minutes, surplus_rule
+             hold_window_minutes, surplus_rule, currency_code
       from goals
       """;
 
@@ -52,6 +52,12 @@ public class GoalRepository {
     return jdbc.query(GOAL_COLUMNS + "where slug = ?", GOAL_MAPPER, slug).stream().findFirst();
   }
 
+  /** Shared lock so a goal cannot be closed or frozen while a contribution is confirmed. */
+  public Optional<Goal> findByIdForShare(UUID id) {
+    return jdbc.query(GOAL_COLUMNS + "where id = ? for share", GOAL_MAPPER, id).stream()
+        .findFirst();
+  }
+
   /** Shared lock so a goal cannot be closed or frozen between the check and the insert. */
   public Optional<Goal> findBySlugForShare(String slug) {
     return jdbc.query(GOAL_COLUMNS + "where slug = ? for share", GOAL_MAPPER, slug).stream()
@@ -59,8 +65,8 @@ public class GoalRepository {
   }
 
   private static Money money(ResultSet resultSet, String column) throws SQLException {
-    long pesewas = resultSet.getLong(column);
-    return resultSet.wasNull() ? null : Money.ofPesewas(pesewas);
+    long minorUnits = resultSet.getLong(column);
+    return resultSet.wasNull() ? null : Money.of(minorUnits, resultSet.getString("currency_code"));
   }
 
   private static Instant instant(ResultSet resultSet, String column) throws SQLException {

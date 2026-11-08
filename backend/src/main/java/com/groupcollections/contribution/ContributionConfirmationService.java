@@ -2,10 +2,13 @@ package com.groupcollections.contribution;
 
 import com.groupcollections.alerts.Alert;
 import com.groupcollections.alerts.AlertPublisher;
+import com.groupcollections.goal.GoalRepository;
 import com.groupcollections.ledger.ContributionPosting;
 import com.groupcollections.ledger.LedgerRepository;
 import com.groupcollections.ledger.PostingSet;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Clock;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,7 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Confirms a paid contribution and posts its balanced set in one transaction (AC-CONTRIB-005). */
+/**
+ * Confirms a paid contribution and posts its balanced set in one transaction (AC-CONTRIB-005).
+ *
+ * <p>Concurrency: PostgreSQL READ COMMITTED plus the {@code SELECT ... FOR UPDATE} in {@link
+ * ContributionRepository#apply} makes the state transition single-writer. A second callback waits,
+ * sees the terminal state and skips the ledger posting. The database unique constraints are the
+ * second layer, not the primary guarantee.
+ */
 @Service
 public class ContributionConfirmationService {
 
@@ -23,16 +33,22 @@ public class ContributionConfirmationService {
   private final LedgerRepository ledger;
   private final AlertPublisher alerts;
   private final MeterRegistry meters;
+  private final GoalRepository goals;
+  private final Clock clock;
 
   public ContributionConfirmationService(
       ContributionRepository contributions,
       LedgerRepository ledger,
       AlertPublisher alerts,
-      MeterRegistry meters) {
+      MeterRegistry meters,
+      GoalRepository goals,
+      Clock clock) {
     this.contributions = contributions;
     this.ledger = ledger;
     this.alerts = alerts;
     this.meters = meters;
+    this.goals = goals;
+    this.clock = clock;
   }
 
   @Transactional
@@ -42,10 +58,35 @@ public class ContributionConfirmationService {
     if (transition == null) {
       return;
     }
+    Instant now = Instant.now(clock);
+    boolean goalAccepts =
+        goals
+            .findByIdForShare(payment.goalId())
+            .map(goal -> goal.acceptsContributions(now))
+            .orElse(false);
     PostingSet posting =
-        ContributionPosting.confirmation(
-            payment.id(), payment.amount(), payment.processingFee(), payment.platformFee());
+        goalAccepts
+            ? ContributionPosting.confirmation(
+                payment.id(), payment.amount(), payment.processingFee(), payment.platformFee())
+            : ContributionPosting.suspense(
+                payment.id(), payment.amount(), payment.processingFee(), payment.platformFee());
     ledger.post(payment.id(), posting);
+    if (!goalAccepts) {
+      contributions.markRequiresReconciliation(payment.id(), now);
+      afterCommit(
+          () -> {
+            meters.counter("contributions.suspense").increment();
+            alerts.publish(
+                new Alert(
+                    Alert.AlertType.RECONCILIATION_REQUIRED,
+                    payment.id().toString(),
+                    "payment confirmed for a goal that is no longer accepting contributions"));
+            log.warn(
+                "event=contribution_suspense contributionId={} goalId={}",
+                payment.id(),
+                payment.goalId());
+          });
+    }
     afterCommit(
         () -> {
           meters.counter("contributions.confirmed").increment();

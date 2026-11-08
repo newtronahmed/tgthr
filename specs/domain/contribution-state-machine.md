@@ -26,15 +26,15 @@ A contribution is one payment attempt. Its state decides whether it counts towar
 | From | Event | To | Side effects |
 | --- | --- | --- | --- |
 | INITIATED | Prompt requested successfully | PENDING | History row |
-| INITIATED | Valid SUCCESS callback or poll result (arrived before PENDING was recorded) | CONFIRMED | Ledger entries posted in the same transaction; history row |
+| INITIATED | Valid SUCCESS callback or poll result (arrived before PENDING was recorded) | CONFIRMED | Ledger entries posted in the same transaction; history row; check goal accepts contributions |
 | INITIATED | Timeout and the partner confirms no payment | EXPIRED | History row |
 | INITIATED | Partner rejects the prompt request | FAILED | History row |
-| PENDING | Valid SUCCESS callback or poll result | CONFIRMED | Ledger entries posted in the same transaction |
+| PENDING | Valid SUCCESS callback or poll result | CONFIRMED | Ledger entries posted in the same transaction; check goal accepts contributions |
 | PENDING | Valid FAILED callback or poll result | FAILED | History row |
 | PENDING | Timeout and the partner confirms no payment | EXPIRED | History row |
-| EXPIRED | Valid late SUCCESS callback or poll result | CONFIRMED | Ledger entries posted in the same transaction; alert raised |
-| FAILED | Valid late SUCCESS callback or poll result | CONFIRMED | Ledger entries posted in the same transaction; alert raised |
-| CONFIRMED | Approved refund or correction | REFUNDED | REVERSAL entries |
+| EXPIRED | Valid late SUCCESS callback or poll result | CONFIRMED | Ledger entries posted; alert raised; if goal closed: flag requires_reconciliation and post to SUSPENSE (ADR 0013) |
+| FAILED | Valid late SUCCESS callback or poll result | CONFIRMED | Ledger entries posted; alert raised; if goal closed: flag requires_reconciliation and post to SUSPENSE (ADR 0013) |
+| CONFIRMED | Approved refund or correction (before payout) | REFUNDED | REVERSAL entries debit goal pool |
 
 Any other event for a given state is an illegal transition: it is logged with the contribution id and ignored.
 
@@ -51,3 +51,4 @@ Any other event for a given state is an illegal transition: it is logged with th
 - 2026-11-05: a valid late SUCCESS after EXPIRED or FAILED moves the contribution to CONFIRMED and raises an alert. The two transitions above are added because Constitution I.5 forbids dropping a confirmed payment.
 - 2026-11-06: a valid SUCCESS while INITIATED confirms the contribution. The callback is proof that the prompt was sent and paid; acknowledging it and leaving the row INITIATED would drop a confirmed payment. The create path's later PROMPT_SENT is then illegal and ignored.
 - 2026-11-06: a stale INITIATED row whose poll confirms no payment expires. Without this, a crash between the insert and PROMPT_SENT leaves the row INITIATED forever.
+- 2026-11-08: late success after goal closure flags `requires_reconciliation` and posts to SUSPENSE account, not goal pool (ADR 0013). Automatic increase of payout balance is prevented; operator must investigate and reclassify.

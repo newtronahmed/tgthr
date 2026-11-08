@@ -55,6 +55,19 @@ class ContributionApiIT extends ApiIntegrationTest {
   }
 
   @Test
+  void contributionRowsRecordGhsCurrency() {
+    String slug = insertGoal("currency", "OPEN", null);
+    ResponseEntity<Map<String, Object>> response = createContribution(slug, 5_000, "0240000001");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+    assertThat(
+            jdbc.queryForObject(
+                "select currency_code from contributions where goal_id = (select id from goals where slug = ?)",
+                String.class,
+                slug))
+        .isEqualTo("GHS");
+  }
+
+  @Test
   @Criterion("AC-CONTRIB-022")
   void quotePreviewsTheExactFeesWithoutCreatingAContribution() {
     String slug = insertGoal("quote", "OPEN", null);

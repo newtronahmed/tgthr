@@ -21,7 +21,7 @@ public final class FeeCalculator {
   }
 
   public FeeBreakdown calculate(Money amount) {
-    long amountPesewas = amount.pesewas();
+    long amountPesewas = amount.minorUnits();
     long platformFeePesewas =
         ceilDiv(Math.multiplyExact(amountPesewas, platformFeeBps), BASIS_POINTS);
     long grossBasePesewas = Math.addExact(amountPesewas, platformFeePesewas);
@@ -30,10 +30,10 @@ public final class FeeCalculator {
     long processingFeePesewas = Math.subtractExact(totalPesewas, grossBasePesewas);
 
     return new FeeBreakdown(
-        Money.ofPesewas(amountPesewas),
-        Money.ofPesewas(processingFeePesewas),
-        Money.ofPesewas(platformFeePesewas),
-        Money.ofPesewas(totalPesewas));
+        Money.of(amountPesewas, amount.currencyCode()),
+        Money.of(processingFeePesewas, amount.currencyCode()),
+        Money.of(platformFeePesewas, amount.currencyCode()),
+        Money.of(totalPesewas, amount.currencyCode()));
   }
 
   private static long ceilDiv(long numerator, long denominator) {

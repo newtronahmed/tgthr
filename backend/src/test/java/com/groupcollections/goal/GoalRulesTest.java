@@ -13,13 +13,13 @@ class GoalRulesTest {
   @Test
   @Criterion("AC-CONTRIB-003")
   void openGoalRejectsAmountBelowMinimum() {
-    GoalRules rules = new GoalRules(TargetType.OPEN, null, Money.ofPesewas(1_000));
+    GoalRules rules = new GoalRules(TargetType.OPEN, null, Money.of(1_000, "GHS"));
 
-    assertThatCode(() -> rules.check(Money.ofPesewas(1_000))).doesNotThrowAnyException();
+    assertThatCode(() -> rules.check(Money.of(1_000, "GHS"))).doesNotThrowAnyException();
 
     AmountValidationException thrown =
         catchThrowableOfType(
-            AmountValidationException.class, () -> rules.check(Money.ofPesewas(999)));
+            AmountValidationException.class, () -> rules.check(Money.of(999, "GHS")));
 
     assertThat(thrown.code()).isEqualTo("AMOUNT_TOO_LOW");
   }

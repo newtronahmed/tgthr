@@ -145,14 +145,14 @@ public class ContributionTimeoutJob {
         .findPayment(pending.id())
         .ifPresentOrElse(
             payment -> {
-              if (status.amountPesewas() != payment.total().pesewas()
+              if (status.amountPesewas() != payment.total().minorUnits()
                   || !"GHS".equals(status.currency())) {
                 alerts.publish(
                     new Alert(
                         Alert.AlertType.VERIFY_MISMATCH,
                         pending.providerReference(),
                         "expected "
-                            + payment.total().pesewas()
+                            + payment.total().minorUnits()
                             + " GHS, got "
                             + status.amountPesewas()
                             + " "

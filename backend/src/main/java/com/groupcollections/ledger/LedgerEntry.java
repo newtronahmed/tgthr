@@ -16,6 +16,6 @@ public record LedgerEntry(
   }
 
   public long signedPesewas() {
-    return direction == LedgerDirection.DEBIT ? amount.pesewas() : -amount.pesewas();
+    return direction == LedgerDirection.DEBIT ? amount.minorUnits() : -amount.minorUnits();
   }
 }

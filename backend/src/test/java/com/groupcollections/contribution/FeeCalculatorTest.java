@@ -25,25 +25,25 @@ class FeeCalculatorTest {
   @Test
   @Criterion("AC-CONTRIB-017")
   void platformFeeIsOneAndAHalfPercentRoundedUpOnTop() {
-    FeeBreakdown tenCedis = calculator.calculate(Money.ofPesewas(1_000));
+    FeeBreakdown tenCedis = calculator.calculate(Money.of(1_000, "GHS"));
 
-    assertThat(tenCedis.amount()).isEqualTo(Money.ofPesewas(1_000));
-    assertThat(tenCedis.platformFee()).isEqualTo(Money.ofPesewas(15));
-    assertThat(tenCedis.processingFee()).isEqualTo(Money.ofPesewas(21));
-    assertThat(tenCedis.total()).isEqualTo(Money.ofPesewas(1_036));
+    assertThat(tenCedis.amount()).isEqualTo(Money.of(1_000, "GHS"));
+    assertThat(tenCedis.platformFee()).isEqualTo(Money.of(15, "GHS"));
+    assertThat(tenCedis.processingFee()).isEqualTo(Money.of(21, "GHS"));
+    assertThat(tenCedis.total()).isEqualTo(Money.of(1_036, "GHS"));
 
-    FeeBreakdown roundedUp = calculator.calculate(Money.ofPesewas(1_001));
+    FeeBreakdown roundedUp = calculator.calculate(Money.of(1_001, "GHS"));
 
-    assertThat(roundedUp.amount()).isEqualTo(Money.ofPesewas(1_001));
-    assertThat(roundedUp.platformFee()).isEqualTo(Money.ofPesewas(16));
-    assertThat(roundedUp.total()).isEqualTo(Money.ofPesewas(1_038));
+    assertThat(roundedUp.amount()).isEqualTo(Money.of(1_001, "GHS"));
+    assertThat(roundedUp.platformFee()).isEqualTo(Money.of(16, "GHS"));
+    assertThat(roundedUp.total()).isEqualTo(Money.of(1_038, "GHS"));
   }
 
   @Property
   @Criterion("AC-CONTRIB-014")
   void totalEqualsAmountPlusFeesAndPostingSetNetsToZero(
       @ForAll @LongRange(min = 1_000, max = 10_000_000) long amountPesewas) {
-    Money amount = Money.ofPesewas(amountPesewas);
+    Money amount = Money.of(amountPesewas, "GHS");
     FeeBreakdown fees = calculator.calculate(amount);
 
     assertThat(fees.total()).isEqualTo(amount.plus(fees.processingFee()).plus(fees.platformFee()));

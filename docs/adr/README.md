@@ -12,5 +12,9 @@ One decision per file, numbered, never edited once accepted (supersede instead).
 | [0006](0006-paystack-payment-partner.md) | Paystack as payment partner | Superseded in part by 0007 |
 | [0007](0007-platform-service-fee.md) | Platform service fee | Accepted |
 | [0008](0008-web-performance-budget.md) | Web performance budget | Accepted |
-| [0009](0009-sms-otp-provider.md) | SMS OTP provider through an adapter | Proposed |
-| [0010](0010-opaque-sessions.md) | Opaque server-side sessions | Proposed |
+| [0009](0009-sms-otp-provider.md) | SMS OTP provider through an adapter | Accepted |
+| [0010](0010-opaque-sessions.md) | Opaque server-side sessions | Accepted |
+| [0011](0011-currency-aware-money.md) | Currency-aware Money type | Accepted |
+| [0012](0012-settlement-tracking.md) | Settlement tracking architecture | Accepted |
+| [0013](0013-refund-and-loss-allocation.md) | Refund and loss allocation policy | Accepted |
+| [0014](0014-directional-settlement-and-goal-owned-eligibility.md) | Directional settlement and goal-owned eligibility | Accepted |
