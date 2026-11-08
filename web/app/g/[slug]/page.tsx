@@ -159,6 +159,14 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
           <dd className="text-right font-semibold text-slate-800">
             {goal.payoutRules.secondApprover.replaceAll("_", " ").toLowerCase()}
           </dd>
+          {goal.payoutRules.secondApprover === "ABOVE_THRESHOLD" ? (
+            <>
+              <dt className="text-slate-500">Second approval above</dt>
+              <dd className="text-right font-semibold text-slate-800">
+                {formatGhs(goal.payoutRules.secondApproverThresholdPesewas)}
+              </dd>
+            </>
+          ) : null}
           <dt className="text-slate-500">Hold window</dt>
           <dd className="text-right font-semibold text-slate-800">
             {goal.payoutRules.holdWindowMinutes} minutes

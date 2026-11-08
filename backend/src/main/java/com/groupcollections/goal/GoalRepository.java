@@ -24,7 +24,8 @@ public class GoalRepository {
       """
       select id, slug, title, template, target_type, fixed_amount_pesewas,
              target_amount_pesewas, minimum_amount_pesewas, status, deadline,
-             destination_type, second_approver, hold_window_minutes, surplus_rule
+             destination_type, second_approver, second_approver_threshold_pesewas,
+             hold_window_minutes, surplus_rule
       from goals
       """;
 
@@ -43,6 +44,7 @@ public class GoalRepository {
               instant(resultSet, "deadline"),
               resultSet.getString("destination_type"),
               resultSet.getString("second_approver"),
+              resultSet.getLong("second_approver_threshold_pesewas"),
               resultSet.getInt("hold_window_minutes"),
               resultSet.getString("surplus_rule"));
 

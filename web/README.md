@@ -27,15 +27,20 @@ npm run start   # serve the production build
 
 - `/g/[slug]` — public goal: progress, payout rules, feed, checkout.
 - `/c/[id]` — live status and receipt; polls while pending.
-- `/api/...` — server-side proxies to the Spring API.
+- `/signin` — organizer phone OTP sign-in.
+- `/organizer`, `/organizer/goals/new`, `/organizer/goals/[id]` — dashboard, goal wizard and close.
+- `/api/...` — server-side proxies to the Spring API, including `/api/auth/*` and `/api/organizer/*`.
 
 Fees are never computed here: the checkout requests `/public/goals/{slug}/contribution-quote`
 from the API and displays the returned breakdown.
 
 ## Browser E2E
 
-The checkout test needs a running stack: Postgres, the backend, the fake Paystack and the web
-server, with the E2E goal seeded.
+The checkout and organizer tests need a running stack: Postgres, the backend, the fake Paystack and
+the web server, with the E2E goal seeded. The organizer test also needs the backend started with
+`SPRING_PROFILES_ACTIVE=e2e SMS_PROVIDER=dev ACCOUNT_RESOLVER=dev COOKIE_SECURE=false
+WEB_ORIGIN=http://127.0.0.1:3200` so it can read the test code from `/v1/dev/otp/last`. Never use
+these flags in production.
 
 ```
 # terminal 1: fake provider

@@ -18,6 +18,7 @@ public record Goal(
     Instant deadline,
     String destinationType,
     String secondApprover,
+    long secondApproverThresholdPesewas,
     int holdWindowMinutes,
     String surplusRule) {
 

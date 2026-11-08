@@ -1,6 +1,7 @@
 package com.groupcollections.contribution;
 
 import com.groupcollections.ledger.Money;
+import com.groupcollections.security.PhoneCipher;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -77,7 +78,7 @@ public class ContributionRepository {
       UUID goalId,
       FeeBreakdown fees,
       CreateContributionRequest request,
-      PayerPhoneCipher phones,
+      PhoneCipher phones,
       String idempotencyKey) {
     int inserted =
         jdbc.update(

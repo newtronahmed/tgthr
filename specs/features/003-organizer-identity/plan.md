@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Feature | FEAT-003 |
-| Status | Draft |
+| Status | In progress |
 | Created | 2026-11-06 |
 | Related | specs/features/003-organizer-identity/spec.md, specs/domain/organizer-identity.md, docs/adr/0009-sms-otp-provider.md, docs/adr/0010-opaque-sessions.md |
 
@@ -19,7 +19,7 @@
 | VI. Guest first | Yes | Public pages stay unchanged. Organizer pages are server-rendered, mobile-first and work in WhatsApp's browser. |
 | VII. Simple until proven otherwise | Yes | One monolith. The SMS gateway is an external service behind an adapter (ADR 0009). No new datastore. |
 | VIII. Security and privacy | Yes | OTP, session, phone encryption, rate limits, cross-site protection and ownership checks are all specified. |
-| IX. Observable | Yes | Events, metrics and alerts are listed; failures are never silent. |
+| IX. Observable | Partial | OTP, session, auth-rejection and cross-site counters plus correlation ids land with this slice; the alert rules and runbook are T160. |
 
 ## Technical context
 
@@ -46,7 +46,7 @@
 
 ### Goal creation
 
-- `GoalDraft` request: title, template, target type, fixed/target/minimum amounts, deadline, destination type, destination phone and network, optional legal name, second approver rule and threshold, hold window, surplus rule.
+- `GoalDraft` request: title, template, target type, fixed/target/minimum amounts, deadline, destination type, destination phone and network, second approver rule and threshold, hold window, surplus rule.
 - Validation: template/type/status enums, positive amounts, fixed requires fixed amount, open minimum ≥ 1,000 pesewas, hold window 0–1440 minutes, threshold ≥ 0. Invalid input returns 422 and creates nothing.
 - Slug: 10 cryptographically random bytes, Crockford/base32 lower-case (16 chars), unique; retry up to three times on collision.
 - Destination: `AccountResolver` interface. Production adapter calls the Paystack account-resolution endpoint for the MoMo network; tests use a fake resolver. Resolved name is stored and the destination is locked. `ADMIN_MOMO` requires a legal name on the user and a normalized name match; `BENEFICIARY_MOMO` requires a resolved name. Unresolvable/mismatched → 422 `DESTINATION_UNVERIFIED`; partner outage → 503 `DESTINATION_CHECK_UNAVAILABLE`.
@@ -75,7 +75,7 @@
 - Routes: `/signin` (phone → code → names), `/organizer` dashboard, `/organizer/goals/new` wizard, `/organizer/goals/[id]` detail with close.
 - BFF route handlers under `/api/auth` and `/api/organizer` forward the cookie and `Origin` to the backend and relay `Set-Cookie` back. The API base stays server-side.
 - Design: prototype screens 1 (home hub) and 4 (goal wizard); sage/forest palette, cards and mono amounts.
-- The goal wizard collects template, title, target, deadline, destination phone/network/type, legal name when needed, second approver rule/threshold, hold window and surplus rule; the review card mirrors the public page.
+- The sign-in flow collects the account legal name; the goal wizard collects template, title, target, deadline, destination phone/network/type, second approver rule/threshold, hold window and surplus rule; the review card mirrors the public page.
 
 ### Main sequence
 
@@ -120,5 +120,5 @@
 
 ## ADRs
 
-- ADR 0009 (SMS provider adapter, Proposed).
-- ADR 0010 (opaque server-side sessions, Proposed).
+- ADR 0009 (SMS provider adapter, Accepted; live sandbox check and production adapter T162).
+- ADR 0010 (opaque server-side sessions, Accepted; multi-device, logout revokes the presented session).

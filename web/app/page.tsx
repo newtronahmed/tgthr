@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BrandHeader, BrandMark } from "@/components/brand";
 import { Shield, WhatsApp } from "@/components/icons";
 import { OpenLinkForm } from "@/components/open-link";
@@ -54,8 +55,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="mt-auto pt-12 text-[11px] text-slate-500">
-        tgthr · group money, simplified
+      <footer className="mt-auto flex items-center justify-between gap-3 pt-12 text-[11px] text-slate-500">
+        <span>tgthr · group money, simplified</span>
+        <Link href="/signin" className="font-bold text-forest-700 hover:text-forest-800">
+          Organizer sign in
+        </Link>
       </footer>
     </main>
   );

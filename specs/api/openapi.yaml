@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Group Collections API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Contract for the Group Collections backend. This file is the single source of truth for HTTP
     behavior (Constitution Article II.4). Amounts are integer pesewas (GHS minor unit).
@@ -13,6 +13,8 @@ tags:
     description: No login required
   - name: Webhooks
     description: Called by the payment partner, never by clients
+  - name: Organizer
+    description: Phone-verified organizer account, session and own goals
 paths:
   /public/goals/{slug}:
     get:
@@ -140,7 +142,194 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /auth/otp/request:
+    post:
+      tags: [Organizer]
+      operationId: requestOtp
+      summary: Send a six-digit code to an organizer's phone
+      description: The response never reveals whether the number already has an account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequest'
+      responses:
+        '202':
+          description: Code accepted for delivery
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /auth/otp/verify:
+    post:
+      tags: [Organizer]
+      operationId: verifyOtp
+      summary: Verify the code, create the account on first use and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerify'
+      responses:
+        '200':
+          description: The organizer profile; the session is set as an HttpOnly cookie
+          headers:
+            Set-Cookie:
+              description: Opaque key tgthr_session; attribute policy HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerProfile'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /auth/logout:
+    post:
+      tags: [Organizer]
+      operationId: logout
+      summary: Revoke the current session and clear the cookie
+      responses:
+        '204':
+          description: Session revoked, or there was no session
+          headers:
+            Set-Cookie:
+              description: Clears tgthr_session (Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=/)
+              schema:
+                type: string
+        '403':
+          $ref: '#/components/responses/Problem'
+  /organizer/me:
+    get:
+      tags: [Organizer]
+      operationId: getOrganizer
+      summary: Read the signed-in organizer's profile
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: The organizer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerProfile'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /organizer/goals:
+    get:
+      tags: [Organizer]
+      operationId: listOrganizerGoals
+      summary: List the signed-in organizer's goals
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: The organizer's goals, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganizerGoal'
+        '401':
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [Organizer]
+      operationId: createGoal
+      summary: Create a goal with a locked, name-matched payout destination
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Unique per organizer; a retry returns the original goal.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoal'
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerGoal'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /organizer/goals/{id}:
+    get:
+      tags: [Organizer]
+      operationId: getOrganizerGoal
+      summary: Read one of the signed-in organizer's goals
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      responses:
+        '200':
+          description: The organizer's goal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerGoal'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /organizer/goals/{id}/close:
+    post:
+      tags: [Organizer]
+      operationId: closeGoal
+      summary: Close one of the signed-in organizer's goals
+      description: Closing an already closed goal is a no-op.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      responses:
+        '200':
+          description: The closed goal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerGoal'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
 components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: tgthr_session
   parameters:
     GoalSlug:
       name: slug
@@ -151,6 +340,14 @@ components:
         type: string
         minLength: 8
         maxLength: 64
+    GoalId:
+      name: id
+      in: path
+      required: true
+      description: Goal identifier
+      schema:
+        type: string
+        format: uuid
   responses:
     Problem:
       description: Error in RFC 9457 problem format
@@ -209,7 +406,7 @@ components:
     PayoutRules:
       type: object
       description: Settings that affect contributors' money, shown on the public page (Constitution V.5)
-      required: [destinationType, secondApprover, holdWindowMinutes, surplusRule]
+      required: [destinationType, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule]
       properties:
         destinationType:
           type: string
@@ -217,6 +414,10 @@ components:
         secondApprover:
           type: string
           enum: [OFF, ABOVE_THRESHOLD, ALWAYS]
+        secondApproverThresholdPesewas:
+          type: integer
+          format: int64
+          description: Contribution amount at or above which a second approval is required.
         holdWindowMinutes:
           type: integer
         surplusRule:
@@ -358,6 +559,172 @@ components:
               type: string
               format: date-time
               nullable: true
+    OtpRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          description: Ghanaian mobile number, local or E.164. Never returned.
+          pattern: '^(\+233|0)[0-9]{9}$'
+    OtpVerify:
+      type: object
+      required: [phone, code]
+      properties:
+        phone:
+          type: string
+          pattern: '^(\+233|0)[0-9]{9}$'
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+        displayName:
+          type: string
+          maxLength: 80
+          description: Used when the account is created; a returning organizer can correct it.
+        legalName:
+          type: string
+          maxLength: 120
+          description: Self-declared legal name; a returning organizer can correct it. Required before an ADMIN_MOMO goal.
+    OrganizerProfile:
+      type: object
+      required: [id, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          nullable: true
+        legalName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      description: Never contains the phone number.
+    CreateGoal:
+      type: object
+      required: [title, template, targetType, deadline, destinationType, destinationPhone, network, secondApprover]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        template:
+          type: string
+          enum: [TRIP, WEDDING, FUNERAL, RENT, COMMUNITY, GIFT, PARTY]
+        targetType:
+          type: string
+          enum: [FIXED, OPEN]
+        fixedAmountPesewas:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Required when targetType is FIXED.
+        targetAmountPesewas:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Optional target for an open goal.
+        minimumAmountPesewas:
+          type: integer
+          format: int64
+          minimum: 1000
+          description: Required when targetType is OPEN; at least 1,000 pesewas.
+        deadline:
+          type: string
+          format: date-time
+          description: Must be in the future.
+        destinationType:
+          type: string
+          enum: [BENEFICIARY_MOMO, ADMIN_MOMO]
+        destinationPhone:
+          type: string
+          description: Payout MoMo number. Encrypted at rest, never returned.
+          pattern: '^0[0-9]{9}$'
+        network:
+          type: string
+          enum: [MTN, TELECEL, AT]
+        secondApprover:
+          type: string
+          enum: [OFF, ABOVE_THRESHOLD, ALWAYS]
+        secondApproverThresholdPesewas:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 50000
+        holdWindowMinutes:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          default: 60
+        surplusRule:
+          type: string
+          enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
+          default: PAY_BENEFICIARY
+    OrganizerGoal:
+      type: object
+      required: [id, slug, title, template, targetType, status, deadline, destinationType, destinationAccountName, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule, raisedPesewas, contributorCount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          minLength: 12
+        title:
+          type: string
+        template:
+          type: string
+          enum: [TRIP, WEDDING, FUNERAL, RENT, COMMUNITY, GIFT, PARTY]
+        targetType:
+          type: string
+          enum: [FIXED, OPEN]
+        fixedAmountPesewas:
+          type: integer
+          format: int64
+          nullable: true
+        targetAmountPesewas:
+          type: integer
+          format: int64
+          nullable: true
+        minimumAmountPesewas:
+          type: integer
+          format: int64
+          nullable: true
+        status:
+          type: string
+          enum: [OPEN, CLOSED, FROZEN]
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        destinationType:
+          type: string
+          enum: [BENEFICIARY_MOMO, ADMIN_MOMO]
+        destinationAccountName:
+          type: string
+          description: Name resolved by the payment partner; never the destination phone.
+        secondApprover:
+          type: string
+          enum: [OFF, ABOVE_THRESHOLD, ALWAYS]
+        secondApproverThresholdPesewas:
+          type: integer
+          format: int64
+        holdWindowMinutes:
+          type: integer
+        surplusRule:
+          type: string
+          enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
+        raisedPesewas:
+          type: integer
+          format: int64
+          description: Derived from the ledger, never stored on the goal.
+        contributorCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
     Problem:
       type: object
       required: [type, title, status, code]
