@@ -1,4 +1,4 @@
-package com.groupcollections.contribution;
+package com.groupcollections.alerts;
 
 public record Alert(AlertType type, String reference, String detail) {
 
@@ -7,6 +7,10 @@ public record Alert(AlertType type, String reference, String detail) {
     AMOUNT_MISMATCH,
     LATE_SUCCESS,
     VERIFY_MISMATCH,
-    STUCK_PENDING
+    STUCK_PENDING,
+    SMS_FAILURE,
+    DESTINATION_UNVERIFIED,
+    DESTINATION_UNAVAILABLE,
+    RETENTION_FAILURE
   }
 }

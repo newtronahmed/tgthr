@@ -1,4 +1,4 @@
-package com.groupcollections.contribution;
+package com.groupcollections.alerts;
 
 public interface AlertPublisher {
 

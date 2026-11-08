@@ -2,6 +2,7 @@ package com.groupcollections.contribution;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.groupcollections.alerts.Alert;
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
 import com.groupcollections.support.RecordingAlertPublisher;

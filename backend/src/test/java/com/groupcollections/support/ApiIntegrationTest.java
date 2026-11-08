@@ -1,6 +1,6 @@
 package com.groupcollections.support;
 
-import com.groupcollections.contribution.AlertPublisher;
+import com.groupcollections.alerts.AlertPublisher;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;

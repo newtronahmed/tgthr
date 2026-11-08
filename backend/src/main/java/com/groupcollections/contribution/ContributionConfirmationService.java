@@ -1,5 +1,7 @@
 package com.groupcollections.contribution;
 
+import com.groupcollections.alerts.Alert;
+import com.groupcollections.alerts.AlertPublisher;
 import com.groupcollections.ledger.ContributionPosting;
 import com.groupcollections.ledger.LedgerRepository;
 import com.groupcollections.ledger.PostingSet;

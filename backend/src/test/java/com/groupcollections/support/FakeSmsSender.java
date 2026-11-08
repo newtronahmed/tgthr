@@ -1,5 +1,6 @@
 package com.groupcollections.support;
 
+import com.groupcollections.identity.IdentityException;
 import com.groupcollections.identity.SmsSender;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -11,16 +12,26 @@ public final class FakeSmsSender implements SmsSender {
 
   private static final Pattern CODE = Pattern.compile("\\b(\\d{6})\\b");
   private static final List<Sent> SENT = new CopyOnWriteArrayList<>();
+  private static volatile boolean failNext;
 
   public record Sent(String phone, String message) {}
 
   @Override
   public void send(String phoneE164, String message) {
+    if (failNext) {
+      failNext = false;
+      throw IdentityException.smsUnavailable();
+    }
     SENT.add(new Sent(phoneE164, message));
+  }
+
+  public static void failNext(boolean value) {
+    failNext = value;
   }
 
   public static void reset() {
     SENT.clear();
+    failNext = false;
   }
 
   public static List<Sent> sent() {

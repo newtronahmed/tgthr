@@ -1,4 +1,4 @@
-package com.groupcollections.contribution;
+package com.groupcollections.alerts;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +11,7 @@ public class LoggingAlertPublisher implements AlertPublisher {
 
   @Override
   public void publish(Alert alert) {
-    log.error("ALERT {} reference={} detail={}", alert.type(), alert.reference(), alert.detail());
+    log.error(
+        "ALERT type={} reference={} detail={}", alert.type(), alert.reference(), alert.detail());
   }
 }

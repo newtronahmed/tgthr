@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,6 +32,16 @@ public class OtpChallengeRepository {
 
   public OtpChallengeRepository(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
+  }
+
+  public void lock(byte[] phoneHash) {
+    jdbc.query(
+        "select pg_advisory_xact_lock(hashtext(?))",
+        resultSet -> {
+          resultSet.next();
+          return null;
+        },
+        HexFormat.of().formatHex(phoneHash));
   }
 
   public UUID insert(
