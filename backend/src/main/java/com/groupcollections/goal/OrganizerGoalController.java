@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -46,6 +47,14 @@ public class OrganizerGoalController {
       @RequestAttribute(OrganizerAuthFilter.USER_ATTRIBUTE) OrganizerUser user,
       @PathVariable UUID id) {
     return goals.get(user, id);
+  }
+
+  @PatchMapping("/{id}/payout-settings")
+  public OrganizerGoal updatePayoutSettings(
+      @RequestAttribute(OrganizerAuthFilter.USER_ATTRIBUTE) OrganizerUser user,
+      @PathVariable UUID id,
+      @Valid @RequestBody PayoutSettingsRequest request) {
+    return goals.updatePayoutSettings(user, id, request);
   }
 
   @PostMapping("/{id}/close")

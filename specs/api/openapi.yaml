@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Group Collections API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Contract for the Group Collections backend. This file is the single source of truth for HTTP
     behavior (Constitution Article II.4). Amounts are integer pesewas (GHS minor unit).
@@ -301,6 +301,42 @@ paths:
           $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
+  /organizer/goals/{id}/payout-settings:
+    patch:
+      tags: [Organizer]
+      operationId: updateGoalPayoutSettings
+      summary: Set the second approver and hold before the first payout
+      description: |
+        The approver name and phone must be supplied together and the phone must differ from the
+        organizer. The phone is encrypted and never returned. Settings cannot change after the
+        first payout; a zero hold is refused with HOLD_REQUIRED.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutSettings'
+      responses:
+        '200':
+          description: The updated goal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerGoal'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
   /organizer/goals/{id}/close:
     post:
       tags: [Organizer]
@@ -408,18 +444,22 @@ components:
     PayoutRules:
       type: object
       description: Settings that affect contributors' money, shown on the public page (Constitution V.5)
-      required: [destinationType, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule]
+      required: [destinationType, secondApproverName, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule]
       properties:
         destinationType:
           type: string
           enum: [BENEFICIARY_MOMO, ADMIN_MOMO]
+        secondApproverName:
+          type: string
+          nullable: true
+          description: The designated approver's name; the phone is never public.
         secondApprover:
           type: string
           enum: [OFF, ABOVE_THRESHOLD, ALWAYS]
         secondApproverThresholdPesewas:
           type: integer
           format: int64
-          description: Contribution amount at or above which a second approval is required.
+          description: Payout debit X at or above which a second approval is required.
         holdWindowMinutes:
           type: integer
         surplusRule:
@@ -650,6 +690,16 @@ components:
         secondApprover:
           type: string
           enum: [OFF, ABOVE_THRESHOLD, ALWAYS]
+        secondApproverName:
+          type: string
+          maxLength: 120
+          nullable: true
+          description: May be supplied at creation or via payout-settings; required before the first payout for a non-OFF rule.
+        secondApproverPhone:
+          type: string
+          nullable: true
+          description: Disposable input; encrypted and never returned or logged.
+          pattern: '^(\+233|0)[0-9]{9}$'
         secondApproverThresholdPesewas:
           type: integer
           format: int64
@@ -660,13 +710,31 @@ components:
           minimum: 0
           maximum: 1440
           default: 60
+          description: Use at least 1; 0 is refused with 422 HOLD_REQUIRED.
         surplusRule:
           type: string
           enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
           default: PAY_BENEFICIARY
+    PayoutSettings:
+      type: object
+      minProperties: 1
+      description: Supplying an approver requires both name and phone. A zero hold is refused with 422 HOLD_REQUIRED.
+      properties:
+        secondApproverName:
+          type: string
+          maxLength: 120
+        secondApproverPhone:
+          type: string
+          description: Disposable input; encrypted and never returned or logged.
+          pattern: '^(\+233|0)[0-9]{9}$'
+        holdWindowMinutes:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          description: Use at least 1; 0 is refused with 422 HOLD_REQUIRED.
     OrganizerGoal:
       type: object
-      required: [id, slug, title, template, targetType, status, deadline, destinationType, destinationAccountName, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule, raisedPesewas, contributorCount, createdAt]
+      required: [id, slug, title, template, targetType, status, deadline, destinationType, destinationAccountName, secondApproverName, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule, raisedPesewas, contributorCount, createdAt]
       properties:
         id:
           type: string
@@ -707,6 +775,10 @@ components:
         destinationAccountName:
           type: string
           description: Name resolved by the payment partner; never the destination phone.
+        secondApproverName:
+          type: string
+          nullable: true
+          description: The designated approver's name; the phone is never returned.
         secondApprover:
           type: string
           enum: [OFF, ABOVE_THRESHOLD, ALWAYS]

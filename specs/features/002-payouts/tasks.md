@@ -6,9 +6,9 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 
 - [ ] T301 Spike the Paystack transfer API in the sandbox; record request/response, fee schedule and idempotency reference format (no real provider in tests)
 - [ ] T302 Add quote/transfer operations to the payment adapter with a fake and fee re-check
-- [ ] T303 Add goal approver fields and `PATCH /organizer/goals/{id}/payout-settings` (before first payout only); encrypt the phone; update OpenAPI
-- [ ] T304 Add V9: `payouts` (with reservation states), `payout_approvals`, `payout_reports`, `payout_notifications`, `payout_events`, goal approver/settings fields; append-only events; unique request/provider references
-- [ ] T305 Build the payout state machine with unit tests for every legal/illegal transition
+- [x] T303 Add goal approver fields and `PATCH /organizer/goals/{id}/payout-settings` (before first payout only); encrypt the phone; update OpenAPI
+- [x] T304 Add V9: `payouts` (with reservation states), `payout_approvals`, `payout_reports`, `payout_notifications`, `payout_events`, goal approver/settings fields; append-only events; unique request/provider references
+- [x] T305 Build the payout state machine with unit tests for every legal/illegal transition
 - [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold
 - [ ] T307 Add fake SMS/approval and fake transfer adapters to the test harness
 - [ ] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
@@ -27,13 +27,14 @@ Criteria: AC-PAYOUT-001, AC-PAYOUT-002, AC-PAYOUT-003, AC-PAYOUT-013
 - [ ] T316 Write failing `PayoutIdempotencyIT` for AC-009/018 (same/different body)
 - [ ] T317 Implement the unique request key and body conflict until T316 is green
 - [ ] T318 Refactor; keep the suite green
+- [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; includes the PATCH-vs-payout concurrency test) (Slice 1)
 
 ## Slice 2 (P1): Approver, settings and approval
 
 Criteria: AC-PAYOUT-004, AC-PAYOUT-005, AC-PAYOUT-006, AC-PAYOUT-017
 
-- [ ] T320 Write failing `GoalPayoutSettingsIT` for AC-006 (approver required/distinct/encrypted/public name, zero hold)
-- [ ] T321 Implement approver/hold settings until T320 is green
+- [x] T320 Write failing `GoalPayoutSettingsIT` for AC-006 (approver required/distinct/encrypted/public name, zero hold)
+- [x] T321 Implement approver/hold settings until T320 is green
 - [ ] T322 Write failing `PayoutApprovalIT` for AC-004 (rule triggers, approve/decline)
 - [ ] T323 Implement approval challenge/token and state gating until T322 is green
 - [ ] T324 Write failing tests for AC-005/017 (wrong/expired/over-attempted/reused/resend/expiry)
@@ -58,7 +59,7 @@ Criteria: AC-PAYOUT-010, AC-PAYOUT-014, AC-PAYOUT-015
 - [ ] T340 Write failing `PayoutExecutionIT` for AC-010/015 (success/failure/unknown/one ledger, fee mismatch before provider)
 - [ ] T341 Implement provider call, fee re-check, unique reference and completion posting until T340 is green
 - [ ] T342 Write failing `PayoutVisibilityIT` for AC-014 (public view, report, sent notifications)
-- [ ] T343 Implement public payout view, reports and funded-contributor notifications until T342 is green
+- [ ] T343 Implement public payout view, reports and funded-contributor notifications until T342 is green; group by `payer_phone_hash` and insert one notification per contributor, treating a unique conflict as already sent
 - [ ] T344 Add stuck-EXECUTING verification and alerts
 - [ ] T345 Refactor; keep the suite green
 

@@ -20,6 +20,10 @@ Read `specs/constitution.md` first. It is binding.
 - Do not add a dependency, datastore or service without an ADR.
 - Do not call a real payment provider from tests. Use the fake.
 - Never commit secrets. Configuration comes from environment variables.
+- Cast nullable SQL parameters to the column type (`coalesce(cast(? as bytea), column)`) and add a test that actually executes the null branch; an untyped Java null can fail at runtime.
+- Traceability is per criterion. If a criterion spans phases, split it into a new permanent ID or keep a pending test; never let an early phase mark the whole criterion covered.
+- A read-check-then-write lock only serializes writers that take the same lock. Add the writer-side lock, a database trigger where possible, and a concurrency test at the slice that creates the guarded rows.
+- Match unique constraints to the stated cardinality (for example per contributor, not per contribution); test the duplicate/aggregation path.
 
 ## Where things go
 

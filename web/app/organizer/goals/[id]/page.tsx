@@ -85,6 +85,7 @@ export default async function OrganizerGoalPage({
           </dd>
           <dt className="text-slate-500">Second approver</dt>
           <dd className="text-right font-semibold text-slate-800">
+            {goal.secondApproverName ? `${goal.secondApproverName} · ` : ""}
             {goal.secondApprover.replaceAll("_", " ").toLowerCase()}
             {goal.secondApprover === "ABOVE_THRESHOLD"
               ? ` above ${formatGhs(goal.secondApproverThresholdPesewas)}`

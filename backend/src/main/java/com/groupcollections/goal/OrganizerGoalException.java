@@ -49,6 +49,38 @@ public final class OrganizerGoalException extends RuntimeException {
         409, "Goal not closable", "GOAL_NOT_CLOSABLE", "This goal cannot be closed");
   }
 
+  public static OrganizerGoalException approverRequired() {
+    return new OrganizerGoalException(
+        422,
+        "Approver required",
+        "APPROVER_REQUIRED",
+        "Set a second approver before requesting a payout");
+  }
+
+  public static OrganizerGoalException approverMustDiffer() {
+    return new OrganizerGoalException(
+        422,
+        "Approver must differ",
+        "APPROVER_MUST_DIFFER",
+        "The second approver must be a different person from the organizer");
+  }
+
+  public static OrganizerGoalException holdRequired() {
+    return new OrganizerGoalException(
+        422,
+        "Hold required",
+        "HOLD_REQUIRED",
+        "Set a hold window of at least one minute before requesting a payout");
+  }
+
+  public static OrganizerGoalException payoutSettingsLocked() {
+    return new OrganizerGoalException(
+        409,
+        "Payout settings locked",
+        "PAYOUT_SETTINGS_LOCKED",
+        "Payout settings cannot change after the first payout");
+  }
+
   public int status() {
     return status;
   }

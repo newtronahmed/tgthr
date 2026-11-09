@@ -2,6 +2,7 @@ package com.groupcollections.goal;
 
 import com.groupcollections.alerts.Alert;
 import com.groupcollections.alerts.AlertPublisher;
+import com.groupcollections.identity.IdentityException;
 import com.groupcollections.identity.OrganizerUser;
 import com.groupcollections.identity.PhoneNormalizer;
 import com.groupcollections.identity.UserRepository;
@@ -107,6 +108,7 @@ public class OrganizerGoalService {
       throw OrganizerGoalException.destinationUnverified();
     }
 
+    ApproverIdentity approver = resolveApprover(user, request);
     long minimum =
         request.targetType() == TargetType.OPEN
             ? request.minimumAmountPesewas()
@@ -119,6 +121,9 @@ public class OrganizerGoalService {
         request.holdWindowMinutes() == null
             ? DEFAULT_HOLD_WINDOW_MINUTES
             : request.holdWindowMinutes();
+    if (holdWindow < 1) {
+      throw OrganizerGoalException.holdRequired();
+    }
     SurplusRule surplus =
         request.surplusRule() == null ? SurplusRule.PAY_BENEFICIARY : request.surplusRule();
 
@@ -138,6 +143,10 @@ public class OrganizerGoalService {
                         phones.encrypt(normalizedDestination),
                         phones.hash(normalizedDestination),
                         accountName,
+                        approver == null ? null : approver.name(),
+                        approver == null ? null : approver.ciphertext(),
+                        approver == null ? null : approver.hash(),
+                        approver == null ? null : approver.setAt(),
                         idempotencyKey,
                         now);
                 id.ifPresent(
@@ -194,6 +203,105 @@ public class OrganizerGoalService {
     return after;
   }
 
+  @Transactional
+  public OrganizerGoal updatePayoutSettings(
+      OrganizerUser user, UUID goalId, PayoutSettingsRequest request) {
+    if (!goals.lockByIdAndCreator(goalId, user.id())) {
+      throw new GoalNotFoundException(goalId.toString());
+    }
+    OrganizerGoal goal = get(user, goalId);
+    if (goals.hasPayouts(goalId)) {
+      throw OrganizerGoalException.payoutSettingsLocked();
+    }
+    if (request.secondApproverName() == null
+        && request.secondApproverPhone() == null
+        && request.holdWindowMinutes() == null) {
+      throw OrganizerGoalException.invalid("provide at least one payout setting");
+    }
+    if (request.holdWindowMinutes() != null && request.holdWindowMinutes() < 1) {
+      throw OrganizerGoalException.holdRequired();
+    }
+
+    String approverName = null;
+    byte[] approverCiphertext = null;
+    byte[] approverHash = null;
+    Instant approverSetAt = null;
+    if (request.secondApproverName() != null || request.secondApproverPhone() != null) {
+      String name = clean(request.secondApproverName());
+      String rawPhone = clean(request.secondApproverPhone());
+      if (name == null || rawPhone == null) {
+        throw OrganizerGoalException.invalid(
+            "secondApproverName and secondApproverPhone must be provided together");
+      }
+      String normalized;
+      try {
+        normalized = PhoneNormalizer.normalize(rawPhone);
+      } catch (IdentityException failure) {
+        throw OrganizerGoalException.invalid(
+            "secondApproverPhone must be a Ghanaian mobile number");
+      }
+      byte[] hash = phones.hash(normalized);
+      if (sameAsOrganizer(user, hash)) {
+        throw OrganizerGoalException.approverMustDiffer();
+      }
+      approverName = name;
+      approverCiphertext = phones.encrypt(normalized);
+      approverHash = hash;
+      approverSetAt = Instant.now(clock);
+    } else if (goal.secondApprover() != SecondApprover.OFF && goal.secondApproverName() == null) {
+      throw OrganizerGoalException.approverRequired();
+    }
+
+    Instant now = Instant.now(clock);
+    goals.updatePayoutSettings(
+        goalId,
+        user.id(),
+        approverName,
+        approverCiphertext,
+        approverHash,
+        approverSetAt,
+        request.holdWindowMinutes(),
+        now);
+    goals.appendEvent(
+        goalId,
+        "PAYOUT_SETTINGS_UPDATED",
+        goal.status().name(),
+        goal.status().name(),
+        user.id(),
+        now);
+    return get(user, goalId);
+  }
+
+  private ApproverIdentity resolveApprover(OrganizerUser user, CreateGoalRequest request) {
+    if (request.secondApproverName() == null && request.secondApproverPhone() == null) {
+      return null;
+    }
+    String name = clean(request.secondApproverName());
+    String rawPhone = clean(request.secondApproverPhone());
+    if (name == null || rawPhone == null) {
+      throw OrganizerGoalException.invalid(
+          "secondApproverName and secondApproverPhone must be provided together");
+    }
+    String normalized;
+    try {
+      normalized = PhoneNormalizer.normalize(rawPhone);
+    } catch (IdentityException failure) {
+      throw OrganizerGoalException.invalid("secondApproverPhone must be a Ghanaian mobile number");
+    }
+    byte[] hash = phones.hash(normalized);
+    if (sameAsOrganizer(user, hash)) {
+      throw OrganizerGoalException.approverMustDiffer();
+    }
+    return new ApproverIdentity(name, phones.encrypt(normalized), hash, Instant.now(clock));
+  }
+
+  private boolean sameAsOrganizer(OrganizerUser user, byte[] approverHash) {
+    return users
+        .findPhoneHash(user.id())
+        .map(hash -> MessageDigest.isEqual(hash, approverHash))
+        .orElse(false);
+  }
+
   private String resolve(String phone, com.groupcollections.payments.Network network, UUID userId) {
     try {
       return resolver.resolve(phone, network);
@@ -244,6 +352,8 @@ public class OrganizerGoalService {
       throw OrganizerGoalException.invalid("secondApproverThresholdPesewas cannot be negative");
     }
   }
+
+  private record ApproverIdentity(String name, byte[] ciphertext, byte[] hash, Instant setAt) {}
 
   private static String clean(String value) {
     if (value == null || value.isBlank()) {

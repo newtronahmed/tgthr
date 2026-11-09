@@ -94,3 +94,37 @@ blockers and several highs; all were accepted and the spec/state machine/plan we
   returns 404 only; T230 is closed and the Playwright spec carries AC-PAYOUT-012.
 
 The corrections were re-reviewed and merged on 2026-11-09 (PR #10); the spec is **Ready** and the domain spec is **Accepted**. No payout code has started.
+
+## Approver-settings slice review (2026-11-09)
+
+Independent read-only review of the provider-independent T303/T304 slice (goal approver fields,
+`PATCH /organizer/goals/{id}/payout-settings`, public approver name, V9 schema, web creation
+inputs). No merge blockers were found. Findings and resolutions:
+
+- **Settings-lock TOCTOU (High, partially fixed; T319):** the PATCH now locks the goal row before
+  the check and update, and a V9 trigger rejects any settings update after a payout exists. A row
+  lock on `goals` does **not** block an insert into `payouts`, so the payout writer must take the same
+  goal lock before inserting. T319 owns that writer lock and the PATCH-vs-payout concurrency test;
+  the trigger covers the sequential/late-settings case.
+- **AC-006 wording / traceability (High, fixed by split):** AC-006 is now settings-only. The
+  request-time gate is **AC-PAYOUT-020** with a pending test; T319 carries the implementation. The
+  trace is honest: AC-006 is active for settings, AC-020 remains pending.
+- **Nullable SQL parameters (High, fixed):** the settings update casts nullable approver/hold
+  parameters and tests hold-only updates on an OFF goal and on a goal that already has an approver.
+- **Web approver setup (should-fix, fixed):** the goal wizard now collects the approver name and
+  MoMo number for non-OFF rules and includes them in the idempotent create payload; a test covers
+  missing and valid values. The settings form for legacy goals remains T351.
+- **OpenAPI hold/threshold contract (should-fix, fixed):** the schema permits 0 so the server can
+  return the documented 422 `HOLD_REQUIRED`; `PayoutSettings` has `minProperties: 1`; the threshold
+  description now says it compares to the payout debit X, not a contribution amount.
+- **Approval cardinality (Medium, fixed):** a partial unique index keeps at most one unconsumed
+  challenge per payout; resend must consume the previous challenge.
+- **Notifications per contributor (Medium, fixed in schema; sender follow-up in T343):**
+  `payout_notifications` stores `payer_phone_hash` and is unique per contributor per payout. The
+  sender must aggregate by `payer_phone_hash`, insert one row per contributor and treat a conflict
+  as already sent.
+- **CODEOWNER review:** this slice contains no ledger/payment-provider code. A fresh CODEOWNER
+  review remains mandatory before the payout posting/execution slice (T365).
+
+Verification: `make check` passed; `GoalPayoutSettingsIT` passed; trace 83 defined / 56 active /
+27 pending / 0 missing; web tests, lint and build passed.

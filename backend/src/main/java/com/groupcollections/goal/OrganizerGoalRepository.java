@@ -18,7 +18,8 @@ public class OrganizerGoalRepository {
       """
       select g.id, g.slug, g.title, g.template, g.target_type, g.fixed_amount_minor_units,
              g.target_amount_minor_units, g.minimum_amount_minor_units, g.status, g.deadline,
-             g.destination_type, g.destination_account_name, g.second_approver,
+             g.destination_type, g.destination_account_name, g.second_approver_name,
+             g.second_approver,
              g.second_approver_threshold_minor_units, g.hold_window_minutes, g.surplus_rule,
              g.created_at,
              coalesce((select sum(case
@@ -53,6 +54,10 @@ public class OrganizerGoalRepository {
       byte[] destinationCiphertext,
       byte[] destinationHash,
       String destinationAccountName,
+      String secondApproverName,
+      byte[] secondApproverPhoneCiphertext,
+      byte[] secondApproverPhoneHash,
+      Instant secondApproverSetAt,
       String idempotencyKey,
       Instant now) {
     Timestamp timestamp = Timestamp.from(now);
@@ -65,8 +70,10 @@ public class OrganizerGoalRepository {
                  destination_type, second_approver, hold_window_minutes, surplus_rule,
                  created_by_user_id, destination_phone_ciphertext, destination_phone_hash,
                  destination_network, destination_account_name, destination_locked_at,
-                 second_approver_threshold_minor_units, create_idempotency_key, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 second_approver_name, second_approver_phone_ciphertext, second_approver_phone_hash,
+                 second_approver_set_at, second_approver_threshold_minor_units,
+                 create_idempotency_key, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict do nothing
             returning id
             """,
@@ -89,6 +96,10 @@ public class OrganizerGoalRepository {
             request.network().name(),
             destinationAccountName,
             timestamp,
+            secondApproverName,
+            secondApproverPhoneCiphertext,
+            secondApproverPhoneHash,
+            secondApproverSetAt == null ? null : Timestamp.from(secondApproverSetAt),
             secondApproverThresholdPesewas,
             idempotencyKey,
             timestamp,
@@ -134,6 +145,55 @@ public class OrganizerGoalRepository {
         creatorId);
   }
 
+  public int updatePayoutSettings(
+      UUID id,
+      UUID creatorId,
+      String secondApproverName,
+      byte[] secondApproverPhoneCiphertext,
+      byte[] secondApproverPhoneHash,
+      Instant secondApproverSetAt,
+      Integer holdWindowMinutes,
+      Instant now) {
+    return jdbc.update(
+        """
+        update goals set
+            second_approver_name = coalesce(cast(? as text), second_approver_name),
+            second_approver_phone_ciphertext =
+                coalesce(cast(? as bytea), second_approver_phone_ciphertext),
+            second_approver_phone_hash =
+                coalesce(cast(? as bytea), second_approver_phone_hash),
+            second_approver_set_at =
+                coalesce(cast(? as timestamptz), second_approver_set_at),
+            hold_window_minutes = coalesce(cast(? as integer), hold_window_minutes),
+            updated_at = ?
+        where id = ? and created_by_user_id = ?
+        """,
+        secondApproverName,
+        secondApproverPhoneCiphertext,
+        secondApproverPhoneHash,
+        secondApproverSetAt == null ? null : Timestamp.from(secondApproverSetAt),
+        holdWindowMinutes,
+        Timestamp.from(now),
+        id,
+        creatorId);
+  }
+
+  public boolean lockByIdAndCreator(UUID id, UUID creatorId) {
+    return !jdbc.query(
+            "select id from goals where id = ? and created_by_user_id = ? for update",
+            (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class),
+            id,
+            creatorId)
+        .isEmpty();
+  }
+
+  public boolean hasPayouts(UUID goalId) {
+    Boolean exists =
+        jdbc.queryForObject(
+            "select exists (select 1 from payouts where goal_id = ?)", Boolean.class, goalId);
+    return Boolean.TRUE.equals(exists);
+  }
+
   public void appendEvent(
       UUID goalId, String event, String fromStatus, String toStatus, UUID actorId, Instant now) {
     jdbc.update(
@@ -163,6 +223,7 @@ public class OrganizerGoalRepository {
         instant(resultSet, "deadline"),
         DestinationType.valueOf(resultSet.getString("destination_type")),
         resultSet.getString("destination_account_name"),
+        resultSet.getString("second_approver_name"),
         SecondApprover.valueOf(resultSet.getString("second_approver")),
         resultSet.getLong("second_approver_threshold_minor_units"),
         resultSet.getInt("hold_window_minutes"),

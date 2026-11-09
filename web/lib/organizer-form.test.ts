@@ -14,6 +14,8 @@ const base: GoalFormState = {
   destinationPhone: "0240000002",
   network: "MTN",
   secondApprover: "OFF",
+  secondApproverName: "",
+  secondApproverPhone: "",
   threshold: "500.00",
   holdWindow: "60",
   surplusRule: "PAY_BENEFICIARY",
@@ -54,4 +56,27 @@ test("rejects past deadlines and malformed phones", () => {
     false,
   );
   assert.equal(buildGoalPayload({ ...base, destinationPhone: "123" }).ok, false);
+});
+
+test("non-off goals require a distinct approver", () => {
+  const missing = buildGoalPayload(
+    { ...base, secondApprover: "ALWAYS", secondApproverName: "", secondApproverPhone: "" },
+    new Date("2026-01-01T00:00:00Z"),
+  );
+  assert.equal(missing.ok, false);
+
+  const valid = buildGoalPayload(
+    {
+      ...base,
+      secondApprover: "ALWAYS",
+      secondApproverName: "Esi Mensah",
+      secondApproverPhone: "+233240000003",
+    },
+    new Date("2026-01-01T00:00:00Z"),
+  );
+  assert.equal(valid.ok, true);
+  if (valid.ok) {
+    assert.equal(valid.payload.secondApproverName, "Esi Mensah");
+    assert.equal(valid.payload.secondApproverPhone, "0240000003");
+  }
 });

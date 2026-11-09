@@ -49,13 +49,6 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: approver setup slice")
-  @Criterion("AC-PAYOUT-006")
-  void approverIsRequiredDistinctEncryptedAndOnlyTheNameIsPublic() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: hold/freeze slice")
   @Criterion("AC-PAYOUT-007")
   void holdExpiryAndFreezePrecedenceAreEnforced() {
@@ -136,6 +129,13 @@ class PayoutCriteriaTest {
   @Disabled("pending: worker slice")
   @Criterion("AC-PAYOUT-019")
   void cancelAndExecuteRaceHasOneWinner() {
+    fail("not implemented");
+  }
+
+  @Test
+  @Disabled("pending: payout request gate slice")
+  @Criterion("AC-PAYOUT-020")
+  void payoutRequestRequiresConfiguredApprover() {
     fail("not implemented");
   }
 }
