@@ -35,7 +35,8 @@ Item types: `CONTRIBUTION` (requires a contribution and a goal amount), `ADJUSTM
 contribution and a zero goal amount), `REVERSAL` and `CHARGEBACK` (debit direction, with a goal
 amount when attributable to a goal).
 
-Settlement tracking does not post ledger entries (ADR 0012). The ADR 0007 FEE/BANK clearing
+A provider item reference is unique within its settlement batch, so a retried ingestion cannot
+duplicate an adjustment line. Settlement tracking does not post ledger entries (ADR 0012). The ADR 0007 FEE/BANK clearing
 postings remain deferred until a settlement-posting ADR; the ledger continues to track obligations.
 
 A settlement batch moves `PENDING → SETTLED` when the operator or automated job confirms cash receipt (e.g., bank statement match). A settlement batch moves `PENDING → FAILED` if the provider reverses or cancels it (rare, but possible for fraud or errors).
