@@ -160,13 +160,12 @@ Each task's check must pass:
 - [x] **T289:** Goal/contribution/quote/raised-total currency consistency and callback currency checks are enforced.
 - [x] **T290:** Provider-line idempotency, after-completion alerts and parent guards are implemented and tested.
 - [x] **T292:** Explicit goal-close-vs-confirm race test (two connections) and corrected concurrency documentation.
-- [ ] **T293:** ADR/spec drift. Settlement item types and deferred settlement postings are documented;
-  ADR 0015 (legacy `_pesewas` column names) is Proposed and needs acceptance; ADR 0007/0012
-  settlement postings remain explicitly deferred.
+- [x] **T293:** ADR 0015 rejected in favour of V8 renaming financial columns to `*_minor_units`;
+  settlement item types and deferred ADR 0007 settlement postings are documented.
 - [x] **T294:** Currency checks, PostingSet currency guard, settlement validation and public suspense
   exclusion added; remaining API currency/backfill/clock hygiene is noted.
-- [x] **T295:** Docs/index and the rolling-deploy note for the V5 `currency` rename are recorded.
+- [x] **T295:** Docs/index and the rolling-deploy note for the V5/V8 renames are recorded.
 
 ## Review follow-ups
 
-- Outstanding: T293 ADR 0015 acceptance and the FEAT-002 payout feature spec before Phase 2.
+- Outstanding: the FEAT-002 payout feature spec before Phase 2.

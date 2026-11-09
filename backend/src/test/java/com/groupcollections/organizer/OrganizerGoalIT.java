@@ -122,8 +122,8 @@ class OrganizerGoalIT extends ApiIntegrationTest {
     jdbc.update(
         """
         insert into contributions
-            (id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-             total_pesewas, state, provider_reference, payer_phone_ciphertext,
+            (id, goal_id, amount_minor_units, processing_fee_minor_units, platform_fee_minor_units,
+             total_minor_units, state, provider_reference, payer_phone_ciphertext,
              payer_phone_hash, idempotency_key, confirmed_at)
         values (?, ?, 5000, 0, 0, 5000, 'CONFIRMED', ?, ?, ?, ?, now())
         """,
@@ -137,7 +137,7 @@ class OrganizerGoalIT extends ApiIntegrationTest {
     jdbc.update(
         """
         insert into ledger_entries
-            (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas)
+            (posting_set_id, contribution_id, account, entry_type, direction, amount_minor_units)
         values (?, ?, 'GOAL_POOL', 'CONTRIBUTION', 'CREDIT', 5000),
                (?, ?, 'PARTNER_HELD', 'CONTRIBUTION', 'DEBIT', 5000)
         """,
@@ -149,7 +149,7 @@ class OrganizerGoalIT extends ApiIntegrationTest {
     jdbc.update(
         """
         insert into ledger_entries
-            (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas)
+            (posting_set_id, contribution_id, account, entry_type, direction, amount_minor_units)
         values (?, ?, 'GOAL_POOL', 'REVERSAL', 'DEBIT', 1000),
                (?, ?, 'PARTNER_HELD', 'REVERSAL', 'CREDIT', 1000)
         """,

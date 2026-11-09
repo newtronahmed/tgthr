@@ -22,9 +22,9 @@ public class GoalRepository {
 
   private static final String GOAL_COLUMNS =
       """
-      select id, slug, title, template, target_type, fixed_amount_pesewas,
-             target_amount_pesewas, minimum_amount_pesewas, status, deadline,
-             destination_type, second_approver, second_approver_threshold_pesewas,
+      select id, slug, title, template, target_type, fixed_amount_minor_units,
+             target_amount_minor_units, minimum_amount_minor_units, status, deadline,
+             destination_type, second_approver, second_approver_threshold_minor_units,
              hold_window_minutes, surplus_rule, currency_code
       from goals
       """;
@@ -37,14 +37,14 @@ public class GoalRepository {
               resultSet.getString("title"),
               resultSet.getString("template"),
               TargetType.valueOf(resultSet.getString("target_type")),
-              money(resultSet, "fixed_amount_pesewas"),
-              money(resultSet, "target_amount_pesewas"),
-              money(resultSet, "minimum_amount_pesewas"),
+              money(resultSet, "fixed_amount_minor_units"),
+              money(resultSet, "target_amount_minor_units"),
+              money(resultSet, "minimum_amount_minor_units"),
               GoalStatus.valueOf(resultSet.getString("status")),
               instant(resultSet, "deadline"),
               resultSet.getString("destination_type"),
               resultSet.getString("second_approver"),
-              resultSet.getLong("second_approver_threshold_pesewas"),
+              resultSet.getLong("second_approver_threshold_minor_units"),
               resultSet.getInt("hold_window_minutes"),
               resultSet.getString("surplus_rule"));
 

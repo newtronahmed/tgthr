@@ -1,6 +1,6 @@
 # ADR 0015: Legacy financial column names for the MVP
 
-- Status: Proposed
+- Status: Rejected
 - Date: 2026-11-08
 - Deciders: Ahmed Zubairu
 - Constitution articles touched: I (money is exact)
@@ -14,6 +14,10 @@ contributions and ledger entries. For GHS those names are accurate; for any futu
 they would be misleading.
 
 ## Decision
+
+**Rejected 2026-11-09:** the owner chose to rename the columns now. V8 renames the legacy
+`*_pesewas` columns to `*_minor_units` on goals, contributions and ledger entries.
+
 
 Retain the legacy `_pesewas` column names for the GHS-only MVP. `currency_code` is authoritative;
 every value is an integer minor unit in that currency. The names carry no cross-currency guarantee.
