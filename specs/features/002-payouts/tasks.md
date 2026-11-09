@@ -8,7 +8,7 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 - [ ] T302 Add quote/transfer operations to the payment adapter with a fake and fee re-check
 - [x] T303 Add goal approver fields and `PATCH /organizer/goals/{id}/payout-settings` (before first payout only); encrypt the phone; update OpenAPI
 - [x] T304 Add V9: `payouts` (with reservation states), `payout_approvals`, `payout_reports`, `payout_notifications`, `payout_events`, goal approver/settings fields; append-only events; unique request/provider references
-- [ ] T305 Build the payout state machine with unit tests for every legal/illegal transition
+- [x] T305 Build the payout state machine with unit tests for every legal/illegal transition
 - [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold
 - [ ] T307 Add fake SMS/approval and fake transfer adapters to the test harness
 - [ ] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
