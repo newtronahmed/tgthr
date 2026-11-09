@@ -26,6 +26,9 @@ public record SettlementItem(
     Objects.requireNonNull(fee, "fee");
     Objects.requireNonNull(net, "net");
     Objects.requireNonNull(goalAmount, "goalAmount");
+    if (gross.minorUnits() <= 0 || net.minorUnits() <= 0) {
+      throw new IllegalArgumentException("settlement item gross and net must be positive");
+    }
     if (!gross.minus(fee).equals(net)) {
       throw new IllegalArgumentException("settlement item net must equal gross minus fee");
     }

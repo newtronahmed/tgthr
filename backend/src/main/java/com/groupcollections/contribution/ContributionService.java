@@ -81,7 +81,8 @@ public class ContributionService {
       return;
     }
     ContributionPayment payment = found.get();
-    if (payment.total().minorUnits() != result.amountPesewas()) {
+    if (payment.total().minorUnits() != result.amountPesewas()
+        || !payment.total().currencyCode().equals(result.currency())) {
       meters.counter("contributions.callback", "result", "amount_mismatch").increment();
       alerts.publish(
           new Alert(

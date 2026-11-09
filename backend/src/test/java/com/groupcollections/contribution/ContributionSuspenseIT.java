@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 
 class ContributionSuspenseIT extends ApiIntegrationTest {
 
@@ -58,6 +59,18 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
         .isTrue();
     assertThat(RecordingAlertPublisher.alerts())
         .anyMatch(alert -> alert.type() == Alert.AlertType.RECONCILIATION_REQUIRED);
+    ResponseEntity<Map<String, Object>> publicGoal =
+        rest.exchange(
+            "/public/goals/{slug}",
+            org.springframework.http.HttpMethod.GET,
+            new org.springframework.http.HttpEntity<>(new org.springframework.http.HttpHeaders()),
+            new org.springframework.core.ParameterizedTypeReference<>() {},
+            slug);
+    assertThat(publicGoal.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
+    assertThat(publicGoal.getBody()).isNotNull();
+    assertThat(((Number) publicGoal.getBody().get("raisedPesewas")).longValue()).isZero();
+    assertThat(((Number) publicGoal.getBody().get("contributorCount")).longValue()).isZero();
+    assertThat((java.util.List<?>) publicGoal.getBody().get("feed")).isEmpty();
 
     long processing = ((Number) created.get("processingFeePesewas")).longValue();
     long platform = ((Number) created.get("platformFeePesewas")).longValue();
@@ -106,6 +119,52 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
                 "select count(*) from ledger_entries where contribution_id = ? and account = 'SUSPENSE'",
                 contributionId))
         .isEqualTo(1);
+  }
+
+  @Test
+  void closeAndConfirmRaceProducesExactlyOneLedgerOutcome() throws Exception {
+    String slug = insertGoal("suspense-race", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID contributionId = UUID.fromString((String) created.get("id"));
+    long total = ((Number) created.get("totalPesewas")).longValue();
+    java.util.concurrent.ExecutorService pool =
+        java.util.concurrent.Executors.newFixedThreadPool(2);
+    java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+    try {
+      java.util.concurrent.Future<Integer> callback =
+          pool.submit(
+              () -> {
+                start.await();
+                return PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId.toString(), total);
+              });
+      java.util.concurrent.Future<Integer> close =
+          pool.submit(
+              () -> {
+                start.await();
+                return jdbc.update("update goals set status = 'CLOSED' where slug = ?", slug);
+              });
+      start.countDown();
+      assertThat(callback.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(204);
+      assertThat(close.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(1);
+    } finally {
+      pool.shutdownNow();
+    }
+
+    int goalPool =
+        count(
+            "select count(*) from ledger_entries where contribution_id = ? and account = 'GOAL_POOL'",
+            contributionId);
+    int suspense =
+        count(
+            "select count(*) from ledger_entries where contribution_id = ? and account = 'SUSPENSE'",
+            contributionId);
+    assertThat(goalPool + suspense).isEqualTo(1);
+    Boolean flagged =
+        jdbc.queryForObject(
+            "select requires_reconciliation from contributions where id = ?",
+            Boolean.class,
+            contributionId);
+    assertThat(flagged).isEqualTo(suspense == 1);
   }
 
   @Test

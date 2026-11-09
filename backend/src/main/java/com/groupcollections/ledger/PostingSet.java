@@ -12,8 +12,12 @@ public record PostingSet(UUID id, List<LedgerEntry> entries) {
     if (entries.isEmpty()) {
       throw new IllegalArgumentException("a posting set must have at least one entry");
     }
+    String currency = entries.getFirst().amount().currencyCode();
     long net = 0;
     for (LedgerEntry entry : entries) {
+      if (!currency.equals(entry.amount().currencyCode())) {
+        throw new IllegalArgumentException("posting set must use one currency");
+      }
       net = Math.addExact(net, entry.signedPesewas());
     }
     if (net != 0) {

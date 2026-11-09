@@ -55,6 +55,24 @@ class ContributionApiIT extends ApiIntegrationTest {
   }
 
   @Test
+  void contributionCurrencyMustMatchTheGoalCurrency() {
+    String slug = insertGoal("currency-mismatch", "OPEN", null);
+    jdbc.update("update goals set currency_code = 'NGN' where slug = ?", slug);
+
+    ResponseEntity<Map<String, Object>> response = createContribution(slug, 5_000, "0240000001");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().get("code")).isEqualTo("AMOUNT_NOT_ALLOWED");
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from contributions where goal_id = (select id from goals where slug = ?)",
+                Integer.class,
+                slug))
+        .isZero();
+  }
+
+  @Test
   void contributionRowsRecordGhsCurrency() {
     String slug = insertGoal("currency", "OPEN", null);
     ResponseEntity<Map<String, Object>> response = createContribution(slug, 5_000, "0240000001");

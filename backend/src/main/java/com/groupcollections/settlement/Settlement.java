@@ -30,8 +30,14 @@ public record Settlement(
     Objects.requireNonNull(net, "net");
     Objects.requireNonNull(direction, "direction");
     Objects.requireNonNull(status, "status");
+    if (gross.minorUnits() <= 0 || net.minorUnits() <= 0) {
+      throw new IllegalArgumentException("settlement gross and net must be positive");
+    }
     if (!gross.minus(fees).equals(net)) {
       throw new IllegalArgumentException("settlement net must equal gross minus fees");
+    }
+    if (status == SettlementStatus.SETTLED && receivedAt == null) {
+      throw new IllegalArgumentException("a SETTLED batch needs received_at");
     }
   }
 }

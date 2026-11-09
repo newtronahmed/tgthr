@@ -193,7 +193,7 @@ public class ContributionRepository {
     return rows.stream().findFirst();
   }
 
-  public Money goalRaised(UUID goalId) {
+  public Money goalRaised(UUID goalId, String currencyCode) {
     Long sum =
         jdbc.queryForObject(
             """
@@ -210,13 +210,16 @@ public class ContributionRepository {
             """,
             Long.class,
             goalId);
-    return Money.of(sum == null ? 0 : sum, "GHS");
+    return Money.of(sum == null ? 0 : sum, currencyCode);
   }
 
   public long confirmedCount(UUID goalId) {
     Long count =
         jdbc.queryForObject(
-            "select count(*) from contributions where goal_id = ? and state = 'CONFIRMED'",
+            """
+            select count(*) from contributions
+            where goal_id = ? and state = 'CONFIRMED' and requires_reconciliation = false
+            """,
             Long.class,
             goalId);
     return count == null ? 0 : count;
@@ -227,7 +230,7 @@ public class ContributionRepository {
         """
         select display_name, anonymous, amount_pesewas, confirmed_at
         from contributions
-        where goal_id = ? and state = 'CONFIRMED'
+        where goal_id = ? and state = 'CONFIRMED' and requires_reconciliation = false
         order by confirmed_at desc nulls last
         limit ?
         """,
