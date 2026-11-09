@@ -66,3 +66,31 @@ Redis port conflict on this machine.
   serializes).
 - T289/T292 completed: goal/contribution/callback currencies are compared; a two-connection close-vs-confirm race test asserts exactly one ledger outcome.
 - T290/T294/T295 completed; T293 resolved by rejecting ADR 0015 and applying V8 column renames.
+
+## Spec review (2026-11-09)
+
+The FEAT-002 payout spec was independently reviewed before implementation. The review found four
+blockers and several highs; all were accepted and the spec/state machine/plan were corrected:
+
+- **Reservations:** active payouts (REQUESTED, APPROVED, HOLD, READY, EXECUTING) reserve X under the
+  goal lock; available subtracts reservations; completion re-checks under the same lock
+  (AC-PAYOUT-013, INV-PAYOUT-007).
+- **Article V.2:** public payout visibility, contributor reports and sent notifications were added
+  as story/rule/criteria (AC-PAYOUT-014, INV-PAYOUT-008).
+- **APPROVED cancellation:** the transition was added; APPROVED was already in the cancellable
+  list.
+- **Fee mismatch:** re-quote before the provider call; `READY -> FAILED` with no transfer
+  (AC-PAYOUT-015).
+- **Mandatory hold:** a hold below one minute is refused with `HOLD_REQUIRED` (AC-PAYOUT-016);
+  zero-hold legacy goals must set payout settings first.
+- **Approval resend/expiry:** resend invalidates prior token/code; expiry cancels the payout
+  (AC-PAYOUT-017).
+- **Idempotency conflict:** same key with a different body returns 409 (AC-PAYOUT-018).
+- **Worker:** a scheduled CAS worker owns READY→EXECUTING; no client execute endpoint; cancel and
+  execute have one winner (AC-PAYOUT-019).
+- **Naming/ledger:** the live `secondApproverThresholdPesewas` field is used; the ledger sentence now
+  states gross X, net X−G and fee G; zero fee omits the fee line.
+- **Review/flag/trace:** fresh CODEOWNER review of the payout posting is required; the feature flag
+  returns 404 only; T230 is closed and the Playwright spec carries AC-PAYOUT-012.
+
+The spec remains **In review** until the corrections are re-reviewed; no payout code has started.

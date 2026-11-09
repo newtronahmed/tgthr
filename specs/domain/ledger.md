@@ -80,6 +80,6 @@ Resolved 2026-11-05. The partner is Paystack (ADR 0006).
 - Paystack deducts its transaction fee per transaction and settles the remainder, so settlement is net of fees; it does not invoice fees separately.
 - The contributor bears the collection fee. The total charged is grossed up so the goal pool receives the full contribution amount and the platform receives its full service fee; the difference is a FEE entry plus a PLATFORM_FEE entry (ADR 0007).
 - The platform service fee is 1.5% of the contribution amount, rounded up to the nearest pesewa, and does not reduce the goal amount.
-- The destination bears payout fees. Paystack Ghana charges GHS 1 per mobile-money transfer and GHS 8 per bank transfer; the transfer amount is reduced by the fee so the goal pool is debited only the payout amount.
+- The destination bears payout fees. Paystack Ghana charges GHS 1 per mobile-money transfer and GHS 8 per bank transfer; the transfer amount is reduced by the fee. The goal pool is debited the gross payout X, partner held is credited X−G, and PAYOUT_FEE is credited G when positive; the beneficiary receives X−G.
 
 The confirmed posting sets, including the FEE and PAYOUT_FEE clearing entries, are in ADR 0006.

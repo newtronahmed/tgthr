@@ -22,8 +22,10 @@ Everything built here starts as a spec in this folder.
 | Spec | Status | Blocking questions |
 | --- | --- | --- |
 | features/001-contributions | Implemented | Backend and web complete; manual Paystack sandbox (T096) remains before the first live payment. |
+| features/002-payouts | In review | Spec, plan and tasks written 2026-11-09; ADR 0016 accepted. Independent spec review found reservation/Article V.2/state-machine gaps; corrected and awaiting re-review. Implementation not started. |
 | features/003-organizer-identity | In progress | Backend identity, goals, organizer web, invariants and hardening are implemented and E2E-tested. Production SMS/Paystack adapters, live sandbox checks and a few hardening tests (T174/T180/T193/T195/T198) remain; ADRs 0009/0010 accepted. |
 | domain/ledger | Accepted | Settlement model, payout fee bearer and PLATFORM_FEE decided in ADRs 0006 and 0007; contribution invariants implemented. Payout invariants follow FEAT-002. |
 | domain/contribution-state-machine | Accepted | Early- and late-success transitions implemented and tested. |
 | domain/organizer-identity | Accepted | Session, challenge and phone invariants for FEAT-003 and FEAT-004. |
+| domain/payout-state-machine | In review | States, transitions, reservations, approval, mandatory hold, freeze/cancel/retry and payout invariants for FEAT-002; awaiting re-review. |
 | domain/settlement | Accepted | Phase 1 schema/repository and goal-owned eligibility (ADR 0014) implemented; CODEOWNER review of ledger/payment changes remains. |
