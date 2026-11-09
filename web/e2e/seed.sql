@@ -1,5 +1,5 @@
 insert into goals
-    (id, slug, title, template, target_type, target_amount_pesewas, minimum_amount_pesewas,
+    (id, slug, title, template, target_type, target_amount_minor_units, minimum_amount_minor_units,
      destination_type, second_approver, hold_window_minutes, surplus_rule, status)
 values
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'e2e-maldives', 'E2E Maldives', 'TRIP', 'OPEN',
