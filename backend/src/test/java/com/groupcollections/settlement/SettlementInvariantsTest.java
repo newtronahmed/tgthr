@@ -126,6 +126,65 @@ class SettlementInvariantsTest extends ApiIntegrationTest {
   }
 
   @Test
+  void providerLineReferenceIsIdempotentWithinABatch() {
+    Settlement batch = settlement("line-idempotency");
+    settlements.save(batch);
+    SettlementItem first =
+        new SettlementItem(
+            UUID.randomUUID(),
+            batch.id(),
+            null,
+            SettlementItemType.ADJUSTMENT,
+            SettlementDirection.CREDIT,
+            Money.of(1_000, "GHS"),
+            Money.of(0, "GHS"),
+            Money.of(1_000, "GHS"),
+            Money.of(0, "GHS"),
+            Instant.now(),
+            "provider-line-1");
+    settlements.saveItem(first);
+
+    assertThatThrownBy(
+            () ->
+                settlements.saveItem(
+                    new SettlementItem(
+                        UUID.randomUUID(),
+                        batch.id(),
+                        null,
+                        SettlementItemType.ADJUSTMENT,
+                        SettlementDirection.CREDIT,
+                        Money.of(1_000, "GHS"),
+                        Money.of(0, "GHS"),
+                        Money.of(1_000, "GHS"),
+                        Money.of(0, "GHS"),
+                        Instant.now(),
+                        "provider-line-1")))
+        .isInstanceOf(DuplicateKeyException.class);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.DUPLICATE_SETTLEMENT);
+
+    Settlement other = settlement("line-idempotency-other");
+    settlements.save(other);
+    settlements.saveItem(
+        new SettlementItem(
+            UUID.randomUUID(),
+            other.id(),
+            null,
+            SettlementItemType.ADJUSTMENT,
+            SettlementDirection.CREDIT,
+            Money.of(1_000, "GHS"),
+            Money.of(0, "GHS"),
+            Money.of(1_000, "GHS"),
+            Money.of(0, "GHS"),
+            Instant.now(),
+            "provider-line-1"));
+    assertThat(
+            count(
+                "select count(*) from settlement_items where provider_item_reference = 'provider-line-1'"))
+        .isEqualTo(2);
+  }
+
+  @Test
   void settlementStateAndCurrencyGuardsHold() {
     Settlement pending = settlement("state-guard");
     settlements.save(pending);

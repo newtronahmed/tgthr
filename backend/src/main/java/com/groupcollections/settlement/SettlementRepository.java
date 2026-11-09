@@ -16,6 +16,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Repository
 public class SettlementRepository {
@@ -31,7 +33,8 @@ public class SettlementRepository {
   private static final String ITEM_COLUMNS =
       """
       select id, settlement_id, contribution_id, item_type, direction, gross_minor_units,
-             fee_minor_units, net_minor_units, goal_amount_minor_units, currency_code, created_at
+             fee_minor_units, net_minor_units, goal_amount_minor_units, currency_code,
+             provider_item_reference, created_at
       from settlement_items
       """;
 
@@ -53,11 +56,13 @@ public class SettlementRepository {
       insert(settlement);
     } catch (DuplicateKeyException duplicate) {
       meters.counter("settlements.duplicate_batch").increment();
-      alerts.publish(
-          new Alert(
-              Alert.AlertType.DUPLICATE_SETTLEMENT_BATCH,
-              settlement.provider() + ":" + settlement.providerSettlementReference(),
-              "settlement batch reference already exists"));
+      publishAfterCompletion(
+          () ->
+              alerts.publish(
+                  new Alert(
+                      Alert.AlertType.DUPLICATE_SETTLEMENT_BATCH,
+                      settlement.provider() + ":" + settlement.providerSettlementReference(),
+                      "settlement batch reference already exists")));
       throw duplicate;
     }
   }
@@ -138,8 +143,9 @@ public class SettlementRepository {
           """
           insert into settlement_items
               (id, settlement_id, contribution_id, item_type, direction, gross_minor_units,
-               currency_code, fee_minor_units, net_minor_units, goal_amount_minor_units, created_at)
-          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               currency_code, fee_minor_units, net_minor_units, goal_amount_minor_units,
+               provider_item_reference, created_at)
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           """,
           item.id(),
           item.settlementId(),
@@ -151,26 +157,31 @@ public class SettlementRepository {
           item.fee().minorUnits(),
           item.net().minorUnits(),
           item.goalAmount().minorUnits(),
+          item.providerItemReference(),
           timestamp(item.createdAt()));
     } catch (DuplicateKeyException duplicate) {
       meters.counter("settlements.duplicate").increment();
-      alerts.publish(
-          new Alert(
-              Alert.AlertType.DUPLICATE_SETTLEMENT,
-              item.contributionId() == null
-                  ? item.settlementId().toString()
-                  : item.contributionId().toString(),
-              "contribution already belongs to a non-failed settlement"));
+      publishAfterCompletion(
+          () ->
+              alerts.publish(
+                  new Alert(
+                      Alert.AlertType.DUPLICATE_SETTLEMENT,
+                      item.contributionId() == null
+                          ? item.settlementId().toString()
+                          : item.contributionId().toString(),
+                      "duplicate settlement line")));
       throw duplicate;
     } catch (DataIntegrityViolationException orphan) {
       meters.counter("settlements.orphan").increment();
-      alerts.publish(
-          new Alert(
-              Alert.AlertType.SETTLEMENT_ORPHAN,
-              item.contributionId() == null
-                  ? item.settlementId().toString()
-                  : item.contributionId().toString(),
-              "settlement item references a missing contribution"));
+      publishAfterCompletion(
+          () ->
+              alerts.publish(
+                  new Alert(
+                      Alert.AlertType.SETTLEMENT_ORPHAN,
+                      item.contributionId() == null
+                          ? item.settlementId().toString()
+                          : item.contributionId().toString(),
+                      "settlement item references a missing contribution")));
       throw orphan;
     }
   }
@@ -250,6 +261,20 @@ public class SettlementRepository {
         Math.min(settled.minorUnits(), goalPoolBalance.minorUnits()), settled.currencyCode());
   }
 
+  private void publishAfterCompletion(Runnable action) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+              action.run();
+            }
+          });
+    } else {
+      action.run();
+    }
+  }
+
   private Totals itemTotals(UUID settlementId) {
     return jdbc.queryForObject(
         """
@@ -298,7 +323,8 @@ public class SettlementRepository {
         Money.of(resultSet.getLong("fee_minor_units"), currency),
         Money.of(resultSet.getLong("net_minor_units"), currency),
         Money.of(resultSet.getLong("goal_amount_minor_units"), currency),
-        instant(resultSet, "created_at"));
+        instant(resultSet, "created_at"),
+        resultSet.getString("provider_item_reference"));
   }
 
   private static Timestamp timestamp(Instant value) {
