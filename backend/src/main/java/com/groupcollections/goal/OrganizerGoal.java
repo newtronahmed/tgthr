@@ -16,6 +16,7 @@ public record OrganizerGoal(
     Instant deadline,
     DestinationType destinationType,
     String destinationAccountName,
+    String secondApproverName,
     SecondApprover secondApprover,
     long secondApproverThresholdPesewas,
     int holdWindowMinutes,

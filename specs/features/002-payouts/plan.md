@@ -49,7 +49,7 @@ CODEOWNER review of the posting.
   Active states reserve their amount; the available query subtracts them.
 - `payout_approvals`: hashed token/code, expiry, attempts, consumed.
 - `payout_reports`: payout_id, reason, optional contribution id, created_at.
-- `payout_notifications`: payout_id, contribution_id, sent_at; unique pair.
+- `payout_notifications`: payout_id, contribution_id, payer_phone_hash, sent_at; unique per contributor per payout.
 - `payout_events`: append-only history.
 - Request and completion take `SELECT ... FOR UPDATE` on the goal; the worker claims READY with a
   compare-and-set/SKIP LOCKED. Unique `(goal_id, idempotency_key)` and provider reference.
@@ -100,11 +100,12 @@ CODEOWNER review of the posting.
 | AC-PAYOUT-017 | Integration | `PayoutApprovalIT` | Resend/expiry cancel |
 | AC-PAYOUT-018 | Integration | `PayoutIdempotencyIT` | 409 conflict |
 | AC-PAYOUT-019 | Integration | `PayoutWorkerIT` | Cancel/execute CAS |
+| AC-PAYOUT-020 | Integration | `PayoutRequestIT` | Non-OFF goal without approver |
 | INV-PAYOUT-001..008 | Integration | `PayoutInvariantsTest` | One per invariant |
 
 ## Migrations
 
-- `V9__payouts_and_approver.sql`: additive tables/columns; nullable approver/settings fields; no
+- `V9__payout_approver_and_payouts.sql`: additive tables/columns; nullable approver/settings fields; no
   destructive change.
 - Backward compatible: yes. Legacy goals with non-OFF rules or zero hold must set payout settings
   before their first payout.

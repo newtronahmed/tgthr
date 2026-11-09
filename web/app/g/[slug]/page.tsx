@@ -157,6 +157,9 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
           </dd>
           <dt className="text-slate-500">Second approver</dt>
           <dd className="text-right font-semibold text-slate-800">
+            {goal.payoutRules.secondApproverName
+              ? `${goal.payoutRules.secondApproverName} · `
+              : ""}
             {goal.payoutRules.secondApprover.replaceAll("_", " ").toLowerCase()}
           </dd>
           {goal.payoutRules.secondApprover === "ABOVE_THRESHOLD" ? (

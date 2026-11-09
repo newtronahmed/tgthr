@@ -40,6 +40,8 @@ function initialForm(): GoalFormState {
     destinationPhone: "",
     network: "MTN",
     secondApprover: "OFF",
+    secondApproverName: "",
+    secondApproverPhone: "",
     threshold: "500.00",
     holdWindow: "60",
     surplusRule: "PAY_BENEFICIARY",
@@ -316,6 +318,36 @@ export function GoalWizard() {
           ) : null}
         </div>
 
+        {form.secondApprover !== "OFF" ? (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="secondApproverName" className={labelClass}>
+                Approver name
+              </label>
+              <input
+                id="secondApproverName"
+                value={form.secondApproverName}
+                onChange={(event) => set("secondApproverName", event.target.value)}
+                className={inputClass}
+                maxLength={120}
+              />
+            </div>
+            <div>
+              <label htmlFor="secondApproverPhone" className={labelClass}>
+                Approver MoMo
+              </label>
+              <input
+                id="secondApproverPhone"
+                inputMode="tel"
+                value={form.secondApproverPhone}
+                onChange={(event) => set("secondApproverPhone", event.target.value)}
+                className={`${inputClass} font-mono`}
+                placeholder="024 000 0000"
+              />
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div>
             <label htmlFor="holdWindow" className={labelClass}>
@@ -324,7 +356,7 @@ export function GoalWizard() {
             <input
               id="holdWindow"
               type="number"
-              min={0}
+              min={1}
               max={1440}
               value={form.holdWindow}
               onChange={(event) => set("holdWindow", event.target.value)}

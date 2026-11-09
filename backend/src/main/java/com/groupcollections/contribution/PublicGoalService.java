@@ -37,6 +37,7 @@ public class PublicGoalService {
         goal.status().name(),
         new PublicGoalView.PayoutRules(
             goal.destinationType(),
+            goal.secondApproverName(),
             goal.secondApprover(),
             goal.secondApproverThresholdPesewas(),
             goal.holdWindowMinutes(),

@@ -22,6 +22,7 @@ public record PublicGoalView(
 
   public record PayoutRules(
       String destinationType,
+      String secondApproverName,
       String secondApprover,
       long secondApproverThresholdPesewas,
       int holdWindowMinutes,

@@ -13,6 +13,8 @@ export type GoalFormState = {
   destinationPhone: string;
   network: Network;
   secondApprover: "OFF" | "ABOVE_THRESHOLD" | "ALWAYS";
+  secondApproverName: string;
+  secondApproverPhone: string;
   threshold: string;
   holdWindow: string;
   surplusRule: "PAY_BENEFICIARY" | "WELFARE_RESERVE";
@@ -61,8 +63,21 @@ export function buildGoalPayload(
     return { ok: false, error: "Enter a valid second-approver threshold." };
   }
   const holdWindow = Number(form.holdWindow);
-  if (!Number.isInteger(holdWindow) || holdWindow < 0 || holdWindow > 1_440) {
-    return { ok: false, error: "The hold window must be between 0 and 1,440 minutes." };
+  if (!Number.isInteger(holdWindow) || holdWindow < 1 || holdWindow > 1_440) {
+    return { ok: false, error: "The hold window must be between 1 and 1,440 minutes." };
+  }
+  let secondApproverName: string | undefined;
+  let secondApproverPhone: string | undefined;
+  if (form.secondApprover !== "OFF") {
+    secondApproverName = form.secondApproverName.trim();
+    if (secondApproverName.length < 2 || secondApproverName.length > 120) {
+      return { ok: false, error: "Enter the second approver's name." };
+    }
+    const approverPhone = localPhone(form.secondApproverPhone);
+    if (!approverPhone) {
+      return { ok: false, error: "Enter the second approver's MoMo number." };
+    }
+    secondApproverPhone = approverPhone;
   }
 
   const base = {
@@ -74,6 +89,9 @@ export function buildGoalPayload(
     destinationPhone: phone,
     network: form.network,
     secondApprover: form.secondApprover,
+    ...(secondApproverName
+      ? { secondApproverName, secondApproverPhone }
+      : {}),
     secondApproverThresholdPesewas: threshold,
     holdWindowMinutes: holdWindow,
     surplusRule: form.surplusRule,

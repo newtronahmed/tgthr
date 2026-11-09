@@ -21,6 +21,8 @@ public record CreateGoalRequest(
     @NotBlank @Pattern(regexp = "^(\\+233|0)[0-9]{9}$") String destinationPhone,
     @NotNull Network network,
     @NotNull SecondApprover secondApprover,
+    @Size(max = 120) String secondApproverName,
+    @Pattern(regexp = "^(\\+233|0)[0-9]{9}$") String secondApproverPhone,
     @Min(0) Long secondApproverThresholdPesewas,
     @Min(0) @Max(1440) Integer holdWindowMinutes,
     SurplusRule surplusRule) {

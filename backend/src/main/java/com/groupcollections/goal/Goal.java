@@ -17,6 +17,7 @@ public record Goal(
     GoalStatus status,
     Instant deadline,
     String destinationType,
+    String secondApproverName,
     String secondApprover,
     long secondApproverThresholdPesewas,
     int holdWindowMinutes,

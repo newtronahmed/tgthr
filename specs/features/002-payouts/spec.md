@@ -72,11 +72,12 @@ the transfer once on completion.
    `PAYOUT_FEE_MISMATCH` and make no provider call. The `PAYOUT_FEE` ledger line is posted only when
    G > 0. Amounts are integer minor units.
 4. **Approver and hold settings.** A goal with a non-`OFF` rule requires an approver name and phone
-   at creation, or via `PATCH /organizer/goals/{id}/payout-settings` before the first payout. The
-   approver phone must be valid, must differ from the organizer, is encrypted with a keyed lookup
-   hash, and is never public; only the name is public. The same settings endpoint sets a positive
-   hold window. A hold below one minute is refused with 422 `HOLD_REQUIRED`; zero-hold legacy goals
-   cannot request payouts until fixed.
+   before the first payout; supply them at creation or via
+   `PATCH /organizer/goals/{id}/payout-settings`. A payout request before they are set returns 422
+   `APPROVER_REQUIRED`. The approver phone must be valid, must differ from the organizer, is
+   encrypted with a keyed lookup hash, and is never public; only the name is public. The same
+   settings endpoint sets a positive hold window. A hold below one minute is refused with 422
+   `HOLD_REQUIRED`; zero-hold legacy goals cannot request payouts until fixed.
 5. **Approval trigger.** Approval is required for `ALWAYS`, or `ABOVE_THRESHOLD` with
    `X >= secondApproverThresholdPesewas` (the live API field; the DB stores minor units). Otherwise
    the payout is auto-approved. A required payout stays `REQUESTED` until approved.
@@ -138,6 +139,7 @@ the transfer once on completion.
 | AC-PAYOUT-017 | P1 | Given an approval token/code, when resend or expiry occurs, then the previous values are invalid and an expired token cancels the payout; no stuck REQUESTED. | Integration |
 | AC-PAYOUT-018 | P1 | Given the same idempotency key with a different amount, goal or fee, then 409 `IDEMPOTENCY_CONFLICT`. | Integration |
 | AC-PAYOUT-019 | P1 | Given READY, when cancel and the execution worker race, then one compare-and-set wins; no duplicate provider call. | Integration |
+| AC-PAYOUT-020 | P1 | Given a non-OFF goal without a configured approver, when a payout is requested, then 422 `APPROVER_REQUIRED` and no payout. | Integration |
 
 ## Failure modes and edge cases
 
@@ -149,6 +151,7 @@ the transfer once on completion.
 | Approver declines | CANCELLED, no ledger | AC-PAYOUT-004 |
 | Approval token expires | CANCELLED, organizer notified; new request | AC-PAYOUT-017 |
 | Approver equals organizer | 422 at setup | AC-PAYOUT-006 |
+| Approver not set before payout | 422 `APPROVER_REQUIRED`, no payout | AC-PAYOUT-020/004 |
 | Zero hold | 422 `HOLD_REQUIRED` | AC-PAYOUT-016 |
 | Goal FROZEN at request/execution | 409; payout stays READY | AC-PAYOUT-007 |
 | Cancel after EXECUTING | 409 | AC-PAYOUT-008 |
@@ -169,7 +172,7 @@ the transfer once on completion.
   timestamps, failure_code, created/updated.
 - `payout_approvals`: hashed token/code, expiry, attempts, consumed.
 - `payout_reports`: payout_id, reason, optional contribution id, created_at.
-- `payout_notifications`: payout_id, contribution_id, sent_at (unique pair).
+- `payout_notifications`: payout_id, contribution_id, payer_phone_hash, sent_at (unique per contributor per payout).
 - `payout_events`: append-only.
 - Ledger on COMPLETED: goal pool debit X; partner held credit X−G; payout fee credit G only if
   positive. No balance.

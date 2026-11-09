@@ -1,5 +1,6 @@
 export type PayoutRules = {
   destinationType: string;
+  secondApproverName?: string | null;
   secondApprover: string;
   secondApproverThresholdPesewas: number;
   holdWindowMinutes: number;
@@ -90,6 +91,7 @@ export type OrganizerGoal = {
   deadline: string | null;
   destinationType: "BENEFICIARY_MOMO" | "ADMIN_MOMO";
   destinationAccountName: string;
+  secondApproverName?: string | null;
   secondApprover: "OFF" | "ABOVE_THRESHOLD" | "ALWAYS";
   secondApproverThresholdPesewas: number;
   holdWindowMinutes: number;
@@ -110,6 +112,8 @@ export type CreateGoalInput = {
   destinationType: "BENEFICIARY_MOMO" | "ADMIN_MOMO";
   destinationPhone: string;
   network: Network;
+  secondApproverName?: string;
+  secondApproverPhone?: string;
   secondApprover: "OFF" | "ABOVE_THRESHOLD" | "ALWAYS";
   secondApproverThresholdPesewas: number;
   holdWindowMinutes: number;
