@@ -41,7 +41,7 @@ class LedgerPostingIT extends ApiIntegrationTest {
                 jdbc.update(
                     """
                     insert into ledger_entries
-                        (posting_set_id, account, entry_type, direction, amount_pesewas)
+                        (posting_set_id, account, entry_type, direction, amount_minor_units)
                     values (?, 'PARTNER_HELD', 'CONTRIBUTION', 'DEBIT', 100)
                     """,
                     postingSet))
@@ -57,7 +57,7 @@ class LedgerPostingIT extends ApiIntegrationTest {
     assertThatThrownBy(
             () ->
                 jdbc.update(
-                    "update ledger_entries set amount_pesewas = 1 where posting_set_id = ?",
+                    "update ledger_entries set amount_minor_units = 1 where posting_set_id = ?",
                     postingSet))
         .isInstanceOf(DataIntegrityViolationException.class);
 
@@ -77,7 +77,7 @@ class LedgerPostingIT extends ApiIntegrationTest {
                 jdbc.update(
                     """
                     insert into ledger_entries
-                        (posting_set_id, account, entry_type, direction, amount_pesewas)
+                        (posting_set_id, account, entry_type, direction, amount_minor_units)
                     values (?, 'GOAL_POOL', 'CONTRIBUTION', 'CREDIT', 1_000)
                     """,
                     postingSet))
@@ -91,6 +91,28 @@ class LedgerPostingIT extends ApiIntegrationTest {
         .isInstanceOf(DataIntegrityViolationException.class);
     assertThatThrownBy(() -> jdbc.execute("truncate table contribution_events"))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void financialColumnsUseMinorUnitsNames() {
+    assertThat(
+            jdbc.queryForObject(
+                """
+                select count(*) from information_schema.columns
+                where table_schema = 'public' and column_name like '%pesewas%'
+                """,
+                Integer.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                """
+                select count(*) from information_schema.columns
+                where table_schema = 'public'
+                  and column_name in ('amount_minor_units', 'fixed_amount_minor_units',
+                                      'minimum_amount_minor_units', 'total_minor_units')
+                """,
+                Integer.class))
+        .isGreaterThanOrEqualTo(4);
   }
 
   @Test
@@ -142,7 +164,7 @@ class LedgerPostingIT extends ApiIntegrationTest {
                 jdbc.update(
                     """
                     insert into ledger_entries
-                        (posting_set_id, account, entry_type, direction, amount_pesewas,
+                        (posting_set_id, account, entry_type, direction, amount_minor_units,
                          currency_code)
                     values (?, 'PARTNER_HELD', 'CONTRIBUTION', 'DEBIT', 100, 'GHS'),
                            (?, 'GOAL_POOL', 'CONTRIBUTION', 'CREDIT', 100, 'NGN')
@@ -172,8 +194,8 @@ class LedgerPostingIT extends ApiIntegrationTest {
     Long goalPoolBalance =
         jdbc.queryForObject(
             """
-            select coalesce(sum(case when direction = 'CREDIT' then amount_pesewas
-                                     else -amount_pesewas end), 0)
+            select coalesce(sum(case when direction = 'CREDIT' then amount_minor_units
+                                     else -amount_minor_units end), 0)
             from ledger_entries
             where account = 'GOAL_POOL' and posting_set_id in (?, ?)
             """,
@@ -187,7 +209,7 @@ class LedgerPostingIT extends ApiIntegrationTest {
     jdbc.update(
         """
         insert into ledger_entries
-            (posting_set_id, account, entry_type, direction, amount_pesewas)
+            (posting_set_id, account, entry_type, direction, amount_minor_units)
         values (?, 'PARTNER_HELD', 'CONTRIBUTION', 'DEBIT', ?),
                (?, 'GOAL_POOL', 'CONTRIBUTION', 'CREDIT', ?)
         """,

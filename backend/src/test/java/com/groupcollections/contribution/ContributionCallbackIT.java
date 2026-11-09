@@ -77,7 +77,7 @@ class ContributionCallbackIT extends ApiIntegrationTest {
     List<Map<String, Object>> entries =
         jdbc.queryForList(
             """
-            select account, entry_type, direction, amount_pesewas
+            select account, entry_type, direction, amount_minor_units
             from ledger_entries
             where contribution_id = ?
             """,
@@ -89,8 +89,8 @@ class ContributionCallbackIT extends ApiIntegrationTest {
             .mapToLong(
                 entry ->
                     "DEBIT".equals(entry.get("direction"))
-                        ? ((Number) entry.get("amount_pesewas")).longValue()
-                        : -((Number) entry.get("amount_pesewas")).longValue())
+                        ? ((Number) entry.get("amount_minor_units")).longValue()
+                        : -((Number) entry.get("amount_minor_units")).longValue())
             .sum();
     assertThat(net).isZero();
 
@@ -99,7 +99,7 @@ class ContributionCallbackIT extends ApiIntegrationTest {
             entry -> {
               assertThat(entry.get("account")).isEqualTo("PARTNER_HELD");
               assertThat(entry.get("direction")).isEqualTo("DEBIT");
-              assertThat(((Number) entry.get("amount_pesewas")).longValue()).isEqualTo(total);
+              assertThat(((Number) entry.get("amount_minor_units")).longValue()).isEqualTo(total);
             });
     assertThat(entries)
         .anySatisfy(
@@ -107,26 +107,27 @@ class ContributionCallbackIT extends ApiIntegrationTest {
               assertThat(entry.get("account")).isEqualTo("GOAL_POOL");
               assertThat(entry.get("entry_type")).isEqualTo("CONTRIBUTION");
               assertThat(entry.get("direction")).isEqualTo("CREDIT");
-              assertThat(((Number) entry.get("amount_pesewas")).longValue()).isEqualTo(5_000);
+              assertThat(((Number) entry.get("amount_minor_units")).longValue()).isEqualTo(5_000);
             });
     assertThat(entries)
         .anySatisfy(
             entry -> {
               assertThat(entry.get("account")).isEqualTo("FEE");
-              assertThat(((Number) entry.get("amount_pesewas")).longValue())
+              assertThat(((Number) entry.get("amount_minor_units")).longValue())
                   .isEqualTo(processingFee);
             });
     assertThat(entries)
         .anySatisfy(
             entry -> {
               assertThat(entry.get("account")).isEqualTo("PLATFORM_FEE");
-              assertThat(((Number) entry.get("amount_pesewas")).longValue()).isEqualTo(platformFee);
+              assertThat(((Number) entry.get("amount_minor_units")).longValue())
+                  .isEqualTo(platformFee);
             });
 
     Long raised =
         jdbc.queryForObject(
             """
-            select coalesce(sum(amount_pesewas), 0)
+            select coalesce(sum(amount_minor_units), 0)
             from ledger_entries
             where contribution_id = ? and entry_type = 'CONTRIBUTION' and direction = 'CREDIT'
             """,

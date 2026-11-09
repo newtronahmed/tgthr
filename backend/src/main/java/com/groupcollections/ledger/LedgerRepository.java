@@ -21,7 +21,7 @@ public class LedgerRepository {
       jdbc.update(
           """
           insert into ledger_entries
-              (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas,
+              (posting_set_id, contribution_id, account, entry_type, direction, amount_minor_units,
                currency_code)
           values (?, ?, ?, ?, ?, ?, ?)
           """,

@@ -139,7 +139,7 @@ class PublicContractTest extends ApiIntegrationTest {
     jdbc.update(
         """
         insert into ledger_entries
-            (posting_set_id, contribution_id, account, entry_type, direction, amount_pesewas)
+            (posting_set_id, contribution_id, account, entry_type, direction, amount_minor_units)
         values (?, ?, 'GOAL_POOL', 'REVERSAL', 'DEBIT', 5000),
                (?, ?, 'PARTNER_HELD', 'REVERSAL', 'CREDIT', 5000)
         """,

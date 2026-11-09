@@ -250,7 +250,7 @@ class ContributionApiIT extends ApiIntegrationTest {
     jdbc.update(
         """
         insert into goals
-            (id, slug, title, template, target_type, fixed_amount_pesewas, destination_type,
+            (id, slug, title, template, target_type, fixed_amount_minor_units, destination_type,
              second_approver, hold_window_minutes, surplus_rule)
         values (?, ?, 'Rent support', 'RENT', 'FIXED', 5_000, 'BENEFICIARY_MOMO', 'OFF', 0,
                 'PAY_BENEFICIARY')
