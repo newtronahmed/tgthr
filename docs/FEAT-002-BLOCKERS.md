@@ -153,6 +153,17 @@ Each task's check must pass:
 - [x] **T286:** Add direction/sign items, status-aware uniqueness and append-only protection; migration + tests.
 - [x] **T287:** Obtain and record CODEOWNER review in `docs/reviews/FEAT-002.md` — signed off 2026-11-08.
 
+## Hardening follow-ups (2026-11-08)
+
+- [x] **T288:** V6 SUSPENSE guard; flag set before posting; FROZEN, deadline, normal, fee and duplicate-callback coverage.
+- [x] **T291:** PENDING→SETTLED/FAILED state guard; terminal-batch item rejection; tests.
+- [ ] **T289:** Currency consistency between goal/contribution/quote/raised total and a supported-currency boundary.
+- [ ] **T290:** Remaining settlement hardening: after-commit alerting, provider item idempotency, parent metadata; partial guards/alerts landed.
+- [ ] **T292:** Explicit two-connection concurrency test and goal-close-vs-confirm race (Javadoc corrected).
+- [ ] **T293:** ADR/spec drift (ADR 0011 column names, ADR 0007 vs 0012 settlement postings, CHARGEBACK).
+- [ ] **T294:** API/test hygiene.
+- [ ] **T295:** Docs/index and rolling-deploy rename risk.
+
 ## Review follow-ups
 
 - T288 SUSPENSE centralization/coverage; T289 currency consistency; T290 settlement repository hardening; T291 settlement state machine; T292 concurrency proof/wording; T293 ADR/spec drift; T294 API/test hygiene; T295 docs/index.
