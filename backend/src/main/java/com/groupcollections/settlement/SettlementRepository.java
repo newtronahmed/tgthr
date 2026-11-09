@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -48,6 +49,20 @@ public class SettlementRepository {
     if (settlement.status() != SettlementStatus.PENDING) {
       throw new IllegalArgumentException("settlements must be created PENDING");
     }
+    try {
+      insert(settlement);
+    } catch (DuplicateKeyException duplicate) {
+      meters.counter("settlements.duplicate_batch").increment();
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.DUPLICATE_SETTLEMENT_BATCH,
+              settlement.provider() + ":" + settlement.providerSettlementReference(),
+              "settlement batch reference already exists"));
+      throw duplicate;
+    }
+  }
+
+  private void insert(Settlement settlement) {
     jdbc.update(
         """
         insert into settlements
@@ -102,6 +117,22 @@ public class SettlementRepository {
   }
 
   public void saveItem(SettlementItem item) {
+    Settlement parent =
+        findById(item.settlementId())
+            .orElseThrow(() -> new IllegalArgumentException("settlement not found"));
+    if (parent.status() != SettlementStatus.PENDING) {
+      throw new IllegalStateException("settlement is not pending");
+    }
+    if (!parent.gross().currencyCode().equals(item.gross().currencyCode())) {
+      throw new IllegalArgumentException("settlement item currency must match its batch");
+    }
+    if (item.contributionId() == null) {
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.SETTLEMENT_UNMATCHED,
+              item.settlementId().toString(),
+              "settlement item has no contribution"));
+    }
     try {
       jdbc.update(
           """
@@ -131,6 +162,16 @@ public class SettlementRepository {
                   : item.contributionId().toString(),
               "contribution already belongs to a non-failed settlement"));
       throw duplicate;
+    } catch (DataIntegrityViolationException orphan) {
+      meters.counter("settlements.orphan").increment();
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.SETTLEMENT_ORPHAN,
+              item.contributionId() == null
+                  ? item.settlementId().toString()
+                  : item.contributionId().toString(),
+              "settlement item references a missing contribution"));
+      throw orphan;
     }
   }
 
