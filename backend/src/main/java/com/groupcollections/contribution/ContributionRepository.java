@@ -23,15 +23,15 @@ public class ContributionRepository {
 
   private static final String STATUS_COLUMNS =
       """
-      select id, state, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-             total_pesewas, provider_reference, confirmed_at
+      select id, state, amount_minor_units, processing_fee_minor_units, platform_fee_minor_units,
+             total_minor_units, provider_reference, confirmed_at
       from contributions
       """;
 
   private static final RowMapper<ContributionStatus> STATUS_MAPPER =
       (resultSet, rowNumber) -> {
-        long processing = resultSet.getLong("processing_fee_pesewas");
-        long platform = resultSet.getLong("platform_fee_pesewas");
+        long processing = resultSet.getLong("processing_fee_minor_units");
+        long platform = resultSet.getLong("platform_fee_minor_units");
         ContributionState state = ContributionState.valueOf(resultSet.getString("state"));
         OffsetDateTime confirmedAt = resultSet.getObject("confirmed_at", OffsetDateTime.class);
         ContributionStatus.Receipt receipt =
@@ -42,18 +42,18 @@ public class ContributionRepository {
         return new ContributionStatus(
             resultSet.getObject("id", UUID.class),
             state,
-            resultSet.getLong("amount_pesewas"),
+            resultSet.getLong("amount_minor_units"),
             processing,
             platform,
             processing + platform,
-            resultSet.getLong("total_pesewas"),
+            resultSet.getLong("total_minor_units"),
             receipt);
       };
 
   private static final String PAYMENT_COLUMNS =
       """
-      select id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-             total_pesewas, currency_code
+      select id, goal_id, amount_minor_units, processing_fee_minor_units, platform_fee_minor_units,
+             total_minor_units, currency_code
       from contributions
       """;
 
@@ -62,13 +62,16 @@ public class ContributionRepository {
           new ContributionPayment(
               resultSet.getObject("id", UUID.class),
               resultSet.getObject("goal_id", UUID.class),
-              Money.of(resultSet.getLong("amount_pesewas"), resultSet.getString("currency_code")),
               Money.of(
-                  resultSet.getLong("processing_fee_pesewas"),
+                  resultSet.getLong("amount_minor_units"), resultSet.getString("currency_code")),
+              Money.of(
+                  resultSet.getLong("processing_fee_minor_units"),
                   resultSet.getString("currency_code")),
               Money.of(
-                  resultSet.getLong("platform_fee_pesewas"), resultSet.getString("currency_code")),
-              Money.of(resultSet.getLong("total_pesewas"), resultSet.getString("currency_code")));
+                  resultSet.getLong("platform_fee_minor_units"),
+                  resultSet.getString("currency_code")),
+              Money.of(
+                  resultSet.getLong("total_minor_units"), resultSet.getString("currency_code")));
 
   private final JdbcTemplate jdbc;
   private final Clock clock;
@@ -89,8 +92,8 @@ public class ContributionRepository {
         jdbc.update(
             """
         insert into contributions
-            (id, goal_id, amount_pesewas, processing_fee_pesewas, platform_fee_pesewas,
-             total_pesewas, currency_code, state, provider_reference, payer_phone_ciphertext,
+            (id, goal_id, amount_minor_units, processing_fee_minor_units, platform_fee_minor_units,
+             total_minor_units, currency_code, state, provider_reference, payer_phone_ciphertext,
              payer_phone_hash, display_name, anonymous, idempotency_key, created_at, updated_at)
         values (?, ?, ?, ?, ?, ?, ?, 'INITIATED', ?, ?, ?, ?, ?, ?, ?, ?)
         on conflict (idempotency_key) do nothing
@@ -156,7 +159,7 @@ public class ContributionRepository {
   public List<ReconciliationItem> findRequiringReconciliation() {
     return jdbc.query(
         """
-        select id, provider_reference, amount_pesewas, currency_code, updated_at
+        select id, provider_reference, amount_minor_units, currency_code, updated_at
         from contributions
         where requires_reconciliation = true and state = 'CONFIRMED'
         order by updated_at
@@ -165,7 +168,8 @@ public class ContributionRepository {
             new ReconciliationItem(
                 resultSet.getObject("id", UUID.class),
                 resultSet.getString("provider_reference"),
-                Money.of(resultSet.getLong("amount_pesewas"), resultSet.getString("currency_code")),
+                Money.of(
+                    resultSet.getLong("amount_minor_units"), resultSet.getString("currency_code")),
                 resultSet.getObject("updated_at", OffsetDateTime.class).toInstant()));
   }
 
@@ -199,9 +203,9 @@ public class ContributionRepository {
             """
             select coalesce(sum(case
                        when le.entry_type = 'CONTRIBUTION' and le.direction = 'CREDIT'
-                           then le.amount_pesewas
+                           then le.amount_minor_units
                        when le.entry_type = 'REVERSAL' and le.direction = 'DEBIT'
-                           then -le.amount_pesewas
+                           then -le.amount_minor_units
                        else 0
                    end), 0)
             from ledger_entries le
@@ -228,7 +232,7 @@ public class ContributionRepository {
   public List<PublicGoalView.FeedItem> feed(UUID goalId, int limit) {
     return jdbc.query(
         """
-        select display_name, anonymous, amount_pesewas, confirmed_at
+        select display_name, anonymous, amount_minor_units, confirmed_at
         from contributions
         where goal_id = ? and state = 'CONFIRMED' and requires_reconciliation = false
         order by confirmed_at desc nulls last
@@ -240,7 +244,7 @@ public class ContributionRepository {
           return new PublicGoalView.FeedItem(
               anonymous ? null : resultSet.getString("display_name"),
               anonymous,
-              resultSet.getLong("amount_pesewas"),
+              resultSet.getLong("amount_minor_units"),
               confirmedAt == null ? null : confirmedAt.toInstant());
         },
         goalId,

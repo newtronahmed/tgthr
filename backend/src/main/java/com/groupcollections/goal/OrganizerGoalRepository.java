@@ -16,21 +16,21 @@ public class OrganizerGoalRepository {
 
   private static final String COLUMNS =
       """
-      select g.id, g.slug, g.title, g.template, g.target_type, g.fixed_amount_pesewas,
-             g.target_amount_pesewas, g.minimum_amount_pesewas, g.status, g.deadline,
+      select g.id, g.slug, g.title, g.template, g.target_type, g.fixed_amount_minor_units,
+             g.target_amount_minor_units, g.minimum_amount_minor_units, g.status, g.deadline,
              g.destination_type, g.destination_account_name, g.second_approver,
-             g.second_approver_threshold_pesewas, g.hold_window_minutes, g.surplus_rule,
+             g.second_approver_threshold_minor_units, g.hold_window_minutes, g.surplus_rule,
              g.created_at,
              coalesce((select sum(case
                          when le.entry_type = 'CONTRIBUTION' and le.direction = 'CREDIT'
-                             then le.amount_pesewas
+                             then le.amount_minor_units
                          when le.entry_type = 'REVERSAL' and le.direction = 'DEBIT'
-                             then -le.amount_pesewas
+                             then -le.amount_minor_units
                          else 0
                      end)
                  from ledger_entries le
                  join contributions c on c.id = le.contribution_id
-                 where c.goal_id = g.id), 0) as raised_pesewas,
+                 where c.goal_id = g.id), 0) as raised_minor_units,
              (select count(*) from contributions c
               where c.goal_id = g.id and c.state = 'CONFIRMED') as contributor_count
       from goals g
@@ -60,12 +60,12 @@ public class OrganizerGoalRepository {
         .query(
             """
             insert into goals
-                (slug, title, template, target_type, fixed_amount_pesewas,
-                 target_amount_pesewas, minimum_amount_pesewas, deadline, status,
+                (slug, title, template, target_type, fixed_amount_minor_units,
+                 target_amount_minor_units, minimum_amount_minor_units, deadline, status,
                  destination_type, second_approver, hold_window_minutes, surplus_rule,
                  created_by_user_id, destination_phone_ciphertext, destination_phone_hash,
                  destination_network, destination_account_name, destination_locked_at,
-                 second_approver_threshold_pesewas, create_idempotency_key, created_at, updated_at)
+                 second_approver_threshold_minor_units, create_idempotency_key, created_at, updated_at)
             values (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict do nothing
             returning id
@@ -156,18 +156,18 @@ public class OrganizerGoalRepository {
         resultSet.getString("title"),
         GoalTemplate.valueOf(resultSet.getString("template")),
         TargetType.valueOf(resultSet.getString("target_type")),
-        resultSet.getObject("fixed_amount_pesewas", Long.class),
-        resultSet.getObject("target_amount_pesewas", Long.class),
-        resultSet.getObject("minimum_amount_pesewas", Long.class),
+        resultSet.getObject("fixed_amount_minor_units", Long.class),
+        resultSet.getObject("target_amount_minor_units", Long.class),
+        resultSet.getObject("minimum_amount_minor_units", Long.class),
         GoalStatus.valueOf(resultSet.getString("status")),
         instant(resultSet, "deadline"),
         DestinationType.valueOf(resultSet.getString("destination_type")),
         resultSet.getString("destination_account_name"),
         SecondApprover.valueOf(resultSet.getString("second_approver")),
-        resultSet.getLong("second_approver_threshold_pesewas"),
+        resultSet.getLong("second_approver_threshold_minor_units"),
         resultSet.getInt("hold_window_minutes"),
         SurplusRule.valueOf(resultSet.getString("surplus_rule")),
-        resultSet.getLong("raised_pesewas"),
+        resultSet.getLong("raised_minor_units"),
         resultSet.getLong("contributor_count"),
         instant(resultSet, "created_at"));
   }

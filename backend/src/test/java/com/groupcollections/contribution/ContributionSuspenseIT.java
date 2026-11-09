@@ -49,7 +49,7 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
                 select count(*) from ledger_entries
                 where contribution_id = ? and account = 'SUSPENSE'
                   and entry_type = 'SUSPENSE_HOLD' and direction = 'CREDIT'
-                  and amount_pesewas = 5000
+                  and amount_minor_units = 5000
                 """,
                 contributionId))
         .isEqualTo(1);
@@ -77,7 +77,7 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
     if (processing > 0) {
       assertThat(
               count(
-                  "select count(*) from ledger_entries where contribution_id = ? and account = 'FEE' and amount_pesewas = ?",
+                  "select count(*) from ledger_entries where contribution_id = ? and account = 'FEE' and amount_minor_units = ?",
                   contributionId,
                   processing))
           .isEqualTo(1);
@@ -85,7 +85,7 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
     if (platform > 0) {
       assertThat(
               count(
-                  "select count(*) from ledger_entries where contribution_id = ? and account = 'PLATFORM_FEE' and amount_pesewas = ?",
+                  "select count(*) from ledger_entries where contribution_id = ? and account = 'PLATFORM_FEE' and amount_minor_units = ?",
                   contributionId,
                   platform))
           .isEqualTo(1);
@@ -222,7 +222,7 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
                     """
                     insert into ledger_entries
                         (posting_set_id, contribution_id, account, entry_type, direction,
-                         amount_pesewas, currency_code)
+                         amount_minor_units, currency_code)
                     values (?, ?, 'SUSPENSE', 'SUSPENSE_HOLD', 'CREDIT', 5000, 'GHS')
                     """,
                     postingSet,
