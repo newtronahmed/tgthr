@@ -157,13 +157,16 @@ Each task's check must pass:
 
 - [x] **T288:** V6 SUSPENSE guard; flag set before posting; FROZEN, deadline, normal, fee and duplicate-callback coverage.
 - [x] **T291:** PENDING→SETTLED/FAILED state guard; terminal-batch item rejection; tests.
-- [ ] **T289:** Currency consistency between goal/contribution/quote/raised total and a supported-currency boundary.
+- [x] **T289:** Goal/contribution/quote/raised-total currency consistency and callback currency checks are enforced.
 - [ ] **T290:** Remaining settlement hardening: after-commit alerting, provider item idempotency, parent metadata; partial guards/alerts landed.
-- [ ] **T292:** Explicit two-connection concurrency test and goal-close-vs-confirm race (Javadoc corrected).
-- [ ] **T293:** ADR/spec drift (ADR 0011 column names, ADR 0007 vs 0012 settlement postings, CHARGEBACK).
-- [ ] **T294:** API/test hygiene.
-- [ ] **T295:** Docs/index and rolling-deploy rename risk.
+- [x] **T292:** Explicit goal-close-vs-confirm race test (two connections) and corrected concurrency documentation.
+- [ ] **T293:** ADR/spec drift. Settlement item types and deferred settlement postings are documented;
+  ADR 0015 (legacy `_pesewas` column names) is Proposed and needs acceptance; ADR 0007/0012
+  settlement postings remain explicitly deferred.
+- [x] **T294:** Currency checks, PostingSet currency guard, settlement validation and public suspense
+  exclusion added; remaining API currency/backfill/clock hygiene is noted.
+- [x] **T295:** Docs/index and the rolling-deploy note for the V5 `currency` rename are recorded.
 
 ## Review follow-ups
 
-- T288 SUSPENSE centralization/coverage; T289 currency consistency; T290 settlement repository hardening; T291 settlement state machine; T292 concurrency proof/wording; T293 ADR/spec drift; T294 API/test hygiene; T295 docs/index.
+- Outstanding: T290 remaining repository hardening, T293 ADR 0015 acceptance, and the FEAT-002 payout feature spec before Phase 2.

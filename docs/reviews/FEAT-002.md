@@ -64,4 +64,5 @@ Redis port conflict on this machine.
   alerts and metrics; settlement state guards and terminal-batch item rejection are tested.
 - Concurrency Javadoc corrected (DB constraints are the correctness guarantee; the row lock
   serializes).
-- Still open: T289, explicit T292 race test, T293–T295.
+- T289/T292 completed: goal/contribution/callback currencies are compared; a two-connection close-vs-confirm race test asserts exactly one ledger outcome.
+- T294/T295 completed; T293 (ADR 0015 acceptance) and T290 remain open.

@@ -47,6 +47,11 @@ Confirmed account mapping (ADR 0006):
 | LOSS_ALLOCATION of L after failed recovery | Platform loss L | Goal pool L (to clear negative) OR Partner held L (if partner compensates) |
 | RESERVE_ROLLOVER of S | Goal pool S | Welfare reserve S |
 
+Column names retain the legacy `_pesewas` suffix while values are integer minor units in the row's
+`currency_code`; ADR 0011's example rename to `*_minor_units` is deferred (T293, ADR 0015 Proposed). V5 renames the pre-existing `ledger_entries.currency` to `currency_code`; that is a
+destructive rolling-deploy step, so the MVP deploy needs a maintenance window or an expand/contract
+replacement before production.
+
 `FEE` and `PAYOUT_FEE` are clearing accounts. They are cleared when the partner retains or deducts the fee; the settlement postings are in ADR 0006. `PLATFORM_FEE` is platform revenue, not a clearing account; see ADR 0007.
 
 ## Derived values

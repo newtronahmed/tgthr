@@ -146,7 +146,7 @@ public class ContributionTimeoutJob {
         .ifPresentOrElse(
             payment -> {
               if (status.amountPesewas() != payment.total().minorUnits()
-                  || !"GHS".equals(status.currency())) {
+                  || !payment.total().currencyCode().equals(status.currency())) {
                 alerts.publish(
                     new Alert(
                         Alert.AlertType.VERIFY_MISMATCH,

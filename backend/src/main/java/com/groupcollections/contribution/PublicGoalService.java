@@ -31,7 +31,7 @@ public class PublicGoalService {
         goal.fixedAmount() == null ? null : goal.fixedAmount().minorUnits(),
         goal.targetAmount() == null ? null : goal.targetAmount().minorUnits(),
         goal.minimumAmount().minorUnits(),
-        contributions.goalRaised(goal.id()).minorUnits(),
+        contributions.goalRaised(goal.id(), goal.minimumAmount().currencyCode()).minorUnits(),
         contributions.confirmedCount(goal.id()),
         goal.deadline(),
         goal.status().name(),

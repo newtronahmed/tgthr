@@ -18,3 +18,4 @@ One decision per file, numbered, never edited once accepted (supersede instead).
 | [0012](0012-settlement-tracking.md) | Settlement tracking architecture | Accepted |
 | [0013](0013-refund-and-loss-allocation.md) | Refund and loss allocation policy | Accepted |
 | [0014](0014-directional-settlement-and-goal-owned-eligibility.md) | Directional settlement and goal-owned eligibility | Accepted |
+| [0015](0015-legacy-financial-column-names.md) | Legacy financial column names for the MVP | Proposed |

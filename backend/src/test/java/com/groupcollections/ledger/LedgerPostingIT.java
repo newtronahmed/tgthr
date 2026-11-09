@@ -5,11 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 
 class LedgerPostingIT extends ApiIntegrationTest {
+
+  @Autowired private LedgerRepository ledger;
 
   @Test
   @Criterion("INV-LEDGER-001")
@@ -86,6 +91,37 @@ class LedgerPostingIT extends ApiIntegrationTest {
         .isInstanceOf(DataIntegrityViolationException.class);
     assertThatThrownBy(() -> jdbc.execute("truncate table contribution_events"))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  @Criterion("INV-LEDGER-007")
+  void ledgerRepositoryWritesTheEntryCurrency() {
+    String slug = insertGoal("ledger-currency", "OPEN", null);
+    Map<String, Object> contribution = createContribution(slug, 5_000, "0240000001").getBody();
+    assertThat(contribution).isNotNull();
+    UUID contributionId = UUID.fromString((String) contribution.get("id"));
+    UUID postingSet = UUID.randomUUID();
+    ledger.post(
+        contributionId,
+        new PostingSet(
+            postingSet,
+            List.of(
+                new LedgerEntry(
+                    LedgerAccount.PARTNER_HELD,
+                    LedgerEntryType.CONTRIBUTION,
+                    LedgerDirection.DEBIT,
+                    Money.of(100, "NGN")),
+                new LedgerEntry(
+                    LedgerAccount.GOAL_POOL,
+                    LedgerEntryType.CONTRIBUTION,
+                    LedgerDirection.CREDIT,
+                    Money.of(100, "NGN")))));
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from ledger_entries where posting_set_id = ? and currency_code = 'NGN'",
+                Integer.class,
+                postingSet))
+        .isEqualTo(2);
   }
 
   @Test

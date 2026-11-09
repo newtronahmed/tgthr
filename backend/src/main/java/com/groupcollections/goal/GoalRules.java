@@ -21,13 +21,25 @@ public final class GoalRules {
 
   public void check(Money amount) {
     if (targetType == TargetType.FIXED) {
+      requireSameCurrency(amount, fixedAmount);
       if (!amount.equals(fixedAmount)) {
         throw new AmountValidationException(
             "AMOUNT_NOT_ALLOWED", "a fixed goal accepts only its fixed amount");
       }
-    } else if (amount.minorUnits() < minimumAmount.minorUnits()) {
+    } else {
+      requireSameCurrency(amount, minimumAmount);
+      if (amount.minorUnits() < minimumAmount.minorUnits()) {
+        throw new AmountValidationException(
+            "AMOUNT_TOO_LOW",
+            "amount must be at least " + minimumAmount.minorUnits() + " minor units");
+      }
+    }
+  }
+
+  private static void requireSameCurrency(Money amount, Money goalAmount) {
+    if (!amount.currencyCode().equals(goalAmount.currencyCode())) {
       throw new AmountValidationException(
-          "AMOUNT_TOO_LOW", "amount must be at least " + minimumAmount.minorUnits() + " pesewas");
+          "AMOUNT_NOT_ALLOWED", "contribution currency must match the goal currency");
     }
   }
 }

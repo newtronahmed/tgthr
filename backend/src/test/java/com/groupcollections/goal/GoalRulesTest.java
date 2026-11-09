@@ -23,4 +23,15 @@ class GoalRulesTest {
 
     assertThat(thrown.code()).isEqualTo("AMOUNT_TOO_LOW");
   }
+
+  @Test
+  void rejectsAContributionWhoseCurrencyDiffersFromTheGoal() {
+    GoalRules rules = new GoalRules(TargetType.OPEN, null, Money.of(1_000, "GHS"));
+
+    AmountValidationException thrown =
+        catchThrowableOfType(
+            AmountValidationException.class, () -> rules.check(Money.of(1_000, "NGN")));
+
+    assertThat(thrown.code()).isEqualTo("AMOUNT_NOT_ALLOWED");
+  }
 }
