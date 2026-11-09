@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Spec | `specs/features/002-payouts/spec.md` |
-| Status | Draft |
+| Status | Ready |
 | Author | Ahmed Zubairu |
 
 ## Summary

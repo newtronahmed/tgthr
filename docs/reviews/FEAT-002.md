@@ -93,4 +93,4 @@ blockers and several highs; all were accepted and the spec/state machine/plan we
 - **Review/flag/trace:** fresh CODEOWNER review of the payout posting is required; the feature flag
   returns 404 only; T230 is closed and the Playwright spec carries AC-PAYOUT-012.
 
-The spec remains **In review** until the corrections are re-reviewed; no payout code has started.
+The corrections were re-reviewed and merged on 2026-11-09 (PR #10); the spec is **Ready** and the domain spec is **Accepted**. No payout code has started.

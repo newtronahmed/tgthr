@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | In review |
+| Status | Accepted |
 | Area code | PAYOUT |
 | Related features | FEAT-001, FEAT-002, FEAT-003 |
 

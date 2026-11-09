@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Feature ID | FEAT-002 |
-| Status | In review |
+| Status | Ready |
 | Owner | Ahmed Zubairu |
 | Area code | PAYOUT |
 | Created | 2026-11-09 |
