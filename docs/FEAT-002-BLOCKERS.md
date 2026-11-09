@@ -158,7 +158,7 @@ Each task's check must pass:
 - [x] **T288:** V6 SUSPENSE guard; flag set before posting; FROZEN, deadline, normal, fee and duplicate-callback coverage.
 - [x] **T291:** PENDING→SETTLED/FAILED state guard; terminal-batch item rejection; tests.
 - [x] **T289:** Goal/contribution/quote/raised-total currency consistency and callback currency checks are enforced.
-- [ ] **T290:** Remaining settlement hardening: after-commit alerting, provider item idempotency, parent metadata; partial guards/alerts landed.
+- [x] **T290:** Provider-line idempotency, after-completion alerts and parent guards are implemented and tested.
 - [x] **T292:** Explicit goal-close-vs-confirm race test (two connections) and corrected concurrency documentation.
 - [ ] **T293:** ADR/spec drift. Settlement item types and deferred settlement postings are documented;
   ADR 0015 (legacy `_pesewas` column names) is Proposed and needs acceptance; ADR 0007/0012
@@ -169,4 +169,4 @@ Each task's check must pass:
 
 ## Review follow-ups
 
-- Outstanding: T290 remaining repository hardening, T293 ADR 0015 acceptance, and the FEAT-002 payout feature spec before Phase 2.
+- Outstanding: T293 ADR 0015 acceptance and the FEAT-002 payout feature spec before Phase 2.

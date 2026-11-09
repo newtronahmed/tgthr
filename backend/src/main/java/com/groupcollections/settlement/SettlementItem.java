@@ -15,7 +15,33 @@ public record SettlementItem(
     Money fee,
     Money net,
     Money goalAmount,
-    Instant createdAt) {
+    Instant createdAt,
+    String providerItemReference) {
+
+  public SettlementItem(
+      UUID id,
+      UUID settlementId,
+      UUID contributionId,
+      SettlementItemType itemType,
+      SettlementDirection direction,
+      Money gross,
+      Money fee,
+      Money net,
+      Money goalAmount,
+      Instant createdAt) {
+    this(
+        id,
+        settlementId,
+        contributionId,
+        itemType,
+        direction,
+        gross,
+        fee,
+        net,
+        goalAmount,
+        createdAt,
+        null);
+  }
 
   public SettlementItem {
     Objects.requireNonNull(id, "id");
