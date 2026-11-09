@@ -64,11 +64,13 @@ This document tracks the implementation tasks required to enforce the architectu
 
 ---
 
-## Phase 2: Payout Module (FEAT-002 spec required first)
+## Phase 2: Payout Module (superseded by `specs/features/002-payouts/tasks.md`)
+
+> The feature spec, plan and tasks are authoritative; these historical task numbers remain for traceability. T230 is done.
 
 ### Payout State Machine
 
-- [ ] **T230:** Create `specs/domain/payout-state-machine.md` (similar structure to contribution state machine)
+- [x] **T230:** Create `specs/domain/payout-state-machine.md` (similar structure to contribution state machine)
 - [ ] **T231:** Define states: `REQUESTED`, `APPROVED`, `HOLD`, `READY`, `EXECUTING`, `COMPLETED`, `CANCELLED`, `FAILED`
 - [ ] **T232:** Define transitions: request → approval (if needed) → hold → ready → execute → completed
 - [ ] **T233:** Document goal freeze precedence: HOLD continues but READY→EXECUTING blocked if goal frozen
@@ -144,7 +146,7 @@ Each task's check must pass:
 - [ ] Review findings recorded in `docs/reviews/FEAT-002.md`
 - [ ] No disabled tests for completed criteria
 
-**Next step:** Write `specs/features/002-payouts/spec.md` using FEAT-001/003 as templates, then create `plan.md` referencing these tasks.
+**Next step:** `specs/features/002-payouts/spec.md`, `plan.md` and `tasks.md` are written (2026-11-09). The plan is Draft pending review; payout implementation has not started.
 
 ## Review blockers (2026-11-08)
 
