@@ -53,3 +53,15 @@ Redis port conflict on this machine.
 - Date: 2026-11-08
 - Decision: **Approved** for the Phase 1 foundation. T288–T295 remain follow-ups; Phase 2 (payout
   module) still requires its feature spec and must not start from this approval alone.
+
+## Hardening follow-up (2026-11-08)
+
+- V6 adds a database guard: a `SUSPENSE`/`SUSPENSE_HOLD` entry is rejected unless its contribution
+  is flagged `requires_reconciliation`; the confirmation service sets the flag before posting.
+- SUSPENSE coverage now includes FROZEN goals, past deadlines, a normal open-goal confirmation,
+  fee entries and duplicate callbacks.
+- Settlement repository: parent-status/currency guards, orphan/unmatched alerts, duplicate-batch
+  alerts and metrics; settlement state guards and terminal-batch item rejection are tested.
+- Concurrency Javadoc corrected (DB constraints are the correctness guarantee; the row lock
+  serializes).
+- Still open: T289, explicit T292 race test, T293–T295.

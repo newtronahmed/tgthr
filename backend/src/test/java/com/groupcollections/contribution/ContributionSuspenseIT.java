@@ -1,6 +1,7 @@
 package com.groupcollections.contribution;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.groupcollections.alerts.Alert;
 import com.groupcollections.support.ApiIntegrationTest;
@@ -57,6 +58,117 @@ class ContributionSuspenseIT extends ApiIntegrationTest {
         .isTrue();
     assertThat(RecordingAlertPublisher.alerts())
         .anyMatch(alert -> alert.type() == Alert.AlertType.RECONCILIATION_REQUIRED);
+
+    long processing = ((Number) created.get("processingFeePesewas")).longValue();
+    long platform = ((Number) created.get("platformFeePesewas")).longValue();
+    if (processing > 0) {
+      assertThat(
+              count(
+                  "select count(*) from ledger_entries where contribution_id = ? and account = 'FEE' and amount_pesewas = ?",
+                  contributionId,
+                  processing))
+          .isEqualTo(1);
+    }
+    if (platform > 0) {
+      assertThat(
+              count(
+                  "select count(*) from ledger_entries where contribution_id = ? and account = 'PLATFORM_FEE' and amount_pesewas = ?",
+                  contributionId,
+                  platform))
+          .isEqualTo(1);
+    }
+    int entries =
+        count("select count(*) from ledger_entries where contribution_id = ?", contributionId);
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId.toString(), total))
+        .isEqualTo(204);
+    assertThat(
+            count("select count(*) from ledger_entries where contribution_id = ?", contributionId))
+        .isEqualTo(entries);
+  }
+
+  @Test
+  void frozenGoalAlsoParksInSuspense() {
+    String slug = insertGoal("suspense-frozen", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000007").getBody();
+    UUID contributionId = UUID.fromString((String) created.get("id"));
+    long total = ((Number) created.get("totalPesewas")).longValue();
+    jdbc.update("update goals set status = 'FROZEN' where slug = ?", slug);
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId.toString(), total))
+        .isEqualTo(204);
+    assertThat(
+            jdbc.queryForObject(
+                "select requires_reconciliation from contributions where id = ?",
+                Boolean.class,
+                contributionId))
+        .isTrue();
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where contribution_id = ? and account = 'SUSPENSE'",
+                contributionId))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void pastDeadlineAlsoParksInSuspense() {
+    String slug = insertGoal("suspense-deadline", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000007").getBody();
+    UUID contributionId = UUID.fromString((String) created.get("id"));
+    long total = ((Number) created.get("totalPesewas")).longValue();
+    jdbc.update("update goals set deadline = now() - interval '1 minute' where slug = ?", slug);
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId.toString(), total))
+        .isEqualTo(204);
+    assertThat(
+            jdbc.queryForObject(
+                "select requires_reconciliation from contributions where id = ?",
+                Boolean.class,
+                contributionId))
+        .isTrue();
+  }
+
+  @Test
+  void openGoalConfirmationDoesNotFlagReconciliation() {
+    String slug = insertGoal("suspense-normal", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID contributionId = UUID.fromString((String) created.get("id"));
+    long total = ((Number) created.get("totalPesewas")).longValue();
+    assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId.toString(), total))
+        .isEqualTo(204);
+    assertThat(
+            jdbc.queryForObject(
+                "select requires_reconciliation from contributions where id = ?",
+                Boolean.class,
+                contributionId))
+        .isFalse();
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where contribution_id = ? and account = 'GOAL_POOL'",
+                contributionId))
+        .isEqualTo(1);
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where contribution_id = ? and account = 'SUSPENSE'",
+                contributionId))
+        .isZero();
+  }
+
+  @Test
+  void suspenseEntryWithoutReconciliationFlagIsRejected() {
+    String slug = insertGoal("suspense-guard", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
+    UUID contributionId = UUID.fromString((String) created.get("id"));
+    UUID postingSet = UUID.randomUUID();
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    """
+                    insert into ledger_entries
+                        (posting_set_id, contribution_id, account, entry_type, direction,
+                         amount_pesewas, currency_code)
+                    values (?, ?, 'SUSPENSE', 'SUSPENSE_HOLD', 'CREDIT', 5000, 'GHS')
+                    """,
+                    postingSet,
+                    contributionId))
+        .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
   }
 
   private int count(String sql, Object... args) {

@@ -31,6 +31,8 @@ class SettlementInvariantsTest extends ApiIntegrationTest {
     assertThatThrownBy(
             () -> settlements.saveItem(item(settlement.id(), UUID.randomUUID(), 1_000, 0)))
         .isInstanceOf(DataIntegrityViolationException.class);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.SETTLEMENT_ORPHAN);
 
     settlements.saveItem(
         new SettlementItem(
@@ -45,6 +47,8 @@ class SettlementInvariantsTest extends ApiIntegrationTest {
             Money.of(0, "GHS"),
             Instant.now()));
     assertThat(settlements.findByContributionId(null)).isEmpty();
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.SETTLEMENT_UNMATCHED);
   }
 
   @Test
@@ -118,7 +122,76 @@ class SettlementInvariantsTest extends ApiIntegrationTest {
     assertThat(settlements.markSettled(settlement.id(), Instant.now())).isEqualTo(1);
 
     assertThatThrownBy(() -> settlements.saveItem(item(settlement.id(), null, 1_000, 0)))
-        .isInstanceOf(DataIntegrityViolationException.class);
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void settlementStateAndCurrencyGuardsHold() {
+    Settlement pending = settlement("state-guard");
+    settlements.save(pending);
+    assertThatThrownBy(
+            () ->
+                settlements.save(
+                    new Settlement(
+                        UUID.randomUUID(),
+                        SettlementProvider.PAYSTACK,
+                        "duplicate-state",
+                        pending.settlementDate(),
+                        pending.gross(),
+                        pending.fees(),
+                        pending.net(),
+                        pending.direction(),
+                        SettlementStatus.SETTLED,
+                        Instant.now(),
+                        Instant.now(),
+                        Instant.now())))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    assertThat(settlements.markFailed(pending.id())).isEqualTo(1);
+    assertThatThrownBy(() -> settlements.markSettled(pending.id(), Instant.now()))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> settlements.saveItem(item(pending.id(), null, 1_000, 0)))
+        .isInstanceOf(IllegalStateException.class);
+
+    Settlement ghs = settlement("currency-guard");
+    settlements.save(ghs);
+    SettlementItem ngn =
+        new SettlementItem(
+            UUID.randomUUID(),
+            ghs.id(),
+            null,
+            SettlementItemType.ADJUSTMENT,
+            SettlementDirection.CREDIT,
+            Money.of(1_000, "NGN"),
+            Money.of(0, "NGN"),
+            Money.of(1_000, "NGN"),
+            Money.of(0, "NGN"),
+            Instant.now());
+    assertThatThrownBy(() -> settlements.saveItem(ngn))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("currency");
+
+    Settlement duplicate = settlement("batch-duplicate");
+    settlements.save(duplicate);
+    assertThatThrownBy(
+            () ->
+                settlements.save(
+                    new Settlement(
+                        UUID.randomUUID(),
+                        SettlementProvider.PAYSTACK,
+                        "batch-duplicate",
+                        duplicate.settlementDate(),
+                        duplicate.gross(),
+                        duplicate.fees(),
+                        duplicate.net(),
+                        duplicate.direction(),
+                        duplicate.status(),
+                        null,
+                        Instant.now(),
+                        Instant.now())))
+        .isInstanceOf(DuplicateKeyException.class);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(alert -> alert.type() == Alert.AlertType.DUPLICATE_SETTLEMENT_BATCH);
   }
 
   @Test
