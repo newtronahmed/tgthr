@@ -19,10 +19,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * Confirms a paid contribution and posts its balanced set in one transaction (AC-CONTRIB-005).
  *
- * <p>Concurrency: PostgreSQL READ COMMITTED plus the {@code SELECT ... FOR UPDATE} in {@link
- * ContributionRepository#apply} makes the state transition single-writer. A second callback waits,
- * sees the terminal state and skips the ledger posting. The database unique constraints are the
- * second layer, not the primary guarantee.
+ * <p>Concurrency: the database unique constraints are the correctness guarantee (Constitution
+ * IV.1); the {@code SELECT ... FOR UPDATE} in {@link ContributionRepository#apply} additionally
+ * serializes the transition so a second callback waits, sees the terminal state and skips the
+ * ledger posting.
  */
 @Service
 public class ContributionConfirmationService {
@@ -64,6 +64,9 @@ public class ContributionConfirmationService {
             .findByIdForShare(payment.goalId())
             .map(goal -> goal.acceptsContributions(now))
             .orElse(false);
+    if (!goalAccepts) {
+      contributions.markRequiresReconciliation(payment.id(), now);
+    }
     PostingSet posting =
         goalAccepts
             ? ContributionPosting.confirmation(
@@ -72,7 +75,6 @@ public class ContributionConfirmationService {
                 payment.id(), payment.amount(), payment.processingFee(), payment.platformFee());
     ledger.post(payment.id(), posting);
     if (!goalAccepts) {
-      contributions.markRequiresReconciliation(payment.id(), now);
       afterCommit(
           () -> {
             meters.counter("contributions.suspense").increment();
