@@ -452,6 +452,8 @@ paths:
                 $ref: '#/components/schemas/PayoutApprovalView'
         '401':
           $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
   /payout-approvals/{token}/verify:
     post:
       tags: [Approval]
@@ -473,6 +475,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PayoutView'
         '401':
+          $ref: '#/components/responses/Problem'
+        '429':
           $ref: '#/components/responses/Problem'
   /payout-approvals/{token}/resend:
     post:
@@ -505,6 +509,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PayoutView'
         '401':
+          $ref: '#/components/responses/Problem'
+        '429':
           $ref: '#/components/responses/Problem'
 components:
   securitySchemes:

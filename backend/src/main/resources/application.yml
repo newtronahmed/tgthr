@@ -43,6 +43,8 @@ collections:
     otp-verify-per-phone-per-minute: ${OTP_VERIFY_RATE_LIMIT_PER_PHONE_PER_MINUTE:10}
     otp-verify-per-ip-per-minute: ${OTP_VERIFY_RATE_LIMIT_PER_IP_PER_MINUTE:20}
     goal-per-user-per-minute: ${GOAL_RATE_LIMIT_PER_USER_PER_MINUTE:10}
+    approval-per-ip-per-minute: ${APPROVAL_RATE_LIMIT_PER_IP_PER_MINUTE:20}
+    approval-per-approver-per-minute: ${APPROVAL_RATE_LIMIT_PER_APPROVER_PER_MINUTE:5}
 
 logging:
   pattern:

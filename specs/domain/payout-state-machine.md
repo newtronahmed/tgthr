@@ -28,10 +28,10 @@ money rules so no path bypasses reservations, approval, the mandatory hold, a fr
 | From | Event | To | Side effects |
 | --- | --- | --- | --- |
 | REQUESTED | Approval not required, or approver verified | APPROVED | Approval timestamp; no ledger |
-| REQUESTED | Approver declines | CANCELLED | No ledger; alert; organizer notification T328 |
+| REQUESTED | Approver declines | CANCELLED | No ledger; alert; organizer SMS notification |
 | REQUESTED | Organizer cancels | CANCELLED | No ledger; reservation released |
-| REQUESTED | Approval token expires | CANCELLED | No ledger; organizer notification T328; reservation released |
-| REQUESTED | Approval attempts exhausted | CANCELLED | No ledger; organizer notification T328; reservation released |
+| REQUESTED | Approval token expires | CANCELLED | No ledger; organizer SMS notification; reservation released |
+| REQUESTED | Approval attempts exhausted | CANCELLED | No ledger; organizer SMS notification; reservation released |
 | APPROVED | Hold window starts | HOLD | Hold expiry recorded |
 | APPROVED | Organizer cancels | CANCELLED | Reservation released |
 | HOLD | Hold expires | READY | No ledger |

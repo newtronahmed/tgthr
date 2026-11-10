@@ -7,6 +7,7 @@ import com.groupcollections.goal.OrganizerGoal;
 import com.groupcollections.goal.OrganizerGoalRepository;
 import com.groupcollections.identity.IdentityException;
 import com.groupcollections.identity.SmsSender;
+import com.groupcollections.identity.UserRepository;
 import com.groupcollections.security.PhoneCipher;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Hashed SMS approval challenges for a designated group member. */
 @Service
@@ -40,6 +43,7 @@ public class PayoutApprovalService {
   private final PayoutHoldService holds;
   private final PhoneCipher phones;
   private final SmsSender sms;
+  private final UserRepository users;
   private final SecureRandom random;
   private final Clock clock;
   private final MeterRegistry meters;
@@ -54,6 +58,7 @@ public class PayoutApprovalService {
       PayoutHoldService holds,
       PhoneCipher phones,
       SmsSender sms,
+      UserRepository users,
       SecureRandom random,
       Clock clock,
       MeterRegistry meters,
@@ -66,6 +71,7 @@ public class PayoutApprovalService {
     this.holds = holds;
     this.phones = phones;
     this.sms = sms;
+    this.users = users;
     this.random = random;
     this.clock = clock;
     this.meters = meters;
@@ -146,6 +152,14 @@ public class PayoutApprovalService {
     meters.counter("payout.approval.sent").increment();
   }
 
+  public byte[] rateLimitKey(String token) {
+    return approvals
+        .findByTokenHash(tokenHash(token))
+        .map(this::payout)
+        .flatMap(payout -> goals.findApproverPhoneHash(payout.goalId(), payout.requestedBy()))
+        .orElse(null);
+  }
+
   @Transactional(readOnly = true)
   public PayoutApprovalView view(String token) {
     PayoutApproval approval = active(token);
@@ -172,7 +186,9 @@ public class PayoutApprovalService {
             PayoutStateMachine.PayoutState.REQUESTED,
             PayoutStateMachine.PayoutEvent.APPROVAL_EXHAUSTED,
             false);
-        cancelRequested(payout(approval), now, "APPROVAL_EXHAUSTED");
+        Payout exhausted = payout(approval);
+        cancelRequested(exhausted, now, "APPROVAL_EXHAUSTED");
+        notifyOrganizerAfterCommit(exhausted, "approval attempts exhausted");
       }
       throw PayoutException.approvalInvalid();
     }
@@ -231,6 +247,7 @@ public class PayoutApprovalService {
     PayoutStateMachine.transition(
         PayoutStateMachine.PayoutState.REQUESTED, PayoutStateMachine.PayoutEvent.DECLINE, false);
     cancelRequested(payout, now, "DECLINED");
+    notifyOrganizerAfterCommit(payout, "approver declined");
     meters.counter("payout.approval.declined").increment();
     return new PayoutView(
         payout.id(),
@@ -260,6 +277,7 @@ public class PayoutApprovalService {
             false);
         if (payouts.markCancelled(payout.id(), "REQUESTED", now) == 1) {
           payouts.appendEvent(payout.id(), "APPROVAL_EXPIRED", "REQUESTED", "CANCELLED", now);
+          notifyOrganizerAfterCommit(payout, "approval expired");
           cancelled++;
         }
       }
@@ -291,6 +309,46 @@ public class PayoutApprovalService {
     if (payout.state().equals("REQUESTED")
         && payouts.markCancelled(payout.id(), "REQUESTED", now) == 1) {
       payouts.appendEvent(payout.id(), event, "REQUESTED", "CANCELLED", now);
+    }
+  }
+
+  private void notifyOrganizerAfterCommit(Payout payout, String reason) {
+    Runnable notification = () -> notifyOrganizer(payout, reason);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              notification.run();
+            }
+          });
+    } else {
+      notification.run();
+    }
+  }
+
+  private void notifyOrganizer(Payout payout, String reason) {
+    try {
+      byte[] ciphertext =
+          users
+              .findPhoneCiphertext(payout.requestedBy())
+              .orElseThrow(() -> new IllegalStateException("organizer phone missing"));
+      sms.send(
+          phones.decrypt(ciphertext),
+          "Your GHS "
+              + amount(payout.amountPesewas())
+              + " payout was cancelled: "
+              + reason
+              + ". No funds left the goal.");
+      meters.counter("payout.organizer_notification.sent").increment();
+    } catch (RuntimeException failure) {
+      meters.counter("payout.organizer_notification.failed").increment();
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.SMS_FAILURE,
+              payout.id().toString(),
+              "organizer payout notification failed"));
+      log.warn("organizer payout notification failed");
     }
   }
 
