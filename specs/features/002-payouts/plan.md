@@ -66,8 +66,9 @@ CODEOWNER review of the posting.
 
 ### Sequence for the main path
 
-1. Organizer requests a quote; available = goal pool − active reservations, capped by settled goal
-   amount; fee/net are returned.
+1. Organizer requests a quote; available =
+   `max(0, min(pool, max(0, settled − completed payout total)) − active reservations)`; fee/net are
+   returned.
 2. A request with an idempotency key locks the goal, re-checks available, reserves X, creates
    REQUESTED, and sends the approval SMS if required; otherwise APPROVED.
 3. Approval (or auto) starts the mandatory HOLD; expiry makes READY.
@@ -101,12 +102,18 @@ CODEOWNER review of the posting.
 | AC-PAYOUT-018 | Integration | `PayoutIdempotencyIT` | 409 conflict |
 | AC-PAYOUT-019 | Integration | `PayoutWorkerIT` | Cancel/execute CAS |
 | AC-PAYOUT-020 | Integration | `PayoutRequestIT` | Non-OFF goal without approver |
+| AC-PAYOUT-021 | Integration | `PayoutRequestIT` | Request fee/net row |
+| AC-PAYOUT-022 | Integration | `PayoutRequestIT` | Request reservations |
+| AC-PAYOUT-023 | Integration | `PayoutRequestIT` | Hold expiry/freeze request |
+| AC-PAYOUT-024 | Integration | `PayoutApprovalIT` | Attempt exhaustion releases reservation |
 | INV-PAYOUT-001..008 | Integration | `PayoutInvariantsTest` | One per invariant |
 
 ## Migrations
 
-- `V9__payout_approver_and_payouts.sql`: additive tables/columns; nullable approver/settings fields; no
-  destructive change.
+- `V9__payout_approver_and_payouts.sql`: additive tables/columns; nullable approver/settings fields;
+  no destructive change.
+- `V10__payout_ledger_link.sql`: link ledger payout postings to their payout for goal-pool balance;
+  additive, with a payout-link check and one-line-per-account uniqueness.
 - Backward compatible: yes. Legacy goals with non-OFF rules or zero hold must set payout settings
   before their first payout.
 

@@ -30,6 +30,7 @@ class PayoutInvariantsTest {
             Map.entry("REQUESTED:DECLINE", PayoutState.CANCELLED),
             Map.entry("REQUESTED:CANCEL", PayoutState.CANCELLED),
             Map.entry("REQUESTED:APPROVAL_EXPIRED", PayoutState.CANCELLED),
+            Map.entry("REQUESTED:APPROVAL_EXHAUSTED", PayoutState.CANCELLED),
             Map.entry("APPROVED:START_HOLD", PayoutState.HOLD),
             Map.entry("APPROVED:CANCEL", PayoutState.CANCELLED),
             Map.entry("HOLD:HOLD_EXPIRED", PayoutState.READY),
@@ -66,13 +67,6 @@ class PayoutInvariantsTest {
   @Disabled("pending: hold/freeze slice")
   @Criterion("INV-PAYOUT-003")
   void freezeAndCancellationRulesHold() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: approval slice")
-  @Criterion("INV-PAYOUT-004")
-  void approvalChallengesAreSingleUseExpiringAndAttemptLimited() {
     fail("not implemented");
   }
 

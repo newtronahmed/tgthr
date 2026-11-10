@@ -14,41 +14,6 @@ import org.junit.jupiter.api.Test;
 class PayoutCriteriaTest {
 
   @Test
-  @Disabled("pending: payout request/eligibility slice")
-  @Criterion("AC-PAYOUT-001")
-  void partialPayoutUsesSettledAvailableBalance() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: payout request/eligibility slice")
-  @Criterion("AC-PAYOUT-002")
-  void unsettledOrSuspenseFundsAreNotPayoutEligible() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: payout request/eligibility slice")
-  @Criterion("AC-PAYOUT-003")
-  void feeAndBeneficiaryNetAreExactAndGoalBorne() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: approval slice")
-  @Criterion("AC-PAYOUT-004")
-  void requiredApprovalGatesThePayoutAndDeclineCancels() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: approval slice")
-  @Criterion("AC-PAYOUT-005")
-  void approvalCodesAreSingleUseExpiringAndAttemptLimited() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: hold/freeze slice")
   @Criterion("AC-PAYOUT-007")
   void holdExpiryAndFreezePrecedenceAreEnforced() {
@@ -59,13 +24,6 @@ class PayoutCriteriaTest {
   @Disabled("pending: cancellation slice")
   @Criterion("AC-PAYOUT-008")
   void cancellationIsOnlyPossibleBeforeExecution() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: execution/idempotency slice")
-  @Criterion("AC-PAYOUT-009")
-  void retriedRequestReturnsTheOriginalPayout() {
     fail("not implemented");
   }
 
@@ -84,13 +42,6 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: reservation slice")
-  @Criterion("AC-PAYOUT-013")
-  void inFlightPayoutsReserveAvailableFunds() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: contributor visibility slice")
   @Criterion("AC-PAYOUT-014")
   void contributorsSeeReportAndAreNotifiedOfPayouts() {
@@ -105,27 +56,6 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: hold slice")
-  @Criterion("AC-PAYOUT-016")
-  void zeroHoldIsRejected() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: approval slice")
-  @Criterion("AC-PAYOUT-017")
-  void resendInvalidatesPriorApprovalAndExpiryCancels() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: idempotency slice")
-  @Criterion("AC-PAYOUT-018")
-  void sameKeyDifferentBodyReturnsConflict() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: worker slice")
   @Criterion("AC-PAYOUT-019")
   void cancelAndExecuteRaceHasOneWinner() {
@@ -133,9 +63,23 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: payout request gate slice")
-  @Criterion("AC-PAYOUT-020")
-  void payoutRequestRequiresConfiguredApprover() {
+  @Disabled("pending: fee/ledger slice")
+  @Criterion("AC-PAYOUT-003")
+  void zeroFeeOmitsTheFeeLineAndCompletionPostsTheDebit() {
+    fail("not implemented");
+  }
+
+  @Test
+  @Disabled("pending: execution/idempotency slice")
+  @Criterion("AC-PAYOUT-009")
+  void retriedRequestDoesNotCreateASecondPosting() {
+    fail("not implemented");
+  }
+
+  @Test
+  @Disabled("pending: cancellation/release slice")
+  @Criterion("AC-PAYOUT-013")
+  void cancelOrFailureReleasesReservedFunds() {
     fail("not implemented");
   }
 }

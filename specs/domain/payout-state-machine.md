@@ -18,7 +18,7 @@ money rules so no path bypasses reservations, approval, the mandatory hold, a fr
 | Requested amount X | All-in goal-pool debit, integer minor units. |
 | Payout fee G | Provider transfer fee, quoted before request; goal bears it. |
 | Beneficiary net | X − G. |
-| Available | `min(goal pool balance − active reservations, max(0, signed settled goal amount))`; fees and reconciliation-flagged contributions excluded (ADR 0014). |
+| Available | `max(0, min(goal pool balance, max(0, signed settled goal amount − completed payout total)) − active reservations)`; fees and reconciliation-flagged contributions excluded (ADR 0014). |
 | Active reservation | A payout in `REQUESTED`, `APPROVED`, `HOLD`, `READY` or `EXECUTING`. |
 | Approval rule | `OFF`, `ABOVE_THRESHOLD` or `ALWAYS`; a designated member approves by SMS OTP when triggered. |
 | Hold | Mandatory positive `holdWindowMinutes` after approval. |
@@ -28,9 +28,10 @@ money rules so no path bypasses reservations, approval, the mandatory hold, a fr
 | From | Event | To | Side effects |
 | --- | --- | --- | --- |
 | REQUESTED | Approval not required, or approver verified | APPROVED | Approval timestamp; no ledger |
-| REQUESTED | Approver declines | CANCELLED | No ledger; alert |
+| REQUESTED | Approver declines | CANCELLED | No ledger; alert; organizer notification T328 |
 | REQUESTED | Organizer cancels | CANCELLED | No ledger; reservation released |
-| REQUESTED | Approval token expires | CANCELLED | No ledger; organizer notified; reservation released |
+| REQUESTED | Approval token expires | CANCELLED | No ledger; organizer notification T328; reservation released |
+| REQUESTED | Approval attempts exhausted | CANCELLED | No ledger; organizer notification T328; reservation released |
 | APPROVED | Hold window starts | HOLD | Hold expiry recorded |
 | APPROVED | Organizer cancels | CANCELLED | Reservation released |
 | HOLD | Hold expires | READY | No ledger |

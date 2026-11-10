@@ -15,6 +15,8 @@ tags:
     description: Called by the payment partner, never by clients
   - name: Organizer
     description: Phone-verified organizer account, session and own goals
+  - name: Approval
+    description: Public SMS-token approval for a designated group member
 paths:
   /public/goals/{slug}:
     get:
@@ -337,6 +339,78 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /organizer/goals/{id}/payout-quote:
+    get:
+      tags: [Organizer]
+      operationId: getPayoutQuote
+      summary: Quote the fee, net and available settled balance for a payout
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+        - name: amountPesewas
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Payout quote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutQuote'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /organizer/goals/{id}/payouts:
+    post:
+      tags: [Organizer]
+      operationId: requestPayout
+      summary: Reserve a partial payout against the settled available balance
+      description: |
+        The payout is all-in: the goal bears the provider fee and the beneficiary receives
+        amountPesewas minus feePesewas. The request reserves the amount until cancel/failure.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Unique per goal; the same key and amount returns the original payout.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutRequest'
+      responses:
+        '201':
+          description: Payout requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
   /organizer/goals/{id}/close:
     post:
       tags: [Organizer]
@@ -362,6 +436,76 @@ paths:
           $ref: '#/components/responses/Problem'
         '409':
           $ref: '#/components/responses/Problem'
+  /payout-approvals/{token}:
+    get:
+      tags: [Approval]
+      operationId: getPayoutApproval
+      summary: Read the pending payout for an approval token
+      parameters:
+        - $ref: '#/components/parameters/ApprovalToken'
+      responses:
+        '200':
+          description: Approval page data; never contains a phone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutApprovalView'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /payout-approvals/{token}/verify:
+    post:
+      tags: [Approval]
+      operationId: verifyPayoutApproval
+      summary: Verify the SMS code and start the hold
+      parameters:
+        - $ref: '#/components/parameters/ApprovalToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutApprovalVerify'
+      responses:
+        '200':
+          description: Approved payout in HOLD
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutView'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /payout-approvals/{token}/resend:
+    post:
+      tags: [Approval]
+      operationId: resendPayoutApproval
+      summary: Invalidate the previous values and send a new SMS
+      parameters:
+        - $ref: '#/components/parameters/ApprovalToken'
+      responses:
+        '202':
+          description: A new approval SMS was sent
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /payout-approvals/{token}/decline:
+    post:
+      tags: [Approval]
+      operationId: declinePayoutApproval
+      summary: Decline the payout and release its reservation
+      parameters:
+        - $ref: '#/components/parameters/ApprovalToken'
+      responses:
+        '200':
+          description: Cancelled payout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutView'
+        '401':
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     cookieAuth:
@@ -378,6 +522,14 @@ components:
         type: string
         minLength: 8
         maxLength: 64
+    ApprovalToken:
+      name: token
+      in: path
+      required: true
+      description: Raw approval token from the SMS; hashed at rest.
+      schema:
+        type: string
+        minLength: 20
     GoalId:
       name: id
       in: path
@@ -715,6 +867,99 @@ components:
           type: string
           enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
           default: PAY_BENEFICIARY
+    PayoutRequest:
+      type: object
+      required: [amountPesewas]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+          minimum: 1
+          description: All-in goal-pool debit; the provider fee is deducted from this amount.
+    PayoutQuote:
+      type: object
+      required: [amountPesewas, feePesewas, netPesewas, availablePesewas, currency]
+      properties:
+        amountPesewas:
+          type: integer
+          format: int64
+        feePesewas:
+          type: integer
+          format: int64
+        netPesewas:
+          type: integer
+          format: int64
+        availablePesewas:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum: [GHS]
+    PayoutView:
+      type: object
+      required: [id, goalId, amountPesewas, feePesewas, netPesewas, currency, state, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        goalId:
+          type: string
+          format: uuid
+        amountPesewas:
+          type: integer
+          format: int64
+        feePesewas:
+          type: integer
+          format: int64
+        netPesewas:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum: [GHS]
+        state:
+          type: string
+          enum: [REQUESTED, APPROVED, HOLD, READY, EXECUTING, COMPLETED, FAILED, CANCELLED]
+        createdAt:
+          type: string
+          format: date-time
+    PayoutApprovalView:
+      type: object
+      required: [payoutId, goalTitle, approverName, amountPesewas, feePesewas, netPesewas, currency, state, tokenExpiresAt]
+      properties:
+        payoutId:
+          type: string
+          format: uuid
+        goalTitle:
+          type: string
+        approverName:
+          type: string
+        amountPesewas:
+          type: integer
+          format: int64
+        feePesewas:
+          type: integer
+          format: int64
+        netPesewas:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum: [GHS]
+        state:
+          type: string
+          enum: [REQUESTED, APPROVED, HOLD, READY, EXECUTING, COMPLETED, FAILED, CANCELLED]
+        tokenExpiresAt:
+          type: string
+          format: date-time
+      description: Never contains either phone number.
+    PayoutApprovalVerify:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
     PayoutSettings:
       type: object
       minProperties: 1

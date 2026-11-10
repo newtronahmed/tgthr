@@ -34,4 +34,24 @@ public class LedgerRepository {
           entry.amount().currencyCode());
     }
   }
+
+  @Transactional
+  public void postPayout(UUID payoutId, PostingSet postingSet) {
+    for (LedgerEntry entry : postingSet.entries()) {
+      jdbc.update(
+          """
+          insert into ledger_entries
+              (posting_set_id, payout_id, account, entry_type, direction, amount_minor_units,
+               currency_code)
+          values (?, ?, ?, ?, ?, ?, ?)
+          """,
+          postingSet.id(),
+          payoutId,
+          entry.account().name(),
+          entry.type().name(),
+          entry.direction().name(),
+          entry.amount().minorUnits(),
+          entry.amount().currencyCode());
+    }
+  }
 }

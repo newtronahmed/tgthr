@@ -14,7 +14,7 @@ class SmsConfiguration {
   @Bean
   @ConditionalOnProperty(name = "collections.sms.provider", havingValue = "logging")
   SmsSender loggingSmsSender() {
-    return (phone, message) -> log.warn("development SMS sender: {}", message);
+    return (phone, message) -> log.warn("development SMS sender used; message redacted");
   }
 
   @Bean

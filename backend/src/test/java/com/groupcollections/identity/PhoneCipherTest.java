@@ -27,6 +27,14 @@ class PhoneCipherTest {
   }
 
   @Test
+  void decryptsOnlyTheEncryptedValue() {
+    byte[] encrypted = cipher.encrypt("+233240000001");
+
+    assertThat(cipher.decrypt(encrypted)).isEqualTo("+233240000001");
+    assertThatThrownBy(() -> cipher.decrypt(new byte[8])).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void lookupHashMatchesTheContributionDerivation() throws Exception {
     byte[] expected = hmac("lookup", "+233240000001");
 
