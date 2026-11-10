@@ -39,9 +39,9 @@ Criteria: AC-PAYOUT-004, AC-PAYOUT-005, AC-PAYOUT-006, AC-PAYOUT-017
 - [x] T323 Implement approval challenge/token and state gating until T322 is green
 - [x] T324 Write failing tests for AC-005/017 (wrong/expired/over-attempted/reused/resend/expiry)
 - [x] T325 Implement approval security, resend invalidation and expiry cancellation until T324 is green
-- [ ] T326 Add approval SMS/alert metrics and phone-free logging
-- [ ] T327 Add per-phone/IP rate limiting to approval GET/verify/resend/decline
-- [ ] T328 Notify the organizer on approval expiry/exhaustion/decline (or explicitly defer the channel)
+- [x] T326 Add approval SMS/alert metrics and phone-free logging
+- [x] T327 Add per-approver/IP rate limiting to approval GET/verify/resend/decline
+- [x] T328 Notify the organizer on approval expiry/exhaustion/decline (or explicitly defer the channel)
 
 ## Slice 3 (P1): Mandatory hold, freeze, cancellation and worker
 

@@ -2,6 +2,7 @@ package com.groupcollections.payout;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.groupcollections.alerts.Alert;
 import com.groupcollections.goal.AccountResolver;
 import com.groupcollections.identity.SmsSender;
 import com.groupcollections.support.ApiIntegrationTest;
@@ -9,6 +10,7 @@ import com.groupcollections.support.Criterion;
 import com.groupcollections.support.FakeAccountResolver;
 import com.groupcollections.support.FakePayoutFeeProvider;
 import com.groupcollections.support.FakeSmsSender;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -160,6 +162,9 @@ class PayoutApprovalIT extends ApiIntegrationTest {
             jdbc.queryForObject("select state from payouts where id = ?", String.class, secondId))
         .isEqualTo("CANCELLED");
     assertThat(count("select count(*) from ledger_entries where payout_id = ?", secondId)).isZero();
+    assertThat(FakeSmsSender.sent())
+        .anyMatch(
+            sent -> sent.phone().equals("+233240000401") && sent.message().contains("cancelled"));
   }
 
   @Test
@@ -233,6 +238,37 @@ class PayoutApprovalIT extends ApiIntegrationTest {
         .isEqualTo("CANCELLED");
     assertThat(approvalGet(expiringToken).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(count("select count(*) from ledger_entries where payout_id = ?", expiringPayout))
+        .isZero();
+    assertThat(FakeSmsSender.sent())
+        .anyMatch(
+            sent -> sent.phone().equals("+233240000403") && sent.message().contains("cancelled"));
+  }
+
+  @Test
+  void failedOrganizerNotificationLeavesThePayoutCancelledAndAlerts() {
+    Session session = session("0240000406", "Ama Mensah");
+    UUID goalId = createGoal(session, "ALWAYS", "Esi Mensah", APPROVER_PHONE);
+    fundGoal(session, goalId, 5_000);
+    request(session, goalId, 1_000);
+    String token = smsToken();
+
+    FakeSmsSender.failNext(true);
+    ResponseEntity<Map<String, Object>> declined = decline(token);
+    assertThat(declined.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(declined.getBody()).isNotNull();
+    assertThat(declined.getBody().get("state")).isEqualTo("CANCELLED");
+    assertThat(
+            jdbc.queryForObject(
+                "select state from payouts where goal_id = ?", String.class, goalId))
+        .isEqualTo("CANCELLED");
+    assertThat(
+            RecordingAlertPublisher.alerts().stream()
+                .anyMatch(alert -> alert.type() == Alert.AlertType.SMS_FAILURE))
+        .isTrue();
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where payout_id = (select id from payouts where goal_id = ?)",
+                goalId))
         .isZero();
   }
 

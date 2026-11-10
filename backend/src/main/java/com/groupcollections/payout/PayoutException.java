@@ -63,6 +63,11 @@ public final class PayoutException extends RuntimeException {
         "The approval link or code is invalid, expired or already used");
   }
 
+  public static PayoutException rateLimited() {
+    return new PayoutException(
+        429, "Too many requests", "RATE_LIMITED", "Too many approval requests; try again shortly");
+  }
+
   public static PayoutException resendTooSoon() {
     return new PayoutException(
         429,

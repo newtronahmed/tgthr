@@ -202,3 +202,20 @@ the same idempotency key can retry. The retry path is tested. The logging SMS pr
 logs message bodies/codes. Organizer notification on expiry/exhaustion/decline remains explicitly
 owned by T328; rate limiting by T327. Setup rules now forbid external I/O under row locks, logging
 one-time codes, and unowned transition side effects.
+
+Approval hardening follow-up (2026-11-10): T327 added a per-IP/per-approver-phone rate limiter to the public
+approval GET/verify/resend/decline endpoints, with a unit test and 429 responses documented in
+OpenAPI. T328 now sends an after-commit SMS to the organizer on decline/expiry/exhaustion; failures
+alert and log without changing the payout. T326 approval metrics/logging is complete. The organizer
+SMS is sent after commit, so it does not run while a state-changing transaction or row lock is held.
+Trace remains 88 defined / 70 active / 18 pending / 0 missing; `make check` green.
+
+Approval hardening re-review (2026-11-10): T327 now checks the IP bucket before any token lookup,
+removes the invalid-token fallback bucket, keys the second bucket by the resolved approver phone
+across goals, emits a `payout.approval.rate_limited` metric and redacted log, and uses distinct
+429 copy that does not imply the challenge was burned. Unit tests cover IP-only, approver-only and
+one-minute window reset; a separate HTTP IT exercises all four approval routes with rate limiting
+enabled. T328 tests now assert the specific organizer messages for decline, exhaustion and expiry,
+and a failed organizer SMS leaves the payout cancelled with an SMS_FAILURE alert. T326 is complete.
+The test harness caps Hikari pools at two connections so the growing Spring context set no longer
+exhausts Postgres. `make check` green; trace 88 defined / 70 active / 18 pending / 0 missing.

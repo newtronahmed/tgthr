@@ -59,6 +59,14 @@ public class UserRepository {
         .orElseThrow(() -> new IllegalStateException("could not load the organizer"));
   }
 
+  public Optional<byte[]> findPhoneCiphertext(UUID id) {
+    return jdbc
+        .query("select phone_ciphertext from users where id = ?", (rs, row) -> rs.getBytes(1), id)
+        .stream()
+        .findFirst()
+        .filter(value -> value != null);
+  }
+
   public Optional<byte[]> findPhoneHash(UUID id) {
     return jdbc
         .query("select phone_hash from users where id = ?", (rs, row) -> rs.getBytes(1), id)

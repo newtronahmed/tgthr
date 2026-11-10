@@ -68,6 +68,8 @@ public abstract class ApiIntegrationTest {
     registry.add("collections.rate-limit.enabled", () -> "false");
     registry.add("collections.identity.otp-resend-seconds", () -> "1");
     registry.add("collections.web.origin", () -> "http://localhost:3000");
+    registry.add("spring.datasource.hikari.maximum-pool-size", () -> "2");
+    registry.add("spring.datasource.hikari.minimum-idle", () -> "0");
   }
 
   @Autowired protected TestRestTemplate rest;
