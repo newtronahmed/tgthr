@@ -24,6 +24,9 @@ Read `specs/constitution.md` first. It is binding.
 - Traceability is per criterion. If a criterion spans phases, split it into a new permanent ID or keep a pending test; never let an early phase mark the whole criterion covered.
 - A read-check-then-write lock only serializes writers that take the same lock. Add the writer-side lock, a database trigger where possible, and a concurrency test at the slice that creates the guarded rows.
 - Match unique constraints to the stated cardinality (for example per contributor, not per contribution); test the duplicate/aggregation path.
+- Never call an external service (SMS, payment provider) while holding a database row lock or inside the state-changing transaction. Commit the row/challenge first, send after commit (or via an outbox), and on failure consume/mark the challenge so the idempotency key can retry.
+- Never log one-time codes, approval links or message bodies; log only redacted event/reference data.
+- Every side effect claimed in a state transition must have code or a named task; do not merge "notified" or "alerted" claims without a channel.
 
 ## Where things go
 

@@ -18,6 +18,9 @@
 - [ ] A criterion is not marked covered while a phase is pending; split it or keep a pending test.
 - [ ] Unique constraints match the stated cardinality (per contributor vs per contribution).
 - [ ] OpenAPI descriptions match the actual comparison/behaviour, including domain validation that returns a specific 422 code.
+- [ ] No external I/O (SMS/provider) runs while holding a database row lock; send-after-commit/outbox and failure cleanup are tested.
+- [ ] One-time codes/links and message bodies are redacted from logs.
+- [ ] Every state-transition side effect has code or a named task.
 
 ## Follow-ups
 
