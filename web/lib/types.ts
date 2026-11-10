@@ -7,6 +7,17 @@ export type PayoutRules = {
   surplusRule: string;
 };
 
+export type PayoutPublicView = {
+  id: string;
+  amountPesewas: number;
+  feePesewas: number;
+  netPesewas: number;
+  currency: "GHS";
+  state: "HOLD" | "READY" | "EXECUTING" | "COMPLETED";
+  holdExpiresAt?: string | null;
+  completedAt?: string | null;
+};
+
 export type FeedItem = {
   displayName?: string | null;
   anonymous: boolean;
@@ -27,6 +38,7 @@ export type PublicGoal = {
   deadline?: string | null;
   status: "OPEN" | "CLOSED" | "FROZEN";
   payoutRules: PayoutRules;
+  payouts: PayoutPublicView[];
   feed: FeedItem[];
 };
 

@@ -3,6 +3,7 @@ package com.groupcollections.contribution;
 import com.groupcollections.goal.Goal;
 import com.groupcollections.goal.GoalNotFoundException;
 import com.groupcollections.goal.GoalRepository;
+import com.groupcollections.payout.PayoutRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,10 +15,13 @@ public class PublicGoalService {
 
   private final GoalRepository goals;
   private final ContributionRepository contributions;
+  private final PayoutRepository payouts;
 
-  public PublicGoalService(GoalRepository goals, ContributionRepository contributions) {
+  public PublicGoalService(
+      GoalRepository goals, ContributionRepository contributions, PayoutRepository payouts) {
     this.goals = goals;
     this.contributions = contributions;
+    this.payouts = payouts;
   }
 
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
@@ -42,6 +46,7 @@ public class PublicGoalService {
             goal.secondApproverThresholdPesewas(),
             goal.holdWindowMinutes(),
             goal.surplusRule()),
+        payouts.findPublicForGoal(goal.id()),
         contributions.feed(goal.id(), FEED_LIMIT));
   }
 }

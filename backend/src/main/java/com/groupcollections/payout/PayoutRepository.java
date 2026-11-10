@@ -35,6 +35,28 @@ public class PayoutRepository {
         .findFirst();
   }
 
+  public List<PayoutPublicView> findPublicForGoal(UUID goalId) {
+    return jdbc.query(
+        """
+        select id, amount_minor_units, fee_minor_units, net_minor_units, currency_code, state,
+               hold_expires_at, completed_at
+        from payouts
+        where goal_id = ? and state in ('HOLD', 'READY', 'EXECUTING', 'COMPLETED')
+        order by created_at, id
+        """,
+        (resultSet, rowNumber) ->
+            new PayoutPublicView(
+                resultSet.getObject("id", UUID.class),
+                resultSet.getLong("amount_minor_units"),
+                resultSet.getLong("fee_minor_units"),
+                resultSet.getLong("net_minor_units"),
+                resultSet.getString("currency_code"),
+                resultSet.getString("state"),
+                instant(resultSet, "hold_expires_at"),
+                instant(resultSet, "completed_at")),
+        goalId);
+  }
+
   public Optional<Payout> findById(UUID id) {
     return jdbc.query(COLUMNS + " where id = ?", this::map, id).stream().findFirst();
   }
