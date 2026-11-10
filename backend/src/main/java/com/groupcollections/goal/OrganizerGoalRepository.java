@@ -178,6 +178,18 @@ public class OrganizerGoalRepository {
         creatorId);
   }
 
+  public Optional<byte[]> findApproverPhoneCiphertext(UUID id, UUID creatorId) {
+    return jdbc
+        .query(
+            "select second_approver_phone_ciphertext from goals where id = ? and created_by_user_id = ?",
+            (resultSet, rowNumber) -> resultSet.getBytes(1),
+            id,
+            creatorId)
+        .stream()
+        .findFirst()
+        .filter(value -> value != null);
+  }
+
   public boolean lockByIdAndCreator(UUID id, UUID creatorId) {
     return !jdbc.query(
             "select id from goals where id = ? and created_by_user_id = ? for update",

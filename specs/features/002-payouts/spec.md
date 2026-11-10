@@ -60,11 +60,12 @@ the transfer once on completion.
 ## Rules
 
 1. **Eligibility and reservations.** Let
-   `available = min(goal pool balance − active payout reservations, max(0, settled goal amount))`
-   where active means `REQUESTED`, `APPROVED`, `HOLD`, `READY` or `EXECUTING`. A request reserves X
-   under a `SELECT ... FOR UPDATE` lock on the goal; cancel/failure releases it; completion re-checks
-   and posts under the same lock. Confirmed-but-unsettled and `requires_reconciliation`
-   contributions are excluded (ADR 0014).
+   `available = max(0, min(goal pool balance, max(0, settled goal amount − completed payout total)) − active payout reservations)`
+   where active means `REQUESTED`, `APPROVED`, `HOLD`, `READY` or `EXECUTING`, and the completed
+   payout total is the sum of all-in amounts already paid from this goal. A request reserves X under
+   a `SELECT ... FOR UPDATE` lock on the goal; cancel/failure releases it; completion re-checks and
+   posts under the same lock. Confirmed-but-unsettled and `requires_reconciliation` contributions
+   are excluded (ADR 0014).
 2. **Partial payouts.** The organizer may request any amount up to `available`; X is the all-in
    goal-pool debit; multiple payouts are allowed.
 3. **Fee.** The provider quotes G. The goal bears it: beneficiary net is `X − G`, and X must exceed
@@ -85,8 +86,9 @@ the transfer once on completion.
    code are hashed; code lifetime 10 minutes; five attempts; 60-second resend; token lifetime 24
    hours. Resend invalidates the previous token and code. Both are single-use. Wrong, expired,
    over-attempted or reused values return 401. Rate limits are per phone and IP. If the token
-   expires, `REQUESTED → CANCELLED (approval expired)` and the organizer is notified; a new payout
-   request is required. The approver may decline, which cancels the payout.
+   expires, `REQUESTED → CANCELLED (approval expired)` and the organizer is notified; exhausting the
+   five attempts also cancels and releases the reservation; a new payout request is required. The
+   approver may decline, which cancels the payout.
 7. **Hold.** After approval, `HOLD` for the positive hold window, then `READY`. Held payouts can be
    cancelled. The hold is mandatory (Article V.2/ADR 0005).
 8. **Freeze and close.** A `FROZEN` goal rejects new payout requests with 409 and blocks
@@ -94,10 +96,11 @@ the transfer once on completion.
    payouts. No freeze/unfreeze endpoint in this feature.
 9. **Cancellation.** The organizer may cancel `REQUESTED`, `APPROVED`, `HOLD` or `READY`; it becomes
    `CANCELLED` with no ledger entry. `EXECUTING` and terminal states cannot be cancelled.
-10. **Idempotency.** A request requires an `Idempotency-Key`, unique per goal. Same key with the
-    same goal/amount/fee returns the original payout; the same key with a different body returns
-    409 `IDEMPOTENCY_CONFLICT`. The provider transfer reference is unique; the ledger posting set is
-    unique.
+10. **Idempotency.** A request requires an `Idempotency-Key`, unique per goal. The same key with the
+    same amount returns the original payout; the same key with a different amount returns 409
+    `IDEMPOTENCY_CONFLICT`. The server re-quotes the fee; a changed fee is handled by the pre-transfer
+    check (AC-PAYOUT-015), not as an idempotency conflict. The provider transfer reference is unique;
+    the ledger posting set is unique.
 11. **Execution.** A scheduled **payout worker** claims `READY` rows with a compare-and-set and the
     goal row lock; there is no client execute endpoint. It re-checks the fee and goal freeze before
     calling the provider once. Success → `COMPLETED`; definitive failure → `FAILED`; unknown/timeout
@@ -137,9 +140,13 @@ the transfer once on completion.
 | AC-PAYOUT-015 | P1 | Given READY, when the provider fee differs from the quote, then FAILED `PAYOUT_FEE_MISMATCH` before any provider call. | Integration |
 | AC-PAYOUT-016 | P1 | Given a hold window below one minute, when a payout is requested, then 422 `HOLD_REQUIRED` and no payout. | Integration |
 | AC-PAYOUT-017 | P1 | Given an approval token/code, when resend or expiry occurs, then the previous values are invalid and an expired token cancels the payout; no stuck REQUESTED. | Integration |
-| AC-PAYOUT-018 | P1 | Given the same idempotency key with a different amount, goal or fee, then 409 `IDEMPOTENCY_CONFLICT`. | Integration |
+| AC-PAYOUT-018 | P1 | Given the same idempotency key with a different amount, then 409 `IDEMPOTENCY_CONFLICT`. | Integration |
 | AC-PAYOUT-019 | P1 | Given READY, when cancel and the execution worker race, then one compare-and-set wins; no duplicate provider call. | Integration |
 | AC-PAYOUT-020 | P1 | Given a non-OFF goal without a configured approver, when a payout is requested, then 422 `APPROVER_REQUIRED` and no payout. | Integration |
+| AC-PAYOUT-021 | P1 | Given a valid payout request, when accepted, then the stored fee and beneficiary net are exact integer minor units and the goal bears the fee. | Integration |
+| AC-PAYOUT-022 | P1 | Given in-flight payouts, when concurrent requests arrive, then goal-locked reservations prevent total X above the settled available balance. | Integration |
+| AC-PAYOUT-023 | P1 | Given a positive hold, when it expires, then the payout becomes READY; a FROZEN goal rejects a new request with 409. | Integration |
+| AC-PAYOUT-024 | P1 | Given five wrong approval attempts, when the challenge is exhausted, then the payout is CANCELLED, its reservation released and the challenge consumed. | Integration |
 
 ## Failure modes and edge cases
 
@@ -155,7 +162,7 @@ the transfer once on completion.
 | Zero hold | 422 `HOLD_REQUIRED` | AC-PAYOUT-016 |
 | Goal FROZEN at request/execution | 409; payout stays READY | AC-PAYOUT-007 |
 | Cancel after EXECUTING | 409 | AC-PAYOUT-008 |
-| Duplicate key different body | 409 | AC-PAYOUT-018 |
+| Duplicate key different amount | 409 | AC-PAYOUT-018 |
 | Provider failure | FAILED, no ledger, no auto retry | AC-PAYOUT-010 |
 | Provider timeout/unknown | EXECUTING until verification | AC-PAYOUT-010 |
 | Fee changed | FAILED before provider, alert | AC-PAYOUT-015 |

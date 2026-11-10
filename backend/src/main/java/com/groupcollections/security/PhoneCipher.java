@@ -54,6 +54,22 @@ public final class PhoneCipher {
     }
   }
 
+  public String decrypt(byte[] sealed) {
+    if (sealed == null || sealed.length <= IV_BYTES) {
+      throw new IllegalStateException("could not decrypt the phone");
+    }
+    try {
+      byte[] iv = new byte[IV_BYTES];
+      System.arraycopy(sealed, 0, iv, 0, IV_BYTES);
+      Cipher cipher = Cipher.getInstance(CIPHER);
+      cipher.init(Cipher.DECRYPT_MODE, encryptionKey, new GCMParameterSpec(TAG_BITS, iv));
+      byte[] plain = cipher.doFinal(sealed, IV_BYTES, sealed.length - IV_BYTES);
+      return new String(plain, StandardCharsets.UTF_8);
+    } catch (GeneralSecurityException failure) {
+      throw new IllegalStateException("could not decrypt the phone", failure);
+    }
+  }
+
   public byte[] hash(String phone) {
     return mac(lookupKey, phone, "could not hash the phone");
   }

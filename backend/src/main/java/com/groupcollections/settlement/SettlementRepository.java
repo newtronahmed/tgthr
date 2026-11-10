@@ -250,9 +250,10 @@ public class SettlementRepository {
   }
 
   /**
-   * Caps goal-owned settled cash by the goal pool ledger balance; prior payouts are already netted.
+   * Raw min(settled, goal pool) cap. Callers must subtract completed payouts and active payout
+   * reservations; this method is not the full payout-available calculation.
    */
-  public Money availableForPayout(UUID goalId, Money goalPoolBalance) {
+  public Money rawSettledCap(UUID goalId, Money goalPoolBalance) {
     Money settled = settledGoalAmount(goalId);
     if (!settled.currencyCode().equals(goalPoolBalance.currencyCode())) {
       throw new IllegalArgumentException("settled and goal pool currencies differ");

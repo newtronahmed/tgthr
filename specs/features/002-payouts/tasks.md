@@ -18,15 +18,15 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 
 Criteria: AC-PAYOUT-001, AC-PAYOUT-002, AC-PAYOUT-003, AC-PAYOUT-013
 
-- [ ] T310 Write failing `PayoutEligibilityIT` for AC-001/002 (settled cap, unsettled/suspense excluded)
-- [ ] T311 Implement `available` integration and amount validation until T310 is green
-- [ ] T312 Write failing `PayoutFeeTest`/`PayoutRequestIT` for AC-003 (fee, net, zero-fee line)
-- [ ] T313 Implement the provider fee quote and request row until T312 is green
-- [ ] T314 Write failing `PayoutReservationIT` for AC-013 (concurrent requests under goal lock, release on cancel/failure)
+- [x] T310 Write failing `PayoutRequestIT` cases for AC-001/002 (settled cap, unsettled/suspense excluded)
+- [x] T311 Implement `available` integration and amount validation until T310 is green
+- [ ] T312 Write failing full AC-003 case for the zero-fee ledger line (request fee/net is covered by AC-021)
+- [x] T313 Implement the provider fee quote and request row (request-phase part done; full AC-003 ledger line remains T312)
+- [ ] T314 Write failing full AC-013 case for cancel/failure release (request concurrency is covered by AC-022)
 - [ ] T315 Implement reservations and completion re-check until T314 is green
-- [ ] T316 Write failing `PayoutIdempotencyIT` for AC-009/018 (same/different body)
-- [ ] T317 Implement the unique request key and body conflict until T316 is green
-- [ ] T318 Refactor; keep the suite green
+- [ ] T316 Write failing full AC-009 case for no second posting (request idempotency is AC-018/T317)
+- [x] T317 Implement the unique request key and different-amount conflict (request-phase part done; full AC-009 remains T316)
+- [x] T318 Refactor; keep the suite green
 - [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; includes the PATCH-vs-payout concurrency test) (Slice 1)
 
 ## Slice 2 (P1): Approver, settings and approval
@@ -35,18 +35,20 @@ Criteria: AC-PAYOUT-004, AC-PAYOUT-005, AC-PAYOUT-006, AC-PAYOUT-017
 
 - [x] T320 Write failing `GoalPayoutSettingsIT` for AC-006 (approver required/distinct/encrypted/public name, zero hold)
 - [x] T321 Implement approver/hold settings until T320 is green
-- [ ] T322 Write failing `PayoutApprovalIT` for AC-004 (rule triggers, approve/decline)
-- [ ] T323 Implement approval challenge/token and state gating until T322 is green
-- [ ] T324 Write failing tests for AC-005/017 (wrong/expired/over-attempted/reused/resend/expiry)
-- [ ] T325 Implement approval security, resend invalidation and expiry cancellation until T324 is green
+- [x] T322 Write failing `PayoutApprovalIT` for AC-004 (rule triggers, approve/decline)
+- [x] T323 Implement approval challenge/token and state gating until T322 is green
+- [x] T324 Write failing tests for AC-005/017 (wrong/expired/over-attempted/reused/resend/expiry)
+- [x] T325 Implement approval security, resend invalidation and expiry cancellation until T324 is green
 - [ ] T326 Add approval SMS/alert metrics and phone-free logging
+- [ ] T327 Add per-phone/IP rate limiting to approval GET/verify/resend/decline
+- [ ] T328 Notify the organizer on approval expiry/exhaustion/decline (or explicitly defer the channel)
 
 ## Slice 3 (P1): Mandatory hold, freeze, cancellation and worker
 
 Criteria: AC-PAYOUT-007, AC-PAYOUT-008, AC-PAYOUT-016, AC-PAYOUT-019
 
-- [ ] T330 Write failing `PayoutHoldIT` for AC-007/016 (positive hold, freeze blocks request/execute, zero hold rejected)
-- [ ] T331 Implement hold/ready/freeze checks with goal locking until T330 is green
+- [x] T330 Write failing `PayoutHoldIT`/`PayoutRequestIT` cases for AC-023/016 (positive hold, freeze blocks request, zero hold rejected)
+- [x] T331 Implement hold/ready/freeze checks with goal locking until T330 is green
 - [ ] T332 Write failing `PayoutCancelIT` for AC-008 (pre/post execute)
 - [ ] T333 Implement cancellation guards/events until T332 is green
 - [ ] T334 Write failing `PayoutWorkerIT` for AC-019 (cancel/execute compare-and-set)

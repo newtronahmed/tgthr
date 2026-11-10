@@ -69,9 +69,9 @@ class SettlementEligibilityTest extends ApiIntegrationTest {
     assertThat(settlements.markSettled(suspended.id(), Instant.now())).isEqualTo(1);
     assertThat(settlements.settledGoalAmount(goalId)).isEqualTo(Money.of(4_000, "GHS"));
 
-    assertThat(settlements.availableForPayout(goalId, Money.of(10_000, "GHS")))
+    assertThat(settlements.rawSettledCap(goalId, Money.of(10_000, "GHS")))
         .isEqualTo(Money.of(4_000, "GHS"));
-    assertThat(settlements.availableForPayout(goalId, Money.of(3_000, "GHS")))
+    assertThat(settlements.rawSettledCap(goalId, Money.of(3_000, "GHS")))
         .isEqualTo(Money.of(3_000, "GHS"));
   }
 

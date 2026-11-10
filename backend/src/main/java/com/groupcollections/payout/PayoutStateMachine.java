@@ -17,6 +17,7 @@ public final class PayoutStateMachine {
     allow(PayoutState.REQUESTED, PayoutEvent.DECLINE, PayoutState.CANCELLED);
     allow(PayoutState.REQUESTED, PayoutEvent.CANCEL, PayoutState.CANCELLED);
     allow(PayoutState.REQUESTED, PayoutEvent.APPROVAL_EXPIRED, PayoutState.CANCELLED);
+    allow(PayoutState.REQUESTED, PayoutEvent.APPROVAL_EXHAUSTED, PayoutState.CANCELLED);
     allow(PayoutState.APPROVED, PayoutEvent.START_HOLD, PayoutState.HOLD);
     allow(PayoutState.APPROVED, PayoutEvent.CANCEL, PayoutState.CANCELLED);
     allow(PayoutState.HOLD, PayoutEvent.HOLD_EXPIRED, PayoutState.READY);
@@ -65,6 +66,7 @@ public final class PayoutStateMachine {
     DECLINE,
     CANCEL,
     APPROVAL_EXPIRED,
+    APPROVAL_EXHAUSTED,
     START_HOLD,
     HOLD_EXPIRED,
     CLAIM,

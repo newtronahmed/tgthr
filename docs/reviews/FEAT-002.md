@@ -128,3 +128,77 @@ inputs). No merge blockers were found. Findings and resolutions:
 
 Verification: `make check` passed; `GoalPayoutSettingsIT` passed; trace 83 defined / 56 active /
 27 pending / 0 missing; web tests, lint and build passed.
+
+## Payout-request slice review (2026-11-09)
+
+Independent read-only review of the Slice 1 payout quote/request implementation. Verdict on the
+first pass was **blocked** for money/approver correctness; the blockers and should-fix findings were
+addressed as follows.
+
+- **B1 settled cap (blocker, fixed):** available is now
+  `max(0, min(pool, max(0, settled − completed payout total)) − active reservations)`.
+  Added tests for partial settlement plus an active reservation and for a completed payout plus
+  unsettled funds; the spec, state-machine term and plan now use the same formula.
+- **B2 ABOVE_THRESHOLD gate (blocker, fixed):** the approver gate now applies to every non-OFF
+  rule before the amount trigger; ABOVE_THRESHOLD below its threshold returns 422
+  `APPROVER_REQUIRED`. AC-020's test uses that case.
+- **S1 idempotency scope (fixed by spec amendment):** the request is amount-only and re-quotes the
+  fee; AC-018 and the failure table now say “different amount”, matching OpenAPI. Fee changes are
+  the pre-transfer AC-015 path, not an idempotency conflict.
+- **S2 quote endpoint (fixed):** `X == fee` now returns 422 `AMOUNT_TOO_LOW`; a quote IT covers
+  fee/net/available, the at-fee case and ownership 404.
+- **S3 traceability (fixed by split):** request-phase rows **AC-PAYOUT-021** (fee/net row) and
+  **AC-PAYOUT-022** (reservations) are active. The full AC-003 (zero-fee ledger line), AC-009 (no
+  second posting) and AC-013 (cancel/failure release) remain pending; T312/T314/T315/T316/T319
+  remain open. Trace: 86 defined / 63 active / 23 pending / 0 missing.
+- **S4 V10 enforcement (fixed):** `ledger_entries` now checks PAYOUT/PAYOUT_FEE rows have a
+  `payout_id` and has one-line-per-account uniqueness; `LedgerRepository.postPayout` writes the
+  link and the completed-payout test uses the real posting method.
+- **S5 fee fallback (fixed/limited):** the configured fee provider is opt-in
+  (`collections.payout.fee-provider=configured`) with no default fee, and `PayoutService` only
+  exists when `collections.payout.enabled=true`; enabling without a provider fails startup. The
+  provider call still occurs under the goal lock; T302 must move the real network quote before the
+  lock.
+- **S6 state-machine audit (fixed):** every request inserts REQUESTED and appends that event; auto
+  approval uses the state-machine APPROVE transition, sets `approved_at` and appends APPROVED.
+  AC-001 asserts both events.
+- **S7 observability (fixed):** phone-free `payout.requests` and
+  `payout.rejected{reason}` counters and log entries cover request failure paths; tests assert
+  success and `approver_required`.
+
+Process: this AI review does not replace the fresh CODEOWNER review required for the payout/ledger
+changes (T365). No real provider transfer or ledger posting path is enabled in this slice.
+
+Re-review after the fixes: the two blockers are resolved and no new blockers were found. Follow-up
+fixes from that re-review: the plan sequence now uses the corrected formula, `SettlementRepository`
+exposes a raw `rawSettledCap` instead of a misleading full `availableForPayout`, and the task/test
+names distinguish request-phase coverage (AC-021/022) from the still-pending full AC-003/009/013 and
+the PATCH-vs-payout race (T319).
+
+## Approval/hold slice review (2026-11-10)
+
+First review found one blocker: exhausting the five approval attempts consumed the challenge but left
+the payout `REQUESTED`, permanently reserving its amount with no release path. Fixed by adding the
+`REQUESTED -> CANCELLED (APPROVAL_EXHAUSTED)` transition to the state machine and spec, cancelling
+the payout in the same transaction as the attempt-cap consume, and asserting cancellation,
+reservation release, challenge consumption and zero ledger rows in `PayoutApprovalIT`. The full
+transition matrix covers the new event.
+
+Also fixed from the review: approval verify now uses the state-machine APPROVE transition; decline,
+expiry and hold expiry use DECLINE/APPROVAL_EXPIRED/HOLD_EXPIRED transitions; `markApproved` is
+checked; code-expiry and successful-code reuse are tested; approval values are asserted hashed at
+rest (INV-PAYOUT-004); OpenAPI documents 503 on payout request/resend; SMS failures alert, log and
+normalize to `SMS_UNAVAILABLE`.
+
+Re-review verdict: blocker resolved, no new blockers. Remaining should-fix items are tracked:
+T326 approval metrics/abuse tests, T327 per-phone/IP approval rate limiting, T328 organizer
+notification on expiry/exhaustion/decline, and AC-007 worker freeze/execution coverage. Trace:
+88 defined / 70 active / 18 pending / 0 missing; `make check` green.
+
+Approval follow-up review (2026-11-10): the SMS send now runs after the request transaction commits and
+outside the goal row lock (`PayoutController` -> `sendForPayout`); the challenge is inserted and
+committed before sending, a failed send consumes that challenge, and the payout stays REQUESTED so
+the same idempotency key can retry. The retry path is tested. The logging SMS provider no longer
+logs message bodies/codes. Organizer notification on expiry/exhaustion/decline remains explicitly
+owned by T328; rate limiting by T327. Setup rules now forbid external I/O under row locks, logging
+one-time codes, and unowned transition side effects.
