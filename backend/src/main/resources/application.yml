@@ -45,6 +45,7 @@ collections:
     goal-per-user-per-minute: ${GOAL_RATE_LIMIT_PER_USER_PER_MINUTE:10}
     approval-per-ip-per-minute: ${APPROVAL_RATE_LIMIT_PER_IP_PER_MINUTE:20}
     approval-per-approver-per-minute: ${APPROVAL_RATE_LIMIT_PER_APPROVER_PER_MINUTE:5}
+    payout-report-per-ip-per-minute: ${PAYOUT_REPORT_RATE_LIMIT_PER_IP_PER_MINUTE:10}
 
 logging:
   pattern:

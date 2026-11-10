@@ -40,7 +40,7 @@ money rules so no path bypasses reservations, approval, the mandatory hold, a fr
 | READY | Fee re-quote differs | FAILED | `PAYOUT_FEE_MISMATCH`; no provider call; reservation released |
 | READY | Organizer cancels | CANCELLED | Reservation released |
 | READY | Goal FROZEN | READY | Execution blocked; alert/metric |
-| EXECUTING | Provider success | COMPLETED | One ledger set and event |
+| EXECUTING | Provider success | COMPLETED | One ledger set and event; contributor notifications after commit (T341/T343) |
 | EXECUTING | Definitive provider failure | FAILED | No ledger; reservation released; terminal; no auto retry |
 | EXECUTING | Timeout/unknown | EXECUTING | Verify; never blindly re-execute |
 

@@ -14,6 +14,10 @@ public final class PayoutException extends RuntimeException {
     this.code = code;
   }
 
+  public static PayoutException notFound() {
+    return new PayoutException(404, "Payout not found", "PAYOUT_NOT_FOUND", "Payout not found");
+  }
+
   public static PayoutException invalid(String detail) {
     return new PayoutException(422, "Invalid request", "INVALID_REQUEST", detail);
   }
@@ -61,6 +65,11 @@ public final class PayoutException extends RuntimeException {
         "Invalid approval",
         "APPROVAL_INVALID",
         "The approval link or code is invalid, expired or already used");
+  }
+
+  public static PayoutException reportRateLimited() {
+    return new PayoutException(
+        429, "Too many requests", "RATE_LIMITED", "Too many payout reports; try again shortly");
   }
 
   public static PayoutException rateLimited() {

@@ -106,6 +106,8 @@ CODEOWNER review of the posting.
 | AC-PAYOUT-022 | Integration | `PayoutRequestIT` | Request reservations |
 | AC-PAYOUT-023 | Integration | `PayoutRequestIT` | Hold expiry/freeze request |
 | AC-PAYOUT-024 | Integration | `PayoutApprovalIT` | Attempt exhaustion releases reservation |
+| AC-PAYOUT-025 | Integration | `PayoutContributorIT` | Public payout view/report |
+| AC-PAYOUT-026 | Integration | `PayoutContributorIT` | Completion notification once |
 | INV-PAYOUT-001..008 | Integration | `PayoutInvariantsTest` | One per invariant |
 
 ## Migrations

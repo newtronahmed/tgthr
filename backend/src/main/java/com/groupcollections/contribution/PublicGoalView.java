@@ -1,6 +1,7 @@
 package com.groupcollections.contribution;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.groupcollections.payout.PayoutPublicView;
 import java.time.Instant;
 import java.util.List;
 
@@ -18,6 +19,7 @@ public record PublicGoalView(
     Instant deadline,
     String status,
     PayoutRules payoutRules,
+    List<PayoutPublicView> payouts,
     List<FeedItem> feed) {
 
   public record PayoutRules(

@@ -183,6 +183,33 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
         </dl>
       </section>
 
+      {(goal.payouts ?? []).length > 0 ? (
+        <section className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-soft-card">
+          <h2 className="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
+            Payouts
+          </h2>
+          <ul className="mt-3 space-y-2 text-[11px]">
+            {(goal.payouts ?? []).map((payout) => (
+              <li
+                key={payout.id}
+                className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2"
+              >
+                <span className="font-semibold text-slate-800">
+                  {formatGhs(payout.amountPesewas)}
+                </span>
+                <span className="text-slate-500">
+                  {payout.state.toLowerCase()} · fee {formatGhs(payout.feePesewas)}
+                  {payout.state === "HOLD" && payout.holdExpiresAt
+                    ? ` · hold until ${formatDateTime(payout.holdExpiresAt)}`
+                    : ""}
+                  {payout.completedAt ? ` · sent ${formatDateTime(payout.completedAt)}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-soft-card">
         <h2 className="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
           Recent contributions

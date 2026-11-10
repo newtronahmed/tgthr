@@ -211,6 +211,35 @@ paths:
                 type: string
         '403':
           $ref: '#/components/responses/Problem'
+  /public/goals/{slug}/payouts/{payoutId}/report:
+    post:
+      tags: [Public]
+      operationId: reportPayout
+      summary: Report a problem with a visible payout
+      description: Only HOLD/READY/EXECUTING/COMPLETED payouts are reportable. Store and alert; the payout state is never changed by a report.
+      parameters:
+        - $ref: '#/components/parameters/GoalSlug'
+        - name: payoutId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutReport'
+      responses:
+        '202':
+          description: Report accepted
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
   /organizer/me:
     get:
       tags: [Organizer]
@@ -554,7 +583,7 @@ components:
   schemas:
     PublicGoal:
       type: object
-      required: [slug, title, template, targetType, minimumAmountPesewas, raisedPesewas, contributorCount, status, payoutRules, feed]
+      required: [slug, title, template, targetType, minimumAmountPesewas, raisedPesewas, contributorCount, status, payoutRules, payouts, feed]
       properties:
         slug:
           type: string
@@ -594,6 +623,11 @@ components:
           enum: [OPEN, CLOSED, FROZEN]
         payoutRules:
           $ref: '#/components/schemas/PayoutRules'
+        payouts:
+          type: array
+          description: Held and sent payouts; never contains a phone.
+          items:
+            $ref: '#/components/schemas/PayoutPublicView'
         feed:
           type: array
           description: Up to 20 confirmed contributions, newest first.
@@ -966,6 +1000,49 @@ components:
         code:
           type: string
           pattern: '^[0-9]{6}$'
+    PayoutPublicView:
+      type: object
+      required: [id, amountPesewas, feePesewas, netPesewas, currency, state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        amountPesewas:
+          type: integer
+          format: int64
+        feePesewas:
+          type: integer
+          format: int64
+        netPesewas:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum: [GHS]
+        state:
+          type: string
+          enum: [HOLD, READY, EXECUTING, COMPLETED]
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      description: Public payout data; never contains a phone.
+    PayoutReport:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        contributionId:
+          type: string
+          format: uuid
+          nullable: true
     PayoutSettings:
       type: object
       minProperties: 1

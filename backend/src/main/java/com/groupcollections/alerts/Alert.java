@@ -17,6 +17,7 @@ public record Alert(AlertType type, String reference, String detail) {
     SETTLEMENT_TOTAL_MISMATCH,
     SETTLEMENT_ORPHAN,
     SETTLEMENT_UNMATCHED,
-    DUPLICATE_SETTLEMENT_BATCH
+    DUPLICATE_SETTLEMENT_BATCH,
+    PAYOUT_REPORTED
   }
 }

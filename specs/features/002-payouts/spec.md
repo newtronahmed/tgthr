@@ -147,6 +147,8 @@ the transfer once on completion.
 | AC-PAYOUT-022 | P1 | Given in-flight payouts, when concurrent requests arrive, then goal-locked reservations prevent total X above the settled available balance. | Integration |
 | AC-PAYOUT-023 | P1 | Given a positive hold, when it expires, then the payout becomes READY; a FROZEN goal rejects a new request with 409. | Integration |
 | AC-PAYOUT-024 | P1 | Given five wrong approval attempts, when the challenge is exhausted, then the payout is CANCELLED, its reservation released and the challenge consumed. | Integration |
+| AC-PAYOUT-025 | P1 | Given a held or completed payout, when a contributor views the goal, then amount/fee/state/hold are visible, a report can be stored and alerted, and no phone is exposed. | Integration |
+| AC-PAYOUT-026 | P1 | Given a completed payout, when funded contributors are notified, then each payer receives one notification and repeat processing does not duplicate it. | Integration |
 
 ## Failure modes and edge cases
 
@@ -167,8 +169,8 @@ the transfer once on completion.
 | Provider timeout/unknown | EXECUTING until verification | AC-PAYOUT-010 |
 | Fee changed | FAILED before provider, alert | AC-PAYOUT-015 |
 | SMS/provider unavailable | 503/failed state; alert | AC-PAYOUT-004/010 |
-| Contributor report | Rate-limited report stored and alerted; no payout change | AC-PAYOUT-014 |
-| Notification failure | Alert; payout unchanged | AC-PAYOUT-014 |
+| Contributor report | Rate-limited report stored and alerted; no payout change | AC-PAYOUT-025 |
+| Notification failure | Alert; payout unchanged | AC-PAYOUT-026 |
 
 ## Data and ledger impact
 
