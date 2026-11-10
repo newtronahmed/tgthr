@@ -123,6 +123,79 @@ public class PayoutRepository {
         expectedState);
   }
 
+  public List<UUID> findReadyForExecution() {
+    return jdbc.query(
+        """
+        select p.id
+        from payouts p
+        join goals g on g.id = p.goal_id
+        where p.state = 'READY' and g.status <> 'FROZEN'
+        order by p.updated_at
+        limit 20
+        """,
+        (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class));
+  }
+
+  public long countFrozenReady() {
+    Long count =
+        jdbc.queryForObject(
+            """
+            select count(*) from payouts p join goals g on g.id = p.goal_id
+            where p.state = 'READY' and g.status = 'FROZEN'
+            """,
+            Long.class);
+    return count == null ? 0 : count;
+  }
+
+  public int recordProviderReference(UUID id, String reference, Instant now) {
+    return jdbc.update(
+        """
+        update payouts set provider_reference = coalesce(provider_reference, ?), updated_at = ?
+        where id = ? and state = 'EXECUTING'
+        """,
+        reference,
+        Timestamp.from(now),
+        id);
+  }
+
+  public int claimForExecution(UUID id, Instant now) {
+    return jdbc.update(
+        """
+        update payouts set state = 'EXECUTING', executing_at = ?, updated_at = ?
+        where id = ? and state = 'READY'
+        """,
+        Timestamp.from(now),
+        Timestamp.from(now),
+        id);
+  }
+
+  public int markCompleted(UUID id, String providerReference, Instant now) {
+    return jdbc.update(
+        """
+        update payouts
+        set state = 'COMPLETED', provider_reference = ?, completed_at = ?, updated_at = ?
+        where id = ? and state = 'EXECUTING'
+        """,
+        providerReference,
+        Timestamp.from(now),
+        Timestamp.from(now),
+        id);
+  }
+
+  public int markFailed(UUID id, String failureCode, String expectedState, Instant now) {
+    return jdbc.update(
+        """
+        update payouts
+        set state = 'FAILED', failure_code = ?, failed_at = ?, updated_at = ?
+        where id = ? and state = ?
+        """,
+        failureCode,
+        Timestamp.from(now),
+        Timestamp.from(now),
+        id,
+        expectedState);
+  }
+
   public int startHold(UUID id, Instant expiresAt, Instant now) {
     return jdbc.update(
         """

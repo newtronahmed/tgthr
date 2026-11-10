@@ -14,23 +14,9 @@ import org.junit.jupiter.api.Test;
 class PayoutCriteriaTest {
 
   @Test
-  @Disabled("pending: hold/freeze slice")
-  @Criterion("AC-PAYOUT-007")
-  void holdExpiryAndFreezePrecedenceAreEnforced() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: cancellation slice")
   @Criterion("AC-PAYOUT-008")
   void cancellationIsOnlyPossibleBeforeExecution() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: execution/ledger slice")
-  @Criterion("AC-PAYOUT-010")
-  void successPostsTheLedgerOnceAndFailureDoesNotRetry() {
     fail("not implemented");
   }
 
@@ -42,13 +28,6 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: fee re-check slice")
-  @Criterion("AC-PAYOUT-015")
-  void providerFeeChangeFailsBeforeAnyTransfer() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: worker slice")
   @Criterion("AC-PAYOUT-019")
   void cancelAndExecuteRaceHasOneWinner() {
@@ -56,23 +35,16 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: fee/ledger slice")
-  @Criterion("AC-PAYOUT-003")
-  void zeroFeeOmitsTheFeeLineAndCompletionPostsTheDebit() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: execution/idempotency slice")
-  @Criterion("AC-PAYOUT-009")
-  void retriedRequestDoesNotCreateASecondPosting() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: cancellation/release slice")
   @Criterion("AC-PAYOUT-013")
   void cancelOrFailureReleasesReservedFunds() {
+    fail("not implemented");
+  }
+
+  @Test
+  @Disabled("pending: full idempotent posting slice")
+  @Criterion("AC-PAYOUT-009")
+  void retriedRequestDoesNotCreateASecondPosting() {
     fail("not implemented");
   }
 }
