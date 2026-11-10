@@ -30,6 +30,13 @@ public class PayoutController {
     this.approvals = approvals;
   }
 
+  @GetMapping("/payouts")
+  public java.util.List<PayoutView> list(
+      @RequestAttribute(OrganizerAuthFilter.USER_ATTRIBUTE) OrganizerUser user,
+      @PathVariable UUID goalId) {
+    return payouts.list(user, goalId);
+  }
+
   @GetMapping("/payout-quote")
   public PayoutQuote quote(
       @RequestAttribute(OrganizerAuthFilter.USER_ATTRIBUTE) OrganizerUser user,

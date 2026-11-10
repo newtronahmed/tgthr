@@ -7,6 +7,29 @@ export type PayoutRules = {
   surplusRule: string;
 };
 
+export type PayoutView = {
+  id: string;
+  goalId: string;
+  amountPesewas: number;
+  feePesewas: number;
+  netPesewas: number;
+  currency: "GHS";
+  state: "REQUESTED" | "APPROVED" | "HOLD" | "READY" | "EXECUTING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  createdAt: string;
+};
+
+export type PayoutApprovalView = {
+  payoutId: string;
+  goalTitle: string;
+  approverName: string;
+  amountPesewas: number;
+  feePesewas: number;
+  netPesewas: number;
+  currency: "GHS";
+  state: string;
+  tokenExpiresAt: string;
+};
+
 export type PayoutPublicView = {
   id: string;
   amountPesewas: number;

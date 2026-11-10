@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import type { ContributionStatus, PublicGoal } from "./types";
+import type { ContributionStatus, PayoutApprovalView, PublicGoal } from "./types";
 
 const API_BASE = (process.env.API_BASE_URL ?? "http://localhost:8080/v1").replace(/\/+$/, "");
 
@@ -20,6 +20,20 @@ export async function getGoal(slug: string): Promise<PublicGoal | null> {
 }
 
 export const getGoalCached = cache(getGoal);
+
+export async function getPayoutApproval(token: string): Promise<PayoutApprovalView | null> {
+  const response = await fetch(`${API_BASE}/payout-approvals/${encodeURIComponent(token)}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (response.status === 401 || response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`approval request failed with ${response.status}`);
+  }
+  return (await response.json()) as PayoutApprovalView;
+}
 
 export async function getContribution(id: string): Promise<ContributionStatus | null> {
   const response = await fetch(

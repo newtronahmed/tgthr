@@ -35,6 +35,14 @@ public class PayoutRepository {
         .findFirst();
   }
 
+  public List<Payout> findByGoalAndRequester(UUID goalId, UUID requesterId) {
+    return jdbc.query(
+        COLUMNS + " where goal_id = ? and requested_by = ? order by created_at desc, id desc",
+        this::map,
+        goalId,
+        requesterId);
+  }
+
   public List<PayoutPublicView> findPublicForGoal(UUID goalId) {
     return jdbc.query(
         """
