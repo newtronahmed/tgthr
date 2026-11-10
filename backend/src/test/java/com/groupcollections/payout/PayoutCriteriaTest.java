@@ -42,13 +42,6 @@ class PayoutCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: contributor visibility slice")
-  @Criterion("AC-PAYOUT-014")
-  void contributorsSeeReportAndAreNotifiedOfPayouts() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: fee re-check slice")
   @Criterion("AC-PAYOUT-015")
   void providerFeeChangeFailsBeforeAnyTransfer() {
