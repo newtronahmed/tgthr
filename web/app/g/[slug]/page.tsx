@@ -1,5 +1,6 @@
 import { BrandHeader } from "@/components/brand";
 import { Checkout } from "@/components/checkout";
+import { PayoutReportButton } from "@/components/payout-report";
 import { Shield, User, WhatsApp } from "@/components/icons";
 import { formatDateTime, formatGhs } from "@/lib/money";
 import { getGoalCached } from "@/lib/api";
@@ -197,13 +198,16 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
                 <span className="font-semibold text-slate-800">
                   {formatGhs(payout.amountPesewas)}
                 </span>
-                <span className="text-slate-500">
-                  {payout.state.toLowerCase()} · fee {formatGhs(payout.feePesewas)}
-                  {payout.state === "HOLD" && payout.holdExpiresAt
-                    ? ` · hold until ${formatDateTime(payout.holdExpiresAt)}`
-                    : ""}
-                  {payout.completedAt ? ` · sent ${formatDateTime(payout.completedAt)}` : ""}
-                </span>
+                <div className="text-right">
+                  <span className="block text-slate-500">
+                    {payout.state.toLowerCase()} · fee {formatGhs(payout.feePesewas)}
+                    {payout.state === "HOLD" && payout.holdExpiresAt
+                      ? ` · hold until ${formatDateTime(payout.holdExpiresAt)}`
+                      : ""}
+                    {payout.completedAt ? ` · sent ${formatDateTime(payout.completedAt)}` : ""}
+                  </span>
+                  <PayoutReportButton slug={goal.slug} payoutId={payout.id} />
+                </div>
               </li>
             ))}
           </ul>
