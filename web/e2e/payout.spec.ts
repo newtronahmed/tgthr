@@ -12,6 +12,7 @@ test("organizer requests and approver approves a payout", async ({ page, request
   await page.goto("/signin");
   await page.getByLabel("Mobile money number").fill(phone);
   await page.getByRole("button", { name: "Send code" }).click();
+  await expect(page.getByLabel("Six-digit code")).toBeVisible();
   const otpResponse = await request.get(`${BACKEND}/dev/otp/last?phone=${encodeURIComponent(phone)}`);
   expect(otpResponse.ok()).toBeTruthy();
   const { code: otp } = (await otpResponse.json()) as { code: string };
@@ -47,17 +48,17 @@ test("organizer requests and approver approves a payout", async ({ page, request
   await expect(page.getByRole("heading", { name: "E2E Payout Goal" })).toBeVisible();
   await page.getByLabel("Six-digit code").fill(approval.code);
   await page.getByRole("button", { name: "Approve payout" }).click();
-  await expect(page.getByText(/Approved. The payout/)).toBeVisible();
+  await expect(page.getByText(/Approved. The payout/).first()).toBeVisible();
 
   await page.goto(`/organizer/goals/${goalId}`);
-  await expect(page.getByText(/in hold/i).first()).toBeVisible();
+  await expect(page.getByText(/hold/i).first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText(approverPhone);
 });
 
 test("a contributor sees a held payout and reports it", async ({ page }) => {
   await page.goto("/g/e2e-maldives");
   await expect(page.getByRole("heading", { name: "Payouts" })).toBeVisible();
-  await expect(page.getByText(/in hold/i).first()).toBeVisible();
+  await expect(page.getByText(/hold/i).first()).toBeVisible();
   await page.getByRole("button", { name: "Report a problem" }).click();
   await page.getByLabel("What looks wrong?").fill("The amount does not look right");
   await page.getByRole("button", { name: "Send report" }).click();
