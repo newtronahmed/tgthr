@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CloseGoalButton } from "@/components/close-goal-button";
 import { OrganizerNav } from "@/components/organizer-nav";
+import { OrganizerPayouts } from "@/components/organizer-payouts";
 import { formatDateTime, formatGhs } from "@/lib/money";
 import { getOrganizerGoal, getOrganizerProfile } from "@/lib/organizer";
 
@@ -101,6 +102,8 @@ export default async function OrganizerGoalPage({
           </dd>
         </dl>
       </section>
+
+      <OrganizerPayouts goalId={goal.id} />
 
       <div className="mt-4">
         {goal.status === "OPEN" ? (

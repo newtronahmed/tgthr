@@ -398,6 +398,27 @@ paths:
         '422':
           $ref: '#/components/responses/Problem'
   /organizer/goals/{id}/payouts:
+    get:
+      tags: [Organizer]
+      operationId: listPayouts
+      summary: List the organizer's payouts for one goal
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      responses:
+        '200':
+          description: Payouts newest first; never contains a phone
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PayoutView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
     post:
       tags: [Organizer]
       operationId: requestPayout

@@ -10,6 +10,7 @@ import com.groupcollections.settlement.SettlementRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -49,6 +50,14 @@ public class PayoutService {
     this.holds = holds;
     this.clock = clock;
     this.meters = meters;
+  }
+
+  @Transactional(readOnly = true)
+  public List<PayoutView> list(OrganizerUser user, UUID goalId) {
+    ownedGoal(user, goalId);
+    return payouts.findByGoalAndRequester(goalId, user.id()).stream()
+        .map(PayoutService::view)
+        .toList();
   }
 
   @Transactional(readOnly = true)
