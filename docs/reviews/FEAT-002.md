@@ -219,3 +219,23 @@ enabled. T328 tests now assert the specific organizer messages for decline, exha
 and a failed organizer SMS leaves the payout cancelled with an SMS_FAILURE alert. T326 is complete.
 The test harness caps Hikari pools at two connections so the growing Spring context set no longer
 exhausts Postgres. `make check` green; trace 88 defined / 70 active / 18 pending / 0 missing.
+
+Contributor-visibility review (2026-11-10): no blockers found. Fixed the review's should-fix items:
+notifications normalize the decrypted payer number to E.164; the notification test now covers two
+distinct payers, duplicate contributions, pending/reconciliation exclusions and SMS failure with an
+alert and unchanged payout; the public-view test asserts amount/fee/hold/completed, approver/payer
+phone absence and cross-goal isolation; hidden payouts return 404 for reports; the report SQL casts
+the nullable contribution UUID; payout ordering is deterministic; the web renders hold expiry only
+for HOLD and tolerates an older backend without `payouts`; report rejection counters were added.
+The completion worker caller is explicitly assigned to T341 (after-commit `notifyCompleted`), with
+AC-014's E2E UI/report action still pending under T342. `make check` green; trace 90 defined / 72
+active / 18 pending / 0 missing; web tests/lint/build green.
+
+Contributor-visibility follow-up (2026-11-10): the public read/report dependency cycle was removed by
+introducing a payout-owned `PayoutReportRateLimiter` with its own key and 429 detail; reports no
+longer touch contribution payment limits. Notifications now delete the claimed row on SMS failure so
+the same contributor can be retried, and the failure test proves alert/no-payout-change followed by a
+successful retry. The payout list was moved out of Recent contributions; the report UI remains T342
+for AC-014 E2E. Added cross-goal report 404 and wrong-contribution 422 tests, amount/fee/hold/
+completed assertions, deterministic payout ordering, and a nullable contribution cast. `make check`
+green; trace 90 defined / 72 active / 18 pending / 0 missing; web tests/lint/build green.
