@@ -29,6 +29,7 @@ public class PayoutService {
 
   private final OrganizerGoalRepository goals;
   private final PayoutRepository payouts;
+  private final PayoutApprovalRepository approvals;
   private final SettlementRepository settlements;
   private final PayoutFeeProvider fees;
   private final PayoutHoldService holds;
@@ -38,6 +39,7 @@ public class PayoutService {
   public PayoutService(
       OrganizerGoalRepository goals,
       PayoutRepository payouts,
+      PayoutApprovalRepository approvals,
       SettlementRepository settlements,
       PayoutFeeProvider fees,
       PayoutHoldService holds,
@@ -45,11 +47,43 @@ public class PayoutService {
       MeterRegistry meters) {
     this.goals = goals;
     this.payouts = payouts;
+    this.approvals = approvals;
     this.settlements = settlements;
     this.fees = fees;
     this.holds = holds;
     this.clock = clock;
     this.meters = meters;
+  }
+
+  @Transactional
+  public PayoutView cancel(OrganizerUser user, UUID payoutId) {
+    Payout payout =
+        payouts.findByIdAndRequester(payoutId, user.id()).orElseThrow(PayoutException::notFound);
+    if (!goals.lockByIdAndCreator(payout.goalId(), user.id())) {
+      throw PayoutException.notFound();
+    }
+    payout =
+        payouts.findByIdAndRequester(payoutId, user.id()).orElseThrow(PayoutException::notFound);
+    if (!isCancellable(payout.state())) {
+      throw PayoutException.notCancellable();
+    }
+    Instant now = Instant.now(clock);
+    if (payouts.markCancelled(payoutId, payout.state(), now) != 1) {
+      throw PayoutException.notCancellable();
+    }
+    approvals.consumeActiveForPayout(payoutId, now);
+    payouts.appendEvent(payoutId, "CANCELLED", payout.state(), "CANCELLED", now);
+    meters.counter("payout.cancelled").increment();
+    log.info("payout cancelled {}", payoutId);
+    return new PayoutView(
+        payout.id(),
+        payout.goalId(),
+        payout.amountPesewas(),
+        payout.feePesewas(),
+        payout.netPesewas(),
+        payout.currency(),
+        "CANCELLED",
+        payout.createdAt());
   }
 
   @Transactional(readOnly = true)
@@ -174,6 +208,13 @@ public class PayoutService {
     meters.counter("payout.rejected", "reason", reason).increment();
     log.info("payout rejected {}", reason);
     return failure;
+  }
+
+  private static boolean isCancellable(String state) {
+    return state.equals("REQUESTED")
+        || state.equals("APPROVED")
+        || state.equals("HOLD")
+        || state.equals("READY");
   }
 
   private static boolean approvalRequired(OrganizerGoal goal, long amountPesewas) {

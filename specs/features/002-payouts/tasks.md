@@ -24,7 +24,7 @@ Criteria: AC-PAYOUT-001, AC-PAYOUT-002, AC-PAYOUT-003, AC-PAYOUT-013
 - [x] T313 Implement the provider fee quote and request row (request-phase part done; full AC-003 ledger line remains T312)
 - [ ] T314 Write failing full AC-013 case for cancel/failure release (request concurrency is covered by AC-022)
 - [ ] T315 Implement reservations and completion re-check until T314 is green
-- [ ] T316 Write failing full AC-009 case for no second posting (request idempotency is AC-018/T317)
+- [x] T316 Write failing full AC-009 case for no second posting (request idempotency is AC-018/T317)
 - [x] T317 Implement the unique request key and different-amount conflict (request-phase part done; full AC-009 remains T316)
 - [x] T318 Refactor; keep the suite green
 - [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; includes the PATCH-vs-payout concurrency test) (Slice 1)
@@ -49,10 +49,10 @@ Criteria: AC-PAYOUT-007, AC-PAYOUT-008, AC-PAYOUT-016, AC-PAYOUT-019
 
 - [x] T330 Write failing `PayoutHoldIT`/`PayoutRequestIT` cases for AC-023/016 (positive hold, freeze blocks request, zero hold rejected)
 - [x] T331 Implement hold/ready/freeze checks with goal locking until T330 is green
-- [ ] T332 Write failing `PayoutCancelIT` for AC-008 (pre/post execute)
-- [ ] T333 Implement cancellation guards/events until T332 is green
-- [ ] T334 Write failing `PayoutWorkerIT` for AC-019 (cancel/execute compare-and-set)
-- [ ] T335 Implement the READY claim/CAS worker path until T334 is green
+- [x] T332 Write failing `PayoutCancelIT` for AC-008 (pre/post execute)
+- [x] T333 Implement cancellation guards/events until T332 is green
+- [x] T334 Write failing `PayoutWorkerIT` for AC-019 (cancel/execute compare-and-set)
+- [x] T335 Implement the READY claim/CAS worker path until T334 is green
 
 ## Slice 4 (P1): Execution, fee re-check, ledger and notifications
 

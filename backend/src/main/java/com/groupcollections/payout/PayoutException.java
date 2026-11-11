@@ -14,6 +14,14 @@ public final class PayoutException extends RuntimeException {
     this.code = code;
   }
 
+  public static PayoutException notCancellable() {
+    return new PayoutException(
+        409,
+        "Payout not cancellable",
+        "PAYOUT_NOT_CANCELLABLE",
+        "This payout can no longer be cancelled");
+  }
+
   public static PayoutException notFound() {
     return new PayoutException(404, "Payout not found", "PAYOUT_NOT_FOUND", "Payout not found");
   }

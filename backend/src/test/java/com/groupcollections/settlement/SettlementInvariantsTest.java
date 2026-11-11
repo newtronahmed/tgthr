@@ -12,7 +12,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -251,13 +250,6 @@ class SettlementInvariantsTest extends ApiIntegrationTest {
         .isInstanceOf(DuplicateKeyException.class);
     assertThat(RecordingAlertPublisher.alerts())
         .anyMatch(alert -> alert.type() == Alert.AlertType.DUPLICATE_SETTLEMENT_BATCH);
-  }
-
-  @Test
-  @Disabled("pending: payout eligibility (T220/T240)")
-  @Criterion("INV-SETTLE-001")
-  void payoutCannotExceedSettledBalance() {
-    org.junit.jupiter.api.Assertions.fail("pending: payout eligibility (T220/T240)");
   }
 
   private Settlement settlement(String reference) {

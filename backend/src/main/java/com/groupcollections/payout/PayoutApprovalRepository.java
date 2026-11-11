@@ -100,6 +100,16 @@ public class PayoutApprovalRepository {
         .findFirst();
   }
 
+  public int consumeActiveForPayout(UUID payoutId, Instant now) {
+    return jdbc.update(
+        """
+        update payout_approvals set consumed_at = ?
+        where payout_id = ? and consumed_at is null
+        """,
+        Timestamp.from(now),
+        payoutId);
+  }
+
   public int consume(UUID id, Instant now) {
     return jdbc.update(
         "update payout_approvals set consumed_at = ? where id = ? and consumed_at is null",

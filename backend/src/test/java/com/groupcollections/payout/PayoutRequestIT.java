@@ -191,7 +191,7 @@ class PayoutRequestIT extends ApiIntegrationTest {
   }
 
   @Test
-  @Criterion("AC-PAYOUT-002")
+  @Criterion({"AC-PAYOUT-002", "INV-PAYOUT-001", "INV-SETTLE-001", "INV-LEDGER-003"})
   void settledCashCapsReservations() {
     Session session = session("0240000325", "Ama Mensah");
     UUID goalId = createGoal(session, "OFF", null, null);
@@ -223,7 +223,7 @@ class PayoutRequestIT extends ApiIntegrationTest {
   }
 
   @Test
-  @Criterion("AC-PAYOUT-023")
+  @Criterion({"AC-PAYOUT-023", "INV-PAYOUT-003"})
   void positiveHoldExpiresToReadyAndFreezeBlocksRequests() {
     Session session = session("0240000327", "Ama Mensah");
     UUID goalId = createGoal(session, "OFF", null, null);
@@ -299,7 +299,7 @@ class PayoutRequestIT extends ApiIntegrationTest {
   }
 
   @Test
-  @Criterion("AC-PAYOUT-022")
+  @Criterion({"AC-PAYOUT-022", "INV-PAYOUT-007"})
   void inFlightPayoutsReserveAvailableFunds() throws Exception {
     Session session = session("0240000340", "Ama Mensah");
     UUID goalId = createGoal(session, "OFF", null, null);
