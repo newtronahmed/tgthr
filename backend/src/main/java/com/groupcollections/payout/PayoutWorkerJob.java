@@ -16,6 +16,7 @@ public class PayoutWorkerJob {
 
   @Scheduled(fixedDelayString = "${collections.payout.worker-scan-ms:60000}")
   public void run() {
+    execution.reportFrozenBlocked();
     for (int i = 0; i < 20 && execution.executeNext() > 0; i++) {
       // Drain a bounded batch; each claim is independent.
     }

@@ -11,6 +11,7 @@ import com.groupcollections.support.FakeAccountResolver;
 import com.groupcollections.support.FakePayoutFeeProvider;
 import com.groupcollections.support.FakePayoutTransferProvider;
 import com.groupcollections.support.FakeSmsSender;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -141,6 +142,41 @@ class PayoutExecutionIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-PAYOUT-009")
+  void retriedCompletedPayoutReturnsOriginalAndPostsOnce() {
+    Session session = session("0240000607", "Ama Mensah");
+    UUID goalId = createGoal(session);
+    fundGoal(session, goalId, 5_000);
+    String key = "payout-" + UUID.randomUUID();
+    ResponseEntity<Map<String, Object>> first = request(session, goalId, 1_000, key);
+    assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    UUID payoutId = UUID.fromString((String) first.getBody().get("id"));
+    makeReady(payoutId);
+    assertThat(execution.executeNext()).isEqualTo(1);
+
+    ResponseEntity<Map<String, Object>> retry = request(session, goalId, 1_000, key);
+    assertThat(retry.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(retry.getBody().get("id")).isEqualTo(payoutId.toString());
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from payouts where goal_id = ?", Integer.class, goalId))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from ledger_entries where payout_id = ?", Integer.class, payoutId))
+        .isEqualTo(3);
+  }
+
+  private void makeReady(UUID payoutId) {
+    jdbc.update(
+        "update payouts set hold_expires_at = now() - interval '1 minute' where id = ?", payoutId);
+    holds.releaseExpired();
+    assertThat(
+            jdbc.queryForObject("select state from payouts where id = ?", String.class, payoutId))
+        .isEqualTo("READY");
+  }
+
+  @Test
   @Criterion("AC-PAYOUT-003")
   void zeroFeeOmitsTheFeeLedgerLine() {
     Session session = session("0240000602", "Ama Mensah");
@@ -230,6 +266,36 @@ class PayoutExecutionIT extends ApiIntegrationTest {
                 Integer.class,
                 payoutId))
         .isEqualTo(1);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(
+            alert ->
+                alert.type() == com.groupcollections.alerts.Alert.AlertType.PAYOUT_EXECUTION_STUCK);
+  }
+
+  @Test
+  @Criterion("AC-PAYOUT-010")
+  void providerExceptionBecomesUnknownWithEventAndAlert() {
+    Session session = session("0240000608", "Ama Mensah");
+    UUID goalId = createGoal(session);
+    fundGoal(session, goalId, 5_000);
+    UUID payoutId = ready(session, goalId, 1_000);
+    FakePayoutTransferProvider.throwNext();
+
+    assertThat(execution.executeNext()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject("select state from payouts where id = ?", String.class, payoutId))
+        .isEqualTo("EXECUTING");
+    assertThat(FakePayoutTransferProvider.calls()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from payout_events where payout_id = ? and event = 'PROVIDER_UNKNOWN'",
+                Integer.class,
+                payoutId))
+        .isEqualTo(1);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(
+            alert ->
+                alert.type() == com.groupcollections.alerts.Alert.AlertType.PAYOUT_EXECUTION_STUCK);
   }
 
   @Test
@@ -355,9 +421,14 @@ class PayoutExecutionIT extends ApiIntegrationTest {
   }
 
   private ResponseEntity<Map<String, Object>> request(Session session, UUID goalId, long amount) {
+    return request(session, goalId, amount, "payout-" + UUID.randomUUID());
+  }
+
+  private ResponseEntity<Map<String, Object>> request(
+      Session session, UUID goalId, long amount, String key) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("Idempotency-Key", "payout-" + UUID.randomUUID());
+    headers.set("Idempotency-Key", key);
     headers.add(HttpHeaders.COOKIE, "tgthr_session=" + session.token());
     return rest.exchange(
         "/organizer/goals/{goalId}/payouts",

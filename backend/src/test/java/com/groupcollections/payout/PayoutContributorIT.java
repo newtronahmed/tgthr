@@ -194,7 +194,7 @@ class PayoutContributorIT extends ApiIntegrationTest {
   }
 
   @Test
-  @Criterion("AC-PAYOUT-026")
+  @Criterion({"AC-PAYOUT-026", "INV-PAYOUT-008"})
   void completedPayoutNotifiesEachContributorOnce() {
     String slug = insertGoal("notify-payout", "OPEN", null);
     UUID goalId = jdbc.queryForObject("select id from goals where slug = ?", UUID.class, slug);
