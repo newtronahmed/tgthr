@@ -64,7 +64,12 @@ public class PayoutService {
     }
     payout =
         payouts.findByIdAndRequester(payoutId, user.id()).orElseThrow(PayoutException::notFound);
-    if (!isCancellable(payout.state())) {
+    try {
+      PayoutStateMachine.transition(
+          PayoutStateMachine.PayoutState.valueOf(payout.state()),
+          PayoutStateMachine.PayoutEvent.CANCEL,
+          false);
+    } catch (IllegalArgumentException | IllegalStateException failure) {
       throw PayoutException.notCancellable();
     }
     Instant now = Instant.now(clock);
@@ -208,13 +213,6 @@ public class PayoutService {
     meters.counter("payout.rejected", "reason", reason).increment();
     log.info("payout rejected {}", reason);
     return failure;
-  }
-
-  private static boolean isCancellable(String state) {
-    return state.equals("REQUESTED")
-        || state.equals("APPROVED")
-        || state.equals("HOLD")
-        || state.equals("READY");
   }
 
   private static boolean approvalRequired(OrganizerGoal goal, long amountPesewas) {

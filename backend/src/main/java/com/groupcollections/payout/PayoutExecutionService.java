@@ -58,8 +58,7 @@ public class PayoutExecutionService {
     log.warn("payout provider result unknown {}", payout.id());
   }
 
-  public int executeNext() {
-    Instant now = Instant.now(clock);
+  public long reportFrozenBlocked() {
     long frozen = payouts.countFrozenReady();
     if (frozen > 0) {
       meters.counter("payout.execution.frozen_blocked").increment(frozen);
@@ -69,6 +68,11 @@ public class PayoutExecutionService {
               "payout-worker",
               frozen + " READY payout(s) blocked by frozen goals"));
     }
+    return frozen;
+  }
+
+  public int executeNext() {
+    Instant now = Instant.now(clock);
     Optional<Payout> claimed = claims.claimNext(now);
     if (claimed.isEmpty()) {
       return 0;
@@ -78,24 +82,45 @@ public class PayoutExecutionService {
     try {
       result = provider.transfer(payout);
     } catch (RuntimeException failure) {
-      meters.counter("payout.execution.unknown").increment();
-      log.warn("payout provider result unknown {}", payout.id());
+      markUnknown(payout, now);
       return 1;
     }
-    switch (result.status()) {
-      case SUCCESS -> completion.complete(payout, result.providerReference(), now);
-      case FAILED ->
-          completion.fail(
-              payout, result.failureCode() == null ? "PROVIDER_FAILED" : result.failureCode(), now);
-      case UNKNOWN -> {
-        PayoutStateMachine.transition(
-            PayoutStateMachine.PayoutState.EXECUTING,
-            PayoutStateMachine.PayoutEvent.PROVIDER_UNKNOWN,
-            false);
-        payouts.appendEvent(payout.id(), "PROVIDER_UNKNOWN", "EXECUTING", "EXECUTING", now);
-        meters.counter("payout.execution.unknown").increment();
-        log.warn("payout provider result unknown {}", payout.id());
+    if (result.status() == PayoutTransferProvider.TransferResult.Status.SUCCESS
+        && (result.providerReference() == null || result.providerReference().isBlank())) {
+      markUnknown(payout, now);
+      return 1;
+    }
+    if (result.providerReference() != null && !result.providerReference().isBlank()) {
+      if (payouts.recordProviderReference(payout.id(), result.providerReference(), now) != 1) {
+        meters.counter("payout.execution.reference_rejected").increment();
+        alerts.publish(
+            new Alert(
+                Alert.AlertType.PAYOUT_EXECUTION_STUCK,
+                payout.id().toString(),
+                "provider reference could not be persisted"));
+        return 1;
       }
+    }
+    switch (result.status()) {
+      case SUCCESS -> {
+        try {
+          completion.complete(payout, result.providerReference(), now);
+        } catch (RuntimeException failure) {
+          meters.counter("payout.execution.stuck").increment();
+          alerts.publish(
+              new Alert(
+                  Alert.AlertType.PAYOUT_EXECUTION_STUCK,
+                  payout.id().toString(),
+                  "provider succeeded but completion was not persisted"));
+          log.warn("payout completion stuck {}", payout.id());
+        }
+      }
+      case FAILED -> {
+        completion.fail(
+            payout, result.failureCode() == null ? "PROVIDER_FAILED" : result.failureCode(), now);
+        meters.counter("payout.execution.failed").increment();
+      }
+      case UNKNOWN -> markUnknown(payout, now);
     }
     return 1;
   }

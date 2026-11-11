@@ -136,6 +136,17 @@ class PayoutCancelIT extends ApiIntegrationTest {
             new ParameterizedTypeReference<>() {},
             goalId);
     assertThat(otherQuote.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    HttpHeaders foreignHeaders = cookie(other);
+    foreignHeaders.setContentType(MediaType.APPLICATION_JSON);
+    foreignHeaders.set("Idempotency-Key", "foreign-" + UUID.randomUUID());
+    ResponseEntity<Map<String, Object>> otherRequest =
+        rest.exchange(
+            "/organizer/goals/{goalId}/payouts",
+            HttpMethod.POST,
+            new HttpEntity<>(Map.of("amountPesewas", 1_000), foreignHeaders),
+            new ParameterizedTypeReference<>() {},
+            goalId);
+    assertThat(otherRequest.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(cancel(other, payout).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     ResponseEntity<List<Map<String, Object>>> ownerList =
         rest.exchange(

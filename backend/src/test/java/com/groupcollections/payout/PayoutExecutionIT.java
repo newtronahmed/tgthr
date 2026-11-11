@@ -11,6 +11,7 @@ import com.groupcollections.support.FakeAccountResolver;
 import com.groupcollections.support.FakePayoutFeeProvider;
 import com.groupcollections.support.FakePayoutTransferProvider;
 import com.groupcollections.support.FakeSmsSender;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -265,6 +266,36 @@ class PayoutExecutionIT extends ApiIntegrationTest {
                 Integer.class,
                 payoutId))
         .isEqualTo(1);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(
+            alert ->
+                alert.type() == com.groupcollections.alerts.Alert.AlertType.PAYOUT_EXECUTION_STUCK);
+  }
+
+  @Test
+  @Criterion("AC-PAYOUT-010")
+  void providerExceptionBecomesUnknownWithEventAndAlert() {
+    Session session = session("0240000608", "Ama Mensah");
+    UUID goalId = createGoal(session);
+    fundGoal(session, goalId, 5_000);
+    UUID payoutId = ready(session, goalId, 1_000);
+    FakePayoutTransferProvider.throwNext();
+
+    assertThat(execution.executeNext()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject("select state from payouts where id = ?", String.class, payoutId))
+        .isEqualTo("EXECUTING");
+    assertThat(FakePayoutTransferProvider.calls()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from payout_events where payout_id = ? and event = 'PROVIDER_UNKNOWN'",
+                Integer.class,
+                payoutId))
+        .isEqualTo(1);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(
+            alert ->
+                alert.type() == com.groupcollections.alerts.Alert.AlertType.PAYOUT_EXECUTION_STUCK);
   }
 
   @Test
