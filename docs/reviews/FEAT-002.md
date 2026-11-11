@@ -254,3 +254,18 @@ and takes the goal lock first, removing the cancel deadlock and frozen starvatio
 assert exact line accounts/directions/amounts and provider failure codes. Remaining should-fix:
 T302 (fee quote under the claim lock), T316 (AC-009 pending) and T332/T334 (cancel/execute race and
 cancellation release). `make check` green; trace 90 defined / 78 active / 12 pending / 0 missing.
+
+Cancellation/race slice (2026-11-10): added the organizer cancel endpoint with goal-row locking,
+allowed-state enforcement, approval-challenge consumption and reservation release; cancellation
+never posts ledger. A cancel-vs-execute race test proves exactly one winner, and execution failure
+release remains covered. AC-008/AC-013/AC-019 are now active; trace 90 defined / 81 active / 9
+pending / 0 missing; `make check` green. Remaining: AC-009, AC-011 ownership and the real provider
+adapter T302.
+
+Cancellation, ownership and idempotency completion (2026-11-10): AC-008/AC-013/AC-019 are active,
+AC-009 now covers a completed payout retry with no second posting, and AC-011 covers foreign
+organizer list/quote/request/cancel access. Existing request, notification, hold and settings tests
+now carry the matching payout and settlement invariants, so trace is **90 defined / 90 active / 0
+pending / 0 missing**. Remaining: T302 real Paystack adapter and fee-quote/lock follow-up, T344
+stuck-EXECUTING verification job, T361 abuse tests, and the mandatory fresh CODEOWNER review T365
+before real payout execution.
