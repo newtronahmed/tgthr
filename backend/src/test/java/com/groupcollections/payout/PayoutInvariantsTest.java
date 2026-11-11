@@ -31,7 +31,8 @@ class PayoutInvariantsTest {
             Map.entry("READY:CANCEL", PayoutState.CANCELLED),
             Map.entry("EXECUTING:PROVIDER_SUCCEEDED", PayoutState.COMPLETED),
             Map.entry("EXECUTING:PROVIDER_FAILED", PayoutState.FAILED),
-            Map.entry("EXECUTING:PROVIDER_UNKNOWN", PayoutState.EXECUTING));
+            Map.entry("EXECUTING:PROVIDER_UNKNOWN", PayoutState.EXECUTING),
+            Map.entry("EXECUTING:VERIFICATION_REQUIRED", PayoutState.EXECUTING));
 
     for (PayoutState from : PayoutState.values()) {
       for (PayoutEvent event : PayoutEvent.values()) {

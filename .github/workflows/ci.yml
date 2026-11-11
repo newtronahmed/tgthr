@@ -98,7 +98,11 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
       - name: Start fake Paystack
         env:
           PORT: "9099"
@@ -136,7 +140,11 @@ jobs:
           curl -sf http://127.0.0.1:3200/ >/dev/null || (tail -100 /tmp/web.log && exit 1)
       - name: Install Playwright
         working-directory: web
-        run: npx playwright install --with-deps chromium
+        run: |
+          npx playwright install --with-deps chromium || {
+            echo "with-deps failed (apt/mirror issue); installing the browser only"
+            npx playwright install chromium
+          }
       - name: Run E2E
         working-directory: web
         env:
