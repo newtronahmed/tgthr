@@ -45,7 +45,10 @@ import org.springframework.test.context.TestPropertySource;
       "collections.payout.enabled=true",
       "collections.payout.execution.enabled=true",
       "collections.payout.stuck-after=PT5M",
-      "collections.scheduling.enabled=false"
+      "collections.scheduling.enabled=false",
+      "collections.rate-limit.enabled=false",
+      "collections.rate-limit.otp-per-ip-per-minute=1000",
+      "collections.rate-limit.otp-verify-per-ip-per-minute=1000"
     })
 class PayoutExecutionIT extends ApiIntegrationTest {
 
@@ -154,6 +157,41 @@ class PayoutExecutionIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-PAYOUT-009")
+  void retriedCompletedPayoutReturnsOriginalAndPostsOnce() {
+    Session session = session("0240000607", "Ama Mensah");
+    UUID goalId = createGoal(session);
+    fundGoal(session, goalId, 5_000);
+    String key = "payout-" + UUID.randomUUID();
+    ResponseEntity<Map<String, Object>> first = request(session, goalId, 1_000, key);
+    assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    UUID payoutId = UUID.fromString((String) first.getBody().get("id"));
+    makeReady(payoutId);
+    assertThat(execution.executeNext()).isEqualTo(1);
+
+    ResponseEntity<Map<String, Object>> retry = request(session, goalId, 1_000, key);
+    assertThat(retry.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(retry.getBody().get("id")).isEqualTo(payoutId.toString());
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from payouts where goal_id = ?", Integer.class, goalId))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from ledger_entries where payout_id = ?", Integer.class, payoutId))
+        .isEqualTo(3);
+  }
+
+  private void makeReady(UUID payoutId) {
+    jdbc.update(
+        "update payouts set hold_expires_at = now() - interval '1 minute' where id = ?", payoutId);
+    holds.releaseExpired();
+    assertThat(
+            jdbc.queryForObject("select state from payouts where id = ?", String.class, payoutId))
+        .isEqualTo("READY");
+  }
+
+  @Test
   @Criterion("AC-PAYOUT-003")
   void zeroFeeOmitsTheFeeLedgerLine() {
     Session session = session("0240000602", "Ama Mensah");
@@ -243,12 +281,42 @@ class PayoutExecutionIT extends ApiIntegrationTest {
                 Integer.class,
                 payoutId))
         .isEqualTo(1);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(
+            alert ->
+                alert.type() == com.groupcollections.alerts.Alert.AlertType.PAYOUT_EXECUTION_STUCK);
+  }
+
+  @Test
+  @Criterion("AC-PAYOUT-010")
+  void providerExceptionBecomesUnknownWithEventAndAlert() {
+    Session session = session("0240000608", "Ama Mensah");
+    UUID goalId = createGoal(session);
+    fundGoal(session, goalId, 5_000);
+    UUID payoutId = ready(session, goalId, 1_000);
+    FakePayoutTransferProvider.throwNext();
+
+    assertThat(execution.executeNext()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject("select state from payouts where id = ?", String.class, payoutId))
+        .isEqualTo("EXECUTING");
+    assertThat(FakePayoutTransferProvider.calls()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from payout_events where payout_id = ? and event = 'PROVIDER_UNKNOWN'",
+                Integer.class,
+                payoutId))
+        .isEqualTo(1);
+    assertThat(RecordingAlertPublisher.alerts())
+        .anyMatch(
+            alert ->
+                alert.type() == com.groupcollections.alerts.Alert.AlertType.PAYOUT_EXECUTION_STUCK);
   }
 
   @Test
   @Criterion("AC-PAYOUT-027")
   void stuckExecutingIsFlaggedOnceWithoutRetryingOrPosting() {
-    Session session = session("0240000607", "Ama Mensah");
+    Session session = session("0240000612", "Ama Mensah");
     UUID goalId = createGoal(session);
     fundGoal(session, goalId, 5_000);
     UUID payoutId = ready(session, goalId, 1_000);
@@ -256,6 +324,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
     assertThat(execution.executeNext()).isEqualTo(1);
     long reservedBefore = payouts.reservedMinorUnits(goalId);
     double stuckBefore = counter("payout.execution.stuck");
+    long alertsBefore = stuckAlerts(payoutId);
     jdbc.update(
         "update payouts set executing_at = now() - interval '20 minutes' where id = ?", payoutId);
 
@@ -270,14 +339,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
                 "select count(*) from ledger_entries where payout_id = ?", Integer.class, payoutId))
         .isZero();
     assertThat(payouts.reservedMinorUnits(goalId)).isEqualTo(reservedBefore);
-    assertThat(
-            RecordingAlertPublisher.alerts().stream()
-                .filter(
-                    alert ->
-                        alert.type() == Alert.AlertType.PAYOUT_EXECUTION_STUCK
-                            && alert.reference().equals(payoutId.toString()))
-                .count())
-        .isEqualTo(1);
+    assertThat(stuckAlerts(payoutId) - alertsBefore).isEqualTo(1);
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from payout_events where payout_id = ? and event = 'VERIFICATION_REQUIRED'",
@@ -287,14 +349,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
     assertThat(counter("payout.execution.stuck") - stuckBefore).isEqualTo(1.0);
 
     assertThat(verification.verifyStuck()).isZero();
-    assertThat(
-            RecordingAlertPublisher.alerts().stream()
-                .filter(
-                    alert ->
-                        alert.type() == Alert.AlertType.PAYOUT_EXECUTION_STUCK
-                            && alert.reference().equals(payoutId.toString()))
-                .count())
-        .isEqualTo(1);
+    assertThat(stuckAlerts(payoutId)).isEqualTo(alertsBefore + 1);
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from payout_events where payout_id = ? and event = 'VERIFICATION_REQUIRED'",
@@ -307,18 +362,16 @@ class PayoutExecutionIT extends ApiIntegrationTest {
   @Test
   @Criterion("AC-PAYOUT-027")
   void freshExecutingIsNotFlagged() {
-    Session session = session("0240000608", "Ama Mensah");
+    Session session = session("0240000613", "Ama Mensah");
     UUID goalId = createGoal(session);
     fundGoal(session, goalId, 5_000);
     UUID payoutId = ready(session, goalId, 1_000);
     FakePayoutTransferProvider.status(PayoutTransferProvider.TransferResult.Status.UNKNOWN);
     assertThat(execution.executeNext()).isEqualTo(1);
+    long alertsBefore = stuckAlerts(payoutId);
 
     assertThat(verification.verifyStuck()).isZero();
-    assertThat(
-            RecordingAlertPublisher.alerts().stream()
-                .noneMatch(alert -> alert.reference().equals(payoutId.toString())))
-        .isTrue();
+    assertThat(stuckAlerts(payoutId)).isEqualTo(alertsBefore);
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from payout_events where payout_id = ? and event = 'VERIFICATION_REQUIRED'",
@@ -389,6 +442,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
     assertThat(execution.executeNext()).isEqualTo(1);
     jdbc.update(
         "update payouts set executing_at = now() - interval '20 minutes' where id = ?", payoutId);
+    long alertsBefore = stuckAlerts(payoutId);
 
     ExecutorService pool = Executors.newFixedThreadPool(2);
     CountDownLatch start = new CountDownLatch(1);
@@ -407,14 +461,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
                 Integer.class,
                 payoutId))
         .isEqualTo(1);
-    assertThat(
-            RecordingAlertPublisher.alerts().stream()
-                .filter(
-                    alert ->
-                        alert.type() == Alert.AlertType.PAYOUT_EXECUTION_STUCK
-                            && alert.reference().equals(payoutId.toString()))
-                .count())
-        .isEqualTo(1);
+    assertThat(stuckAlerts(payoutId) - alertsBefore).isEqualTo(1);
   }
 
   @Test
@@ -460,6 +507,15 @@ class PayoutExecutionIT extends ApiIntegrationTest {
   private int verifyAfter(CountDownLatch start) throws InterruptedException {
     start.await();
     return verification.verifyStuck();
+  }
+
+  private long stuckAlerts(UUID payoutId) {
+    return RecordingAlertPublisher.alerts().stream()
+        .filter(
+            alert ->
+                alert.type() == Alert.AlertType.PAYOUT_EXECUTION_STUCK
+                    && alert.reference().equals(payoutId.toString()))
+        .count();
   }
 
   private UUID ready(Session session, UUID goalId, long amount) {
@@ -569,9 +625,14 @@ class PayoutExecutionIT extends ApiIntegrationTest {
   }
 
   private ResponseEntity<Map<String, Object>> request(Session session, UUID goalId, long amount) {
+    return request(session, goalId, amount, "payout-" + UUID.randomUUID());
+  }
+
+  private ResponseEntity<Map<String, Object>> request(
+      Session session, UUID goalId, long amount, String key) {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("Idempotency-Key", "payout-" + UUID.randomUUID());
+    headers.set("Idempotency-Key", key);
     headers.add(HttpHeaders.COOKIE, "tgthr_session=" + session.token());
     return rest.exchange(
         "/organizer/goals/{goalId}/payouts",

@@ -54,7 +54,7 @@ class GoalPayoutSettingsIT extends ApiIntegrationTest {
   }
 
   @Test
-  @Criterion("AC-PAYOUT-006")
+  @Criterion({"AC-PAYOUT-006", "INV-PAYOUT-006"})
   void approverIsRequiredDistinctEncryptedAndOnlyTheNameIsPublic() {
     Session session = session("0240000201", "Ama Mensah");
     String destination = "0240000202";
