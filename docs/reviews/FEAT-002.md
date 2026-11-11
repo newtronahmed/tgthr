@@ -254,3 +254,24 @@ and takes the goal lock first, removing the cancel deadlock and frozen starvatio
 assert exact line accounts/directions/amounts and provider failure codes. Remaining should-fix:
 T302 (fee quote under the claim lock), T316 (AC-009 pending) and T332/T334 (cancel/execute race and
 cancellation release). `make check` green; trace 90 defined / 78 active / 12 pending / 0 missing.
+
+Stuck-execution verification (2026-11-11): T344 adds **AC-PAYOUT-027**. `PayoutVerificationService`
+sweeps payouts still `EXECUTING` past `collections.payout.stuck-after` (default `PT10M`) and records
+one append-only `VERIFICATION_REQUIRED` event, a `PAYOUT_EXECUTION_STUCK` alert and a
+`payout.execution.stuck` metric per payout. It never calls the provider and never posts ledger, so
+the payout stays `EXECUTING` for operator verification; a failed alert is counted by
+`payout.execution.stuck_alert_failed` rather than retried forever. The partial unique index on
+`(payout_id) WHERE event = 'VERIFICATION_REQUIRED'` makes the flag once-only across instances, and
+the repository locks the payout row before inserting so a completion cannot land between the scan
+and the flag. The scan excludes already-flagged rows and orders by `executing_at, id`, so an outage
+with more than 100 stuck payouts drains over subsequent scans instead of starving rows beyond the
+first batch. The independent review's blocker was exactly that starvation; the regression test now
+inserts 101 stale rows and proves all 101 are flagged, a concurrent-scan test proves one event and
+one alert, and a terminal-payout test proves completed rows with an old `executing_at` are not
+flagged. The state machine now declares `VERIFICATION_REQUIRED` (`EXECUTING → EXECUTING`), the domain
+table and plan migration/test rows are updated, and V11 adds the partial indexes. `ApiIntegrationTest`
+now also disables Spring Modulith Moments: Moments enables `@EnableScheduling` independently of
+`collections.scheduling.enabled`, which let background jobs race this test. Deferred nits are owned
+by T366 (backlog gauge and a minimum-threshold check). Remaining before real payouts: T302, T361 and
+the fresh CODEOWNER review T365. `make check` green; trace 91 defined / 79 active / 12 pending /
+0 missing.

@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class PayoutRepository {
@@ -134,6 +135,46 @@ public class PayoutRepository {
         limit 20
         """,
         (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class));
+  }
+
+  public List<Payout> findStuckExecuting(Instant cutoff, int limit) {
+    return jdbc.query(
+        """
+        select p.id, p.goal_id, p.requested_by, p.amount_minor_units, p.fee_minor_units,
+               p.net_minor_units, p.currency_code, p.state, p.idempotency_key,
+               p.provider_reference, p.created_at
+        from payouts p
+        where p.state = 'EXECUTING' and p.executing_at <= ?
+          and not exists (
+              select 1 from payout_events e
+              where e.payout_id = p.id and e.event = 'VERIFICATION_REQUIRED')
+        order by p.executing_at, p.id
+        limit ?
+        """,
+        this::map,
+        Timestamp.from(cutoff),
+        limit);
+  }
+
+  @Transactional
+  public boolean markVerificationRequired(UUID payoutId, Instant now) {
+    List<UUID> executing =
+        jdbc.query(
+            "select id from payouts where id = ? and state = 'EXECUTING' for update",
+            (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class),
+            payoutId);
+    if (executing.isEmpty()) {
+      return false;
+    }
+    return jdbc.update(
+            """
+            insert into payout_events (payout_id, event, from_state, to_state, occurred_at)
+            values (?, 'VERIFICATION_REQUIRED', 'EXECUTING', 'EXECUTING', ?)
+            on conflict (payout_id) where event = 'VERIFICATION_REQUIRED' do nothing
+            """,
+            payoutId,
+            Timestamp.from(now))
+        == 1;
   }
 
   public long countFrozenReady() {

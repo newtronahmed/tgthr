@@ -28,6 +28,7 @@ public final class PayoutStateMachine {
     allow(PayoutState.EXECUTING, PayoutEvent.PROVIDER_SUCCEEDED, PayoutState.COMPLETED);
     allow(PayoutState.EXECUTING, PayoutEvent.PROVIDER_FAILED, PayoutState.FAILED);
     allow(PayoutState.EXECUTING, PayoutEvent.PROVIDER_UNKNOWN, PayoutState.EXECUTING);
+    allow(PayoutState.EXECUTING, PayoutEvent.VERIFICATION_REQUIRED, PayoutState.EXECUTING);
   }
 
   private PayoutStateMachine() {}
@@ -73,6 +74,7 @@ public final class PayoutStateMachine {
     FEE_MISMATCH,
     PROVIDER_SUCCEEDED,
     PROVIDER_FAILED,
-    PROVIDER_UNKNOWN
+    PROVIDER_UNKNOWN,
+    VERIFICATION_REQUIRED
   }
 }

@@ -149,6 +149,7 @@ the transfer once on completion.
 | AC-PAYOUT-024 | P1 | Given five wrong approval attempts, when the challenge is exhausted, then the payout is CANCELLED, its reservation released and the challenge consumed. | Integration |
 | AC-PAYOUT-025 | P1 | Given a held or completed payout, when a contributor views the goal, then amount/fee/state/hold are visible, a report can be stored and alerted, and no phone is exposed. | Integration |
 | AC-PAYOUT-026 | P1 | Given a completed payout, when funded contributors are notified, then each payer receives one notification and repeat processing does not duplicate it. | Integration |
+| AC-PAYOUT-027 | P1 | Given an EXECUTING payout older than the stuck threshold, when the verification sweep runs, then it is flagged once with an alert and event, no provider call and no ledger posting, and it stays EXECUTING for operator verification. | Integration |
 
 ## Failure modes and edge cases
 
@@ -166,7 +167,7 @@ the transfer once on completion.
 | Cancel after EXECUTING | 409 | AC-PAYOUT-008 |
 | Duplicate key different amount | 409 | AC-PAYOUT-018 |
 | Provider failure | FAILED, no ledger, no auto retry | AC-PAYOUT-010 |
-| Provider timeout/unknown | EXECUTING until verification | AC-PAYOUT-010 |
+| Provider timeout/unknown | EXECUTING until verification; stuck rows flagged once and never re-executed | AC-PAYOUT-010/027 |
 | Fee changed | FAILED before provider, alert | AC-PAYOUT-015 |
 | SMS/provider unavailable | 503/failed state; alert | AC-PAYOUT-004/010 |
 | Contributor report | Rate-limited report stored and alerted; no payout change | AC-PAYOUT-025 |
@@ -212,8 +213,8 @@ the transfer once on completion.
 ## Observability
 
 - Events: requested, approval sent/approved/declined/expired, hold started/expired, fee mismatch,
-  reservation released, execution started, completed, failed, cancelled, report received,
-  notifications sent/failed.
+  reservation released, execution started, stuck/verification required, completed, failed,
+  cancelled, report received, notifications sent/failed.
 - Metrics: reserved/available amounts, approval latency/failures, provider latency/failures,
   notification failures, fee mismatches, stuck EXECUTING.
 - Alerts: provider outage, fee mismatch, approval/notification spikes, stuck execution, reports.

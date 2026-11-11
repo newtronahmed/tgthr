@@ -62,7 +62,7 @@ Criteria: AC-PAYOUT-010, AC-PAYOUT-014, AC-PAYOUT-015
 - [x] T341 Implement provider call, fee re-check, unique reference, completion posting and after-commit `notifyCompleted` call until T340 is green (fake provider; real adapter T302)
 - [ ] T342 Write failing full AC-014 E2E for the public payout view/report UI (backend is covered by AC-025/026/T343)
 - [x] T343 Implement public payout view, reports and funded-contributor notifications; group by `payer_phone_hash` and insert one notification per contributor, treating a unique conflict as already sent
-- [ ] T344 Add stuck-EXECUTING verification and alerts
+- [ ] T344 Add stuck-EXECUTING verification and alerts (AC-PAYOUT-027; implemented, pending merge)
 - [ ] T345 Refactor; keep the suite green
 
 ## Slice 5 (P1): Ownership and web
@@ -84,3 +84,4 @@ Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 - [ ] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
 - [ ] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
 - [ ] T365 Fresh CODEOWNER review of the payout posting before merge
+- [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout
