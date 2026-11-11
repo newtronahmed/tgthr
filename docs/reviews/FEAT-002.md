@@ -239,3 +239,18 @@ successful retry. The payout list was moved out of Recent contributions; the rep
 for AC-014 E2E. Added cross-goal report 404 and wrong-contribution 422 tests, amount/fee/hold/
 completed assertions, deterministic payout ordering, and a nullable contribution cast. `make check`
 green; trace 90 defined / 72 active / 18 pending / 0 missing; web tests/lint/build green.
+
+Payout-execution review (2026-11-10): the first pass was blocked because completion posted the
+ledger without taking the goal row lock, allowing a request to see a released reservation with a
+stale completed total. Fixed by locking the goal in `PayoutCompletionService` before posting and
+testing exact payout ledger lines; the request/approval/hold/worker writes also use the state
+machine. Completion notifications are asserted through the after-commit path; AC-009 is back to a
+pending test because the worker retry scan is not the request-idempotency criterion; the execution
+test cleans stale READY rows. Follow-up fixes: fee mismatch and frozen goals now increment metrics and publish
+operator alerts; provider exceptions and explicit UNKNOWN results append PROVIDER_UNKNOWN events;
+provider references are persisted before completion, and completion failures leave the payout
+EXECUTING with a stuck alert. The execution scan no longer locks payout rows, excludes frozen goals,
+and takes the goal lock first, removing the cancel deadlock and frozen starvation. Ledger tests now
+assert exact line accounts/directions/amounts and provider failure codes. Remaining should-fix:
+T302 (fee quote under the claim lock), T316 (AC-009 pending) and T332/T334 (cancel/execute race and
+cancellation release). `make check` green; trace 90 defined / 78 active / 12 pending / 0 missing.

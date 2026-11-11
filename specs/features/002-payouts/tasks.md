@@ -58,8 +58,8 @@ Criteria: AC-PAYOUT-007, AC-PAYOUT-008, AC-PAYOUT-016, AC-PAYOUT-019
 
 Criteria: AC-PAYOUT-010, AC-PAYOUT-014, AC-PAYOUT-015
 
-- [ ] T340 Write failing `PayoutExecutionIT` for AC-010/015 (success/failure/unknown/one ledger, fee mismatch before provider)
-- [ ] T341 Implement provider call, fee re-check, unique reference, completion posting and after-commit `notifyCompleted` call until T340 is green
+- [x] T340 Write failing `PayoutExecutionIT` for AC-010/015 (success/failure/unknown/one ledger, fee mismatch before provider)
+- [x] T341 Implement provider call, fee re-check, unique reference, completion posting and after-commit `notifyCompleted` call until T340 is green (fake provider; real adapter T302)
 - [ ] T342 Write failing full AC-014 E2E for the public payout view/report UI (backend is covered by AC-025/026/T343)
 - [x] T343 Implement public payout view, reports and funded-contributor notifications; group by `payer_phone_hash` and insert one notification per contributor, treating a unique conflict as already sent
 - [ ] T344 Add stuck-EXECUTING verification and alerts

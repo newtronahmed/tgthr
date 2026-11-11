@@ -71,13 +71,6 @@ class PayoutInvariantsTest {
   }
 
   @Test
-  @Disabled("pending: execution slice")
-  @Criterion("INV-PAYOUT-005")
-  void ledgerPostsOnceOnlyOnCompletion() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: privacy slice")
   @Criterion("INV-PAYOUT-006")
   void approverAndDestinationPhonesAreEncryptedAndNeverPublic() {

@@ -5,6 +5,7 @@ public enum LedgerAccount {
   GOAL_POOL,
   FEE,
   PLATFORM_FEE,
+  PAYOUT_FEE,
   BANK,
   WELFARE_RESERVE,
   SUSPENSE,
