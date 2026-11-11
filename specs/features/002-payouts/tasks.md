@@ -62,7 +62,7 @@ Criteria: AC-PAYOUT-010, AC-PAYOUT-014, AC-PAYOUT-015
 - [x] T341 Implement provider call, fee re-check, unique reference, completion posting and after-commit `notifyCompleted` call until T340 is green (fake provider; real adapter T302)
 - [ ] T342 Write failing full AC-014 E2E for the public payout view/report UI (backend is covered by AC-025/026/T343)
 - [x] T343 Implement public payout view, reports and funded-contributor notifications; group by `payer_phone_hash` and insert one notification per contributor, treating a unique conflict as already sent
-- [ ] T344 Add stuck-EXECUTING verification and alerts (AC-PAYOUT-027; implemented, pending merge)
+- [x] T344 Add stuck-EXECUTING verification and alerts (AC-PAYOUT-027; scan flags once, no re-execution)
 - [ ] T345 Refactor; keep the suite green
 
 ## Slice 5 (P1): Ownership and web
