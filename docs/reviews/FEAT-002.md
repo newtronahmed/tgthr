@@ -269,3 +269,11 @@ now carry the matching payout and settlement invariants, so trace is **90 define
 pending / 0 missing**. Remaining: T302 real Paystack adapter and fee-quote/lock follow-up, T344
 stuck-EXECUTING verification job, T361 abuse tests, and the mandatory fresh CODEOWNER review T365
 before real payout execution.
+
+External review follow-up (2026-11-10): cancellation now calls the state-machine CANCEL transition
+(bad states map to PAYOUT_NOT_CANCELLABLE); the execution service persists provider references
+before completion, routes provider exceptions and explicit UNKNOWN results through the same
+PROVIDER_UNKNOWN event/alert path, and alerts on completion persistence failure; frozen-goal
+blocking is reported once per worker scan rather than once per claim; the ownership IT now also
+POSTs a payout on the foreign goal. Tests cover provider exception and explicit-unknown alerting,
+provider-reference persistence and the foreign request 404. `make check` green; trace 90/90/0.
