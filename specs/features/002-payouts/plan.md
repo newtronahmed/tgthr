@@ -108,6 +108,7 @@ CODEOWNER review of the posting.
 | AC-PAYOUT-024 | Integration | `PayoutApprovalIT` | Attempt exhaustion releases reservation |
 | AC-PAYOUT-025 | Integration | `PayoutContributorIT` | Public payout view/report |
 | AC-PAYOUT-026 | Integration | `PayoutContributorIT` | Completion notification once |
+| AC-PAYOUT-027 | Integration | `PayoutExecutionIT` | Stuck sweep flags once; no re-execution |
 | INV-PAYOUT-001..008 | Integration | `PayoutInvariantsTest` | One per invariant |
 
 ## Migrations
@@ -116,6 +117,8 @@ CODEOWNER review of the posting.
   no destructive change.
 - `V10__payout_ledger_link.sql`: link ledger payout postings to their payout for goal-pool balance;
   additive, with a payout-link check and one-line-per-account uniqueness.
+- `V11__payout_stuck_verification.sql`: once-only verification event index and the stale-EXECUTING
+  scan index; additive.
 - Backward compatible: yes. Legacy goals with non-OFF rules or zero hold must set payout settings
   before their first payout.
 

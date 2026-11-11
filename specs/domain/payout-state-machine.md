@@ -43,6 +43,7 @@ money rules so no path bypasses reservations, approval, the mandatory hold, a fr
 | EXECUTING | Provider success | COMPLETED | One ledger set and event; contributor notifications after commit (T341/T343) |
 | EXECUTING | Definitive provider failure | FAILED | No ledger; reservation released; terminal; no auto retry |
 | EXECUTING | Timeout/unknown | EXECUTING | Verify; never blindly re-execute |
+| EXECUTING | Stuck threshold passed | EXECUTING | One verification event and alert; operator verifies; never re-execute |
 
 No other transitions are legal. `COMPLETED`, `FAILED` and `CANCELLED` are terminal. A `FAILED` payout
 may be replaced by a new request with a new idempotency key. The execution worker uses a
