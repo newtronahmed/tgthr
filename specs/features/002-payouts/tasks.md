@@ -27,7 +27,7 @@ Criteria: AC-PAYOUT-001, AC-PAYOUT-002, AC-PAYOUT-003, AC-PAYOUT-013
 - [x] T316 Write failing full AC-009 case for no second posting (request idempotency is AC-018/T317)
 - [x] T317 Implement the unique request key and different-amount conflict (request-phase part done; full AC-009 remains T316)
 - [x] T318 Refactor; keep the suite green
-- [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; gate and goal lock covered by a race test that fails without the payout lock; tick on merge) (Slice 1)
+- [x] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; gate and goal lock covered by a race test that fails without the payout lock) (Slice 1)
 
 ## Slice 2 (P1): Approver, settings and approval
 
