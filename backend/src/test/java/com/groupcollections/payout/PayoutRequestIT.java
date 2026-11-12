@@ -1,6 +1,7 @@
 package com.groupcollections.payout;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.groupcollections.goal.AccountResolver;
 import com.groupcollections.identity.SmsSender;
@@ -28,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,6 +96,46 @@ class PayoutRequestIT extends ApiIntegrationTest {
     assertThat(count("select count(*) from payouts where goal_id = ?", goalId)).isZero();
     assertThat(counter("payout.rejected", "reason", "approver_required"))
         .isGreaterThan(rejectedBefore);
+  }
+
+  @Test
+  @Criterion("AC-PAYOUT-020")
+  void settingsPatchWaitsForThePayoutGoalLock() throws Exception {
+    Session session = session("0240000390", "Ama Mensah");
+    UUID goalId = createGoal(session, "ALWAYS", "Esi Mensah", "0240000391");
+    fundGoal(session, goalId, 5_000, true);
+    FakePayoutFeeProvider.blockNext();
+
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      Future<ResponseEntity<Map<String, Object>>> payoutFuture =
+          pool.submit(() -> request(session, goalId, 1_000, uniqueKey()));
+      assertThat(FakePayoutFeeProvider.awaitEntered(5, TimeUnit.SECONDS)).isTrue();
+
+      Future<ResponseEntity<Map<String, Object>>> settingsFuture =
+          pool.submit(() -> updateSettings(session, goalId, Map.of("holdWindowMinutes", 45)));
+
+      // The settings writer must wait for the payout transaction's goal lock.
+      assertThatThrownBy(() -> settingsFuture.get(1, TimeUnit.SECONDS))
+          .isInstanceOf(TimeoutException.class);
+
+      FakePayoutFeeProvider.release();
+      ResponseEntity<Map<String, Object>> payout = payoutFuture.get(10, TimeUnit.SECONDS);
+      ResponseEntity<Map<String, Object>> settings = settingsFuture.get(10, TimeUnit.SECONDS);
+
+      assertThat(payout.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+      assertThat(settings.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+      assertThat(settings.getBody()).isNotNull();
+      assertThat(settings.getBody().get("code")).isEqualTo("PAYOUT_SETTINGS_LOCKED");
+      assertThat(
+              jdbc.queryForObject(
+                  "select hold_window_minutes from goals where id = ?", Integer.class, goalId))
+          .isEqualTo(60);
+      assertThat(count("select count(*) from payouts where goal_id = ?", goalId)).isEqualTo(1);
+    } finally {
+      FakePayoutFeeProvider.release();
+      pool.shutdownNow();
+    }
   }
 
   @Test
@@ -553,6 +595,19 @@ class PayoutRequestIT extends ApiIntegrationTest {
       CountDownLatch start, Session session, UUID goalId, long amount) throws Exception {
     start.await();
     return request(session, goalId, amount, uniqueKey());
+  }
+
+  private ResponseEntity<Map<String, Object>> updateSettings(
+      Session session, UUID goalId, Map<String, Object> body) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.add(HttpHeaders.COOKIE, "tgthr_session=" + session.token());
+    return rest.exchange(
+        "/organizer/goals/{id}/payout-settings",
+        HttpMethod.PATCH,
+        new HttpEntity<>(body, headers),
+        new ParameterizedTypeReference<>() {},
+        goalId);
   }
 
   private Session session(String phone, String legalName) {
