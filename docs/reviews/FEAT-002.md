@@ -316,3 +316,9 @@ pumping and token stuffing remain covered by `PayoutApprovalRateLimitIT` (all pu
 rate-limited before token lookup) and `PayoutApprovalIT` (wrong/expired/reused/over-attempted
 codes); cross-goal reports and foreign organizers remain covered by `PayoutContributorIT` and
 `PayoutCancelIT`. Trace stays 91 defined / 91 active / 0 pending / 0 missing; `make check` green.
+
+Settings/request race coverage (2026-11-12): T319 adds the PATCH-vs-payout race test for a
+non-OFF goal created without an approver. The goal-row lock serialises the settings update and the
+payout insert: the settings PATCH always succeeds, the payout is either CREATED (settings committed
+first) or 422 `APPROVER_REQUIRED` (payout ran first), no payout ever exists without an approver, and
+a later settings PATCH is 409 only once a payout exists. Trace stays 91/91/0; `make check` green.

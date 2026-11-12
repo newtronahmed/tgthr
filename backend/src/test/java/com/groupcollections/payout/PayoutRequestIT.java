@@ -97,6 +97,64 @@ class PayoutRequestIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-PAYOUT-020")
+  void settingsPatchAndPayoutRequestRaceWithoutAnUnapprovedPayout() throws Exception {
+    Session session = session("0240000390", "Ama Mensah");
+    UUID goalId = createGoal(session, "ABOVE_THRESHOLD", null, null);
+    fundGoal(session, goalId, 5_000, true);
+
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    CountDownLatch start = new CountDownLatch(1);
+    ResponseEntity<Map<String, Object>> payout;
+    ResponseEntity<Map<String, Object>> settings;
+    try {
+      Future<ResponseEntity<Map<String, Object>>> payoutFuture =
+          pool.submit(() -> requestAfter(start, session, goalId, 1_000));
+      Future<ResponseEntity<Map<String, Object>>> settingsFuture =
+          pool.submit(
+              () ->
+                  settingsAfter(
+                      start,
+                      session,
+                      goalId,
+                      Map.of(
+                          "secondApproverName", "Esi Mensah",
+                          "secondApproverPhone", "0240000391")));
+      start.countDown();
+      payout = payoutFuture.get(10, TimeUnit.SECONDS);
+      settings = settingsFuture.get(10, TimeUnit.SECONDS);
+    } finally {
+      pool.shutdownNow();
+    }
+
+    // The goal lock serialises the two writers. The settings PATCH always wins or follows a
+    // rejected payout; a payout can only be created after the approver is committed.
+    assertThat(settings.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(payout.getStatusCode()).isIn(HttpStatus.CREATED, HttpStatus.UNPROCESSABLE_ENTITY);
+    if (payout.getStatusCode() == HttpStatus.UNPROCESSABLE_ENTITY) {
+      assertThat(payout.getBody()).isNotNull();
+      assertThat(payout.getBody().get("code")).isEqualTo("APPROVER_REQUIRED");
+    }
+    assertThat(
+            count(
+                """
+                select count(*) from payouts p join goals g on g.id = p.goal_id
+                where p.goal_id = ? and g.second_approver <> 'OFF'
+                  and g.second_approver_name is null
+                """,
+                goalId))
+        .isZero();
+    assertThat(count("select count(*) from payouts where goal_id = ?", goalId))
+        .isEqualTo(payout.getStatusCode() == HttpStatus.CREATED ? 1 : 0);
+
+    ResponseEntity<Map<String, Object>> after =
+        updateSettings(session, goalId, Map.of("holdWindowMinutes", 45));
+    assertThat(after.getStatusCode())
+        .isEqualTo(
+            payout.getStatusCode() == HttpStatus.CREATED ? HttpStatus.CONFLICT : HttpStatus.OK);
+  }
+
+  @Test
   @Criterion("AC-PAYOUT-001")
   void quoteReturnsExactFeeNetAndAvailableAndRejectsAtFee() {
     Session session = session("0240000305", "Ama Mensah");
@@ -553,6 +611,26 @@ class PayoutRequestIT extends ApiIntegrationTest {
       CountDownLatch start, Session session, UUID goalId, long amount) throws Exception {
     start.await();
     return request(session, goalId, amount, uniqueKey());
+  }
+
+  private ResponseEntity<Map<String, Object>> settingsAfter(
+      CountDownLatch start, Session session, UUID goalId, Map<String, Object> body)
+      throws Exception {
+    start.await();
+    return updateSettings(session, goalId, body);
+  }
+
+  private ResponseEntity<Map<String, Object>> updateSettings(
+      Session session, UUID goalId, Map<String, Object> body) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.add(HttpHeaders.COOKIE, "tgthr_session=" + session.token());
+    return rest.exchange(
+        "/organizer/goals/{id}/payout-settings",
+        HttpMethod.PATCH,
+        new HttpEntity<>(body, headers),
+        new ParameterizedTypeReference<>() {},
+        goalId);
   }
 
   private Session session(String phone, String legalName) {
