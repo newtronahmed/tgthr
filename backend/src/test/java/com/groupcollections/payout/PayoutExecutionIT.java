@@ -16,6 +16,7 @@ import com.groupcollections.support.RecordingAlertPublisher;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -23,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -486,6 +488,45 @@ class PayoutExecutionIT extends ApiIntegrationTest {
             RecordingAlertPublisher.alerts().stream()
                 .noneMatch(alert -> alert.reference().equals(payoutId.toString())))
         .isTrue();
+  }
+
+  @Test
+  @Criterion({"AC-PAYOUT-010", "INV-PAYOUT-006"})
+  void payoutArtifactsArePhoneFree() {
+    Session session = session("0240000614", "Ama Mensah");
+    UUID goalId = createGoal(session);
+    fundGoal(session, goalId, 5_000);
+    UUID payoutId = ready(session, goalId, 1_000);
+    FakePayoutTransferProvider.status(PayoutTransferProvider.TransferResult.Status.UNKNOWN);
+    assertThat(execution.executeNext()).isEqualTo(1);
+
+    String events =
+        String.join(
+            " ",
+            jdbc.queryForList(
+                """
+                select event || ' ' || coalesce(from_state, '') || ' ' || coalesce(to_state, '')
+                       || ' ' || coalesce(detail::text, '')
+                from payout_events where payout_id = ?
+                """,
+                String.class,
+                payoutId));
+    String alerts =
+        RecordingAlertPublisher.alerts().stream()
+            .filter(alert -> alert.reference().equals(payoutId.toString()))
+            .map(alert -> alert.type() + " " + alert.reference() + " " + alert.detail())
+            .collect(Collectors.joining(" "));
+    String tags =
+        meterRegistry.getMeters().stream()
+            .flatMap(meter -> meter.getId().getTags().stream())
+            .map(tag -> tag.getKey() + "=" + tag.getValue())
+            .collect(Collectors.joining(" "));
+
+    for (String phone : List.of("0240000614", "0240000699", "+233240000777", "240000777")) {
+      assertThat(events).doesNotContain(phone);
+      assertThat(alerts).doesNotContain(phone);
+      assertThat(tags).doesNotContain(phone);
+    }
   }
 
   @Test

@@ -79,7 +79,7 @@ Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 ## Hardening
 
 - [x] T360 Failure-path tests for every row in the spec failure table (covered across `Payout*IT`)
-- [ ] T361 Phone-free event/metric/alert tests; abuse tests (approval pumping, token stuffing, cross-goal, report spam) (approval rate limits and cross-goal covered; report-spam test outstanding)
+- [x] T361 Phone-free event/metric/alert tests; abuse tests (approval pumping, token stuffing, cross-goal, report spam) (approval limits in `PayoutApprovalRateLimitIT`, report spam in `PayoutReportRateLimitIT`, cross-goal in `PayoutContributorIT`/`PayoutCancelIT`, phone-free assertions in the payout ITs)
 - [ ] T362 Provider sandbox and fee-mismatch runbook; notification/decryption operations
 - [x] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
 - [x] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`

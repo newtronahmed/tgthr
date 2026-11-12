@@ -307,3 +307,12 @@ and `make check` is green. The task list was reconciled with the delivered setup
 execution, web and hardening work. Remaining: T301/T302 (Paystack transfer sandbox and real
 adapter), T319 (PATCH-vs-payout race test), T361 (report-spam abuse test), T362 (payout runbook),
 T365 (fresh CODEOWNER review) and T366 (backlog gauge/threshold validation).
+
+Abuse and privacy coverage (2026-11-12): T361 adds `PayoutReportRateLimitIT`, which proves the
+public report endpoint accepts one report per IP per minute and returns 429 `RATE_LIMITED` (with the
+`payout.report.rate_limited` metric) on the next attempt, and phone-free assertions over payout
+events, alert details and meter tags for execution, approval and notification paths. Approval
+pumping and token stuffing remain covered by `PayoutApprovalRateLimitIT` (all public routes are
+rate-limited before token lookup) and `PayoutApprovalIT` (wrong/expired/reused/over-attempted
+codes); cross-goal reports and foreign organizers remain covered by `PayoutContributorIT` and
+`PayoutCancelIT`. Trace stays 91 defined / 91 active / 0 pending / 0 missing; `make check` green.
