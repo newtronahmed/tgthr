@@ -297,3 +297,13 @@ now also disables Spring Modulith Moments: Moments enables `@EnableScheduling` i
 by T366 (backlog gauge and a minimum-threshold check). Remaining before real payouts: T302, T361 and
 the fresh CODEOWNER review T365. `make check` green; trace 91 defined / 79 active / 12 pending /
 0 missing.
+
+Final FEAT-002 merge and reconciliation (2026-11-12): the cancellation, ownership and idempotency
+slice (PR #21) merged after bringing `main` into the branch. The review-log conflict kept both
+records, and the stuck-sweep tests were adapted to the execution-time `PAYOUT_EXECUTION_STUCK`
+alert by asserting deltas rather than absolute counts; the enlarged IT class also got unique OTP
+phone numbers and a higher OTP limit. Trace is **91 defined / 91 active / 0 pending / 0 missing**
+and `make check` is green. The task list was reconciled with the delivered setup, request,
+execution, web and hardening work. Remaining: T301/T302 (Paystack transfer sandbox and real
+adapter), T319 (PATCH-vs-payout race test), T361 (report-spam abuse test), T362 (payout runbook),
+T365 (fresh CODEOWNER review) and T366 (backlog gauge/threshold validation).
