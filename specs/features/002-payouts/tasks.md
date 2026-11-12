@@ -84,4 +84,4 @@ Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 - [x] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
 - [x] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
 - [ ] T365 Fresh CODEOWNER review of the payout posting before merge
-- [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout
+- [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout (gauge `payout.execution.stuck.current`; startup check vs `collections.payout.provider-timeout`; tick on merge)
