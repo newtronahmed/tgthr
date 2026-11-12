@@ -242,6 +242,12 @@ class PayoutContributorIT extends ApiIntegrationTest {
         .isEqualTo("COMPLETED");
     assertThat(RecordingAlertPublisher.alerts())
         .anyMatch(alert -> alert.type() == Alert.AlertType.SMS_FAILURE);
+    List<String> alerts =
+        RecordingAlertPublisher.alerts().stream()
+            .filter(alert -> alert.reference().equals(payout.toString()))
+            .map(alert -> alert.type() + " " + alert.detail())
+            .toList();
+    assertThat(String.join(" ", alerts)).doesNotContain("0240000509", "+233240000509");
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from payout_notifications where payout_id = ?",

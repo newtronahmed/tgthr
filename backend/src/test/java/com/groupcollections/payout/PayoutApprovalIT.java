@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -131,6 +132,10 @@ class PayoutApprovalIT extends ApiIntegrationTest {
     assertThat(page.getBody().get("approverName")).isEqualTo("Esi Mensah");
     assertThat((String) page.getBody().toString()).doesNotContain(APPROVER_PHONE);
     assertThat((String) page.getBody().toString()).doesNotContain("0240000401");
+    UUID payoutId =
+        jdbc.queryForObject("select id from payouts where goal_id = ?", UUID.class, goalId);
+    assertThat(payoutArtifacts(payoutId))
+        .doesNotContain(APPROVER_PHONE, "0240000402", "0240000401");
 
     ResponseEntity<Map<String, Object>> wrong = approvalVerify(token, "000000");
     assertThat(wrong.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -429,6 +434,24 @@ class PayoutApprovalIT extends ApiIntegrationTest {
     Matcher matcher = TOKEN.matcher(message);
     assertThat(matcher.find()).isTrue();
     return matcher.group(1);
+  }
+
+  private String payoutArtifacts(UUID payoutId) {
+    List<String> events =
+        jdbc.queryForList(
+            """
+            select event || ' ' || coalesce(from_state, '') || ' ' || coalesce(to_state, '')
+                   || ' ' || coalesce(detail::text, '')
+            from payout_events where payout_id = ?
+            """,
+            String.class,
+            payoutId);
+    List<String> alerts =
+        RecordingAlertPublisher.alerts().stream()
+            .filter(alert -> alert.reference().equals(payoutId.toString()))
+            .map(alert -> alert.type() + " " + alert.detail())
+            .toList();
+    return String.join(" ", events) + " " + String.join(" ", alerts);
   }
 
   private Session session(String phone, String legalName) {
