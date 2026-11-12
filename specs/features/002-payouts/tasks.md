@@ -10,8 +10,8 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 - [x] T304 Add V9: `payouts` (with reservation states), `payout_approvals`, `payout_reports`, `payout_notifications`, `payout_events`, goal approver/settings fields; append-only events; unique request/provider references
 - [x] T305 Build the payout state machine with unit tests for every legal/illegal transition
 - [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold
-- [ ] T307 Add fake SMS/approval and fake transfer adapters to the test harness
-- [ ] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
+- [x] T307 Add fake SMS/approval and fake transfer adapters to the test harness
+- [x] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
 - [ ] T309 Obtain a fresh CODEOWNER review plan for the payout posting and contributor notification paths
 
 ## Slice 1 (P1): Quote, eligibility, reservations and request
@@ -20,14 +20,14 @@ Criteria: AC-PAYOUT-001, AC-PAYOUT-002, AC-PAYOUT-003, AC-PAYOUT-013
 
 - [x] T310 Write failing `PayoutRequestIT` cases for AC-001/002 (settled cap, unsettled/suspense excluded)
 - [x] T311 Implement `available` integration and amount validation until T310 is green
-- [ ] T312 Write failing full AC-003 case for the zero-fee ledger line (request fee/net is covered by AC-021)
+- [x] T312 Write failing full AC-003 case for the zero-fee ledger line (request fee/net is covered by AC-021)
 - [x] T313 Implement the provider fee quote and request row (request-phase part done; full AC-003 ledger line remains T312)
-- [ ] T314 Write failing full AC-013 case for cancel/failure release (request concurrency is covered by AC-022)
-- [ ] T315 Implement reservations and completion re-check until T314 is green
+- [x] T314 Write failing full AC-013 case for cancel/failure release (request concurrency is covered by AC-022)
+- [x] T315 Implement reservations and completion re-check until T314 is green
 - [x] T316 Write failing full AC-009 case for no second posting (request idempotency is AC-018/T317)
 - [x] T317 Implement the unique request key and different-amount conflict (request-phase part done; full AC-009 remains T316)
 - [x] T318 Refactor; keep the suite green
-- [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; includes the PATCH-vs-payout concurrency test) (Slice 1)
+- [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; gate covered, PATCH-vs-payout race test outstanding) (Slice 1)
 
 ## Slice 2 (P1): Approver, settings and approval
 
@@ -60,28 +60,28 @@ Criteria: AC-PAYOUT-010, AC-PAYOUT-014, AC-PAYOUT-015
 
 - [x] T340 Write failing `PayoutExecutionIT` for AC-010/015 (success/failure/unknown/one ledger, fee mismatch before provider)
 - [x] T341 Implement provider call, fee re-check, unique reference, completion posting and after-commit `notifyCompleted` call until T340 is green (fake provider; real adapter T302)
-- [ ] T342 Write failing full AC-014 E2E for the public payout view/report UI (backend is covered by AC-025/026/T343)
+- [x] T342 Write failing full AC-014 E2E for the public payout view/report UI (backend is covered by AC-025/026/T343; E2E in `web/e2e/payout.spec.ts`)
 - [x] T343 Implement public payout view, reports and funded-contributor notifications; group by `payer_phone_hash` and insert one notification per contributor, treating a unique conflict as already sent
 - [x] T344 Add stuck-EXECUTING verification and alerts (AC-PAYOUT-027; scan flags once, no re-execution)
-- [ ] T345 Refactor; keep the suite green
+- [x] T345 Refactor; keep the suite green
 
 ## Slice 5 (P1): Ownership and web
 
 Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 
 - [x] T350 Write failing ownership/token tests for AC-011; implement guards
-- [ ] T351 Build organizer quote/request/history/cancel UI
-- [ ] T352 Build approver `/approve/[token]` page (code, resend, decline)
-- [ ] T353 Wire BFF routes with cookies/Origin and no phone exposure
-- [ ] T354 Write the Playwright E2E for AC-012 (organizer + approver)
-- [ ] T355 Refactor; keep lint/build/budget/E2E green
+- [x] T351 Build organizer quote/request/history/cancel UI
+- [x] T352 Build approver `/approve/[token]` page (code, resend, decline)
+- [x] T353 Wire BFF routes with cookies/Origin and no phone exposure
+- [x] T354 Write the Playwright E2E for AC-012 (organizer + approver)
+- [x] T355 Refactor; keep lint/build/budget/E2E green
 
 ## Hardening
 
-- [ ] T360 Failure-path tests for every row in the spec failure table
-- [ ] T361 Phone-free event/metric/alert tests; abuse tests (approval pumping, token stuffing, cross-goal, report spam)
+- [x] T360 Failure-path tests for every row in the spec failure table (covered across `Payout*IT`)
+- [ ] T361 Phone-free event/metric/alert tests; abuse tests (approval pumping, token stuffing, cross-goal, report spam) (approval rate limits and cross-goal covered; report-spam test outstanding)
 - [ ] T362 Provider sandbox and fee-mismatch runbook; notification/decryption operations
-- [ ] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
-- [ ] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
+- [x] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
+- [x] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
 - [ ] T365 Fresh CODEOWNER review of the payout posting before merge
 - [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout

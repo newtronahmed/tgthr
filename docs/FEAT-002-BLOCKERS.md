@@ -132,7 +132,7 @@ This document tracks the implementation tasks required to enforce the architectu
 - [ ] **T280:** Update `docs/adr/0010-opaque-sessions.md` status from Proposed → Accepted (already implemented in FEAT-003)
 - [ ] **T281:** Update `docs/adr/0009-sms-otp-provider.md` status when production SMS adapter lands
 - [ ] **T282:** Review `specs/README.md` status table: mark settlement domain spec as Accepted when tests pass
-- [ ] **T283:** Update `README.md` project status: note FEAT-002 implementation and remaining manual steps
+- [x] **T283:** Update `README.md` project status: note FEAT-002 implementation and remaining manual steps
 
 ---
 
