@@ -132,3 +132,14 @@ MoMo form, maps `MTN/VOD/ATL`, returns null on a definite 4xx (e.g. 404) and rai
 serves the resolve endpoint; unit tests cover MTN, Telecel, not-found, unauthorized, rate-limited,
 5xx and missing-network cases. `MomoNumbers` now centralizes the local conversion used by the payout
 adapter too. No automated test calls Paystack. Trace stays 91/91/0.
+
+Arkesel SMS adapter (2026-11-13): T162 adds `ArkeselSmsSender` behind `SMS_PROVIDER=arkesel`
+(`ARKESEL_SMS_API_KEY`, an approved 1–11 character `ARKESEL_SENDER_ID`, optional free
+`ARKESEL_SANDBOX`). The application still generates and verifies the OTP locally; Arkesel only
+delivers the message. The adapter converts E.164/local numbers to the provider's `233…` form, sends
+the `api-key` header, maps non-success/401/402/422/500/transport failures to 503 `SMS_UNAVAILABLE`,
+and never logs the key, phone or message. `FakeArkeselServer` and unit tests cover success, sandbox,
+provider error, unauthorized, server error, local-number conversion and constructor validation. A
+free sandbox smoke test with the supplied key returned `401 Invalid key` (v1: `102 Authentication
+Failed`); no SMS was spent. T162 stays open until a valid Main API key and approved sender ID are
+provided for the one real OTP test. Trace stays 91/91/0.

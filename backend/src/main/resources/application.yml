@@ -28,6 +28,13 @@ collections:
     retention: ${IDENTITY_RETENTION:P1D}
   sms:
     provider: ${SMS_PROVIDER:none}
+    arkesel:
+      base-url: ${ARKESEL_BASE_URL:https://sms.arkesel.com}
+      api-key: ${ARKESEL_SMS_API_KEY:}
+      sender-id: ${ARKESEL_SENDER_ID:}
+      sandbox: ${ARKESEL_SANDBOX:false}
+      connect-timeout: ${ARKESEL_CONNECT_TIMEOUT:PT3S}
+      read-timeout: ${ARKESEL_READ_TIMEOUT:PT5S}
   web:
     origin: ${WEB_ORIGIN:http://localhost:3000}
   contribution:
