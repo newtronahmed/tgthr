@@ -36,6 +36,8 @@ contributor notifications are once-only, phone-free and failure-safe.
 - `backend/src/main/java/com/groupcollections/payout/PayoutPosting.java`
 - `PayoutCompletionService.java`
 - `PayoutClaimService.java`
+- `PayoutService.java` (request/cancel and goal lock)
+- `goal/OrganizerGoalService.java` (payout-settings PATCH and goal lock)
 - `PayoutExecutionService.java`
 - `PayoutVerificationService.java`
 - `PayoutRepository.java` (claim/CAS, provider reference, completed totals, reservations, stuck query)
@@ -70,13 +72,18 @@ contributor notifications are once-only, phone-free and failure-safe.
 - [ ] The posting set is unique per payout and the ledger remains append-only; corrections are new
   entries.
 - [ ] The provider transfer amount is the beneficiary net X−G, not X; the fee is the quoted G.
-- [ ] The fee is re-quoted after the claim under the goal lock and before the provider call. A
-  mismatch marks the payout FAILED with `PAYOUT_FEE_MISMATCH`, posts nothing, calls no provider and
-  releases the reservation.
+- [ ] The fee is re-quoted under the goal lock **before** the `READY → EXECUTING` compare-and-set,
+  not after the claim. A mismatch marks the payout FAILED with `PAYOUT_FEE_MISMATCH`, posts nothing,
+  calls no provider, releases the reservation and returns no claimed payout.
+- [ ] `PayoutCompletionService.complete` inserts the ledger lines and then calls `markCompleted`; the
+  state guard is the `where state = 'EXECUTING'` update. Confirm a failed guard throws in the same
+  transaction and rolls the insert back. `LedgerRepository.postPayout` only inserts the lines it is
+  given; it does not itself reject an unbalanced set, so the caller's posting is the balance proof.
 - [ ] `GOAL_POOL` cannot go negative; `available` is capped by goal-owned settled funds minus
   completed/reserved amounts.
 - [ ] Cancel/reject/failure release reservations and never post ledger.
-- [ ] A RETRY of a completed payout returns the original and posts nothing; a different body is 409.
+- [ ] A repeat of the same `Idempotency-Key` with the same amount returns the original payout and
+  posts nothing; a different amount is 409. There is no RETRY state-machine event.
 - [ ] Stuck EXECUTING rows are never re-executed. Completion failure leaves EXECUTING, alerts and
   preserves the provider reference.
 - [ ] Provider references are unique; duplicate-reference handling verifies the existing transfer and
@@ -86,8 +93,9 @@ contributor notifications are once-only, phone-free and failure-safe.
 
 ## Notification checklist
 
-- [ ] Notifications run after the payout transaction commits, never while a payout/goal row lock is
-  held.
+- [ ] Notifications are registered `afterCommit` only when a transaction synchronization is active.
+  Name the `else` branch in `PayoutCompletionService.complete` that calls `notifyCompleted` inline
+  while the goal row is locked; require proof production cannot hit it, or a task to remove it.
 - [ ] One notification per contributor per payout, enforced by the unique
   `(payout_id, payer_phone_hash)` constraint; duplicate payer rows collapse.
 - [ ] Only confirmed, non-reconciliation contributions fund the notification set.
@@ -100,14 +108,18 @@ contributor notifications are once-only, phone-free and failure-safe.
 
 ## Concurrency and locking checklist
 
-- [ ] The goal row lock is taken by the request, settings PATCH, claim, completion and cancel writers
-  that guard the same rows.
+- [ ] The goal row lock is taken by `PayoutService.request`, `OrganizerGoalService.updatePayoutSettings`,
+  `PayoutClaimService.claimNext`, `PayoutCompletionService.complete` and `PayoutService.cancel`.
+  `PayoutCompletionService.fail` does not take the goal lock; the `EXECUTING` state guard is what
+  prevents it racing a completion.
 - [ ] Claim is compare-and-set READY→EXECUTING; cancel and execute have exactly one winner.
 - [ ] Completion locks the goal before posting and marks EXECUTING→COMPLETED with a state guard.
 - [ ] No external I/O (Paystack/SMS) runs inside the claim, completion or goal-lock transaction.
 - [ ] The stuck sweep uses the `(payout_id) WHERE event='VERIFICATION_REQUIRED'` partial unique index;
   the flag is once-only across instances and the row lock prevents flagging a completed payout.
-- [ ] Concurrent sweeps produce one event and one alert.
+- [ ] Concurrent sweeps produce one `VERIFICATION_REQUIRED` event per payout. The alert is published
+  after the event transaction commits, so it is at-most-once; a failed publish leaves the event and
+  increments `payout.execution.stuck_alert_failed`.
 
 ## Failure-path evidence
 
