@@ -12,7 +12,7 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 - [x] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold (YAML keys, `PayoutConfigIT`)
 - [x] T307 Add fake SMS/approval and fake transfer adapters to the test harness
 - [x] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
-- [ ] T309 Obtain a fresh CODEOWNER review plan for the payout posting and contributor notification paths (plan at `docs/reviews/FEAT-002-CODEOWNER-REVIEW-PLAN.md`; tick on merge/acceptance)
+- [x] T309 Obtain a fresh CODEOWNER review plan for the payout posting and contributor notification paths (plan at `docs/reviews/FEAT-002-CODEOWNER-REVIEW-PLAN.md`)
 
 ## Slice 1 (P1): Quote, eligibility, reservations and request
 

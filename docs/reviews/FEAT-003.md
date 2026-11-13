@@ -122,3 +122,13 @@
 ## Follow-ups
 
 - T008/T165 test depth; T124/T178/T180 invariant evidence; T169 deterministic clock; T174 slug collision; T193 `__Host-` cookie; T195 CSP; T198 all-route trusted IP/per-IP tests; T171/T162/T001/T096 production adapters and live sandbox.
+
+Paystack MoMo account resolution (2026-11-13): T001 is recorded in
+`docs/runbooks/paystack-account-resolve-spike.md`: `GET /bank/resolve` returns the local account
+name for the documented test MoMo number (4xx unresolved, 5xx unavailable). T171 adds
+`PaystackAccountResolver` behind `ACCOUNT_RESOLVER=paystack`: it converts stored E.164 to the local
+MoMo form, maps `MTN/VOD/ATL`, returns null on a definite 4xx (e.g. 404) and raises
+`DESTINATION_CHECK_UNAVAILABLE` on 401/403/408/429, 5xx or transport failures. `FakePaystackServer`
+serves the resolve endpoint; unit tests cover MTN, Telecel, not-found, unauthorized, rate-limited,
+5xx and missing-network cases. `MomoNumbers` now centralizes the local conversion used by the payout
+adapter too. No automated test calls Paystack. Trace stays 91/91/0.

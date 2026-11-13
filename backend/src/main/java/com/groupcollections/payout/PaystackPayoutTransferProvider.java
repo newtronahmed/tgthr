@@ -1,6 +1,7 @@
 package com.groupcollections.payout;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.groupcollections.payments.MomoNumbers;
 import com.groupcollections.payments.Network;
 import com.groupcollections.security.PhoneCipher;
 import java.util.Map;
@@ -43,7 +44,7 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
       if (destination.network() == null) {
         return failed("DESTINATION_INVALID");
       }
-      String phone = localNumber(phones.decrypt(destination.phoneCiphertext()));
+      String phone = MomoNumbers.local(phones.decrypt(destination.phoneCiphertext()));
       String bankCode = Network.valueOf(destination.network()).transferCode();
       recipient = createRecipient(phone, bankCode, destination.accountName());
     } catch (IllegalArgumentException | IllegalStateException failure) {
@@ -158,21 +159,7 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
     };
   }
 
-  /** Paystack expects the local MoMo form (0XXXXXXXXX), not the stored E.164 form. */
-  private static String localNumber(String stored) {
-    if (stored == null) {
-      throw new IllegalArgumentException("missing destination number");
-    }
-    String value = stored.trim();
-    if (value.startsWith("+233") && value.length() == 13) {
-      return "0" + value.substring(4);
-    }
-    if (value.startsWith("0") && value.length() == 10) {
-      return value;
-    }
-    throw new IllegalArgumentException("destination is not a Ghanaian mobile number");
-  }
-
+  /** Auth, timeout and throttling responses are transient; they are not a definitive rejection. */
   private static boolean transientClientError(HttpStatusCode status) {
     int code = status.value();
     return code == 401 || code == 403 || code == 408 || code == 429;

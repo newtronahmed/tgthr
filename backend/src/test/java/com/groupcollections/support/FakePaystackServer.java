@@ -50,7 +50,9 @@ public final class FakePaystackServer implements AutoCloseable {
   private final List<String> chargeBodies = new CopyOnWriteArrayList<>();
   private final List<String> transferBodies = new CopyOnWriteArrayList<>();
   private final List<String> recipientBodies = new CopyOnWriteArrayList<>();
+  private final List<String> resolveQueries = new CopyOnWriteArrayList<>();
   private volatile String transferScenario = "SUCCESS";
+  private volatile String resolveScenario = "SUCCESS";
   private final Map<String, String> scenarioByReference = new ConcurrentHashMap<>();
   private final Map<String, Long> transferAmountByReference = new ConcurrentHashMap<>();
   private final Map<String, Long> amountByReference = new ConcurrentHashMap<>();
@@ -67,6 +69,7 @@ public final class FakePaystackServer implements AutoCloseable {
               return thread;
             });
     server.setExecutor(executor);
+    server.createContext("/bank/resolve", this::handleResolve);
     server.createContext("/charge", this::handleCharge);
     server.createContext("/transaction/verify/", this::handleVerify);
     server.createContext("/transferrecipient", this::handleTransferRecipient);
@@ -89,8 +92,10 @@ public final class FakePaystackServer implements AutoCloseable {
     chargeBodies.clear();
     transferBodies.clear();
     recipientBodies.clear();
+    resolveQueries.clear();
     transferAmountByReference.clear();
     transferScenario = "SUCCESS";
+    resolveScenario = "SUCCESS";
     scenarioByReference.clear();
     amountByReference.clear();
   }
@@ -105,6 +110,15 @@ public final class FakePaystackServer implements AutoCloseable {
 
   public List<String> recipientBodies() {
     return List.copyOf(recipientBodies);
+  }
+
+  public List<String> resolveQueries() {
+    return List.copyOf(resolveQueries);
+  }
+
+  /** SUCCESS, NOT_FOUND or UNKNOWN. */
+  public void resolveScenario(String scenario) {
+    resolveScenario = scenario;
   }
 
   /** SUCCESS, FAILED, OTP, DUPLICATE or UNKNOWN. */
@@ -243,6 +257,46 @@ public final class FakePaystackServer implements AutoCloseable {
             "reference", reference,
             "status", "pending",
             "display_text", "Approve the prompt on your phone"));
+  }
+
+  private void handleResolve(HttpExchange exchange) throws IOException {
+    String query = exchange.getRequestURI().getQuery();
+    resolveQueries.add(query);
+    switch (resolveScenario) {
+      case "NOT_FOUND" ->
+          respond(exchange, 404, Map.of("status", false, "message", "Cannot resolve account"));
+      case "UNAUTHORIZED" ->
+          respond(exchange, 401, Map.of("status", false, "message", "Invalid key"));
+      case "RATE_LIMITED" ->
+          respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
+      case "UNKNOWN" ->
+          respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
+      default ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  Map.of(
+                      "account_number", queryParam(query, "account_number"),
+                      "account_name", "Kofi Mensah",
+                      "bank_code", queryParam(query, "bank_code"))));
+    }
+  }
+
+  private static String queryParam(String query, String name) {
+    if (query == null) {
+      return "";
+    }
+    for (String part : query.split("&")) {
+      String[] pair = part.split("=", 2);
+      if (pair.length == 2 && pair[0].equals(name)) {
+        return pair[1];
+      }
+    }
+    return "";
   }
 
   private void handleTransferRecipient(HttpExchange exchange) throws IOException {
