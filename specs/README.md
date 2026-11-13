@@ -23,7 +23,8 @@ Everything built here starts as a spec in this folder.
 | --- | --- | --- |
 | features/001-contributions | Implemented | Backend and web complete; manual Paystack sandbox (T096) remains before the first live payment. |
 | features/002-payouts | Ready | Spec, plan and tasks reviewed and merged 2026-11-09; ADR 0016 accepted. Implementation (V9, OpenAPI, code) has not started. |
-| features/003-organizer-identity | In progress | Backend identity, goals, organizer web, invariants and hardening are implemented and E2E-tested. Production SMS/Paystack adapters, live sandbox checks and a few hardening tests (T174/T180/T193/T195/T198) remain; ADRs 0009/0010 accepted. |
+| features/003-organizer-identity | In progress | Backend identity, goals, organizer web, invariants and hardening are implemented and E2E-tested. Production SMS adapter (Arkesel) is coded with sandbox passing; live delivery awaits sender approval. Paystack MoMo resolution is implemented; live checks and a few hardening tests (T174/T180/T193/T195/T198) remain; ADRs 0009/0010 accepted. |
+| features/005-refunds-and-operator-tooling | Draft | P1 pre-payout refunds and suspense reconciliation are specified. Open P1 questions: refund fee policy, operator auth/roles, initiation, in-flight-payout rule. See the spec's open questions. |
 | domain/ledger | Accepted | Settlement model, payout fee bearer and PLATFORM_FEE decided in ADRs 0006 and 0007; contribution invariants implemented. Payout invariants follow FEAT-002. |
 | domain/contribution-state-machine | Accepted | Early- and late-success transitions implemented and tested. |
 | domain/organizer-identity | Accepted | Session, challenge and phone invariants for FEAT-003 and FEAT-004. |
