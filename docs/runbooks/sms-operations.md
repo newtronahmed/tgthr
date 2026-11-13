@@ -21,10 +21,13 @@ secrets/config; never commit them.
 
 ## Current status (2026-11-13)
 
-The key now authenticates. A free sandbox send with sender `Tgthr` to `233551234987` returned
-`200 {"status":"success", ...}` with one sandbox id. **No SMS was delivered or charged.** The one
-real OTP delivery test remains before go-live; confirm `Tgthr` is approved for production in the
-Arkesel dashboard first. Set `ARKESEL_SANDBOX=true` for local checks to avoid spending credit.
+The key authenticates and the free sandbox send with sender `Tgthr` returned `200
+{"status":"success", ...}`. A single **real** send to a maintainer-provided number was also accepted
+by Arkesel (`200`, SMS id returned) but **did not arrive**; the Arkesel dashboard shows the `Tgthr`
+sender ID as **pending approval**. No further send was attempted and no additional SMS was spent.
+
+Do not retry until `Tgthr` is approved and active for production. Then perform the one-real-OTP test
+below and record the result. Set `ARKESEL_SANDBOX=true` for local checks to avoid spending credit.
 
 ## Free sandbox check
 

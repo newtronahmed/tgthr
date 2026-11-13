@@ -73,7 +73,7 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 
 - [x] T160 Add events, metrics and alerts for OTP, sessions, goal creation and destination failures
 - [x] T161 Abuse tests: OTP pumping, enumeration, cross-tenant access, session theft and replay
-- [ ] T162 Update `docs/runbooks/` with SMS provider and organizer sign-in operations (Arkesel adapter and `docs/runbooks/sms-operations.md` implemented; live key returned 401 `Invalid key`, so the real OTP smoke test awaits a re-copied Main API key and approved sender ID)
+- [ ] T162 Update `docs/runbooks/` with SMS provider and organizer sign-in operations (Arkesel adapter and `docs/runbooks/sms-operations.md` implemented; sandbox passes, one real send was accepted but not delivered because sender `Tgthr` is pending approval; no retry, real OTP pending approval)
 - [x] T163 Run `make check`, the web checks and E2E; remove every `@Disabled` marker for FEAT-003
 - [x] T164 Independent review at the slice boundaries; fix blockers before the next slice
 - [x] T165 Add retention/cleanup for expired `otp_challenges` and `user_sessions` (scheduled job and index review)
