@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClient;
 class PaystackConfiguration {
 
   @Bean
-  PaystackClient paystackClient(
+  RestClient paystackRestClient(
       @Value("${collections.payments.paystack.base-url}") String baseUrl,
       @Value("${collections.payments.paystack.secret-key}") String secretKey,
       @Value("${collections.payments.paystack.connect-timeout}") Duration connectTimeout,
@@ -21,13 +21,16 @@ class PaystackConfiguration {
     HttpClient httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
     JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
     requestFactory.setReadTimeout(readTimeout);
-    RestClient restClient =
-        RestClient.builder()
-            .requestFactory(requestFactory)
-            .baseUrl(baseUrl)
-            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
-            .build();
-    return new PaystackHttpClient(restClient);
+    return RestClient.builder()
+        .requestFactory(requestFactory)
+        .baseUrl(baseUrl)
+        .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
+        .build();
+  }
+
+  @Bean
+  PaystackClient paystackClient(RestClient paystackRestClient) {
+    return new PaystackHttpClient(paystackRestClient);
   }
 
   @Bean

@@ -77,6 +77,25 @@ public class PayoutRepository {
         .findFirst();
   }
 
+  public record PayoutDestination(byte[] phoneCiphertext, String network, String accountName) {}
+
+  public Optional<PayoutDestination> findDestination(UUID goalId) {
+    return jdbc
+        .query(
+            """
+            select destination_phone_ciphertext, destination_network, destination_account_name
+            from goals where id = ?
+            """,
+            (resultSet, rowNumber) ->
+                new PayoutDestination(
+                    resultSet.getBytes("destination_phone_ciphertext"),
+                    resultSet.getString("destination_network"),
+                    resultSet.getString("destination_account_name")),
+            goalId)
+        .stream()
+        .findFirst();
+  }
+
   public UUID insert(
       UUID goalId,
       UUID requesterId,

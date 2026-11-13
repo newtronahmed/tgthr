@@ -15,4 +15,13 @@ public enum Network {
   public String providerCode() {
     return providerCode;
   }
+
+  /** Paystack transfer-recipient bank code (uppercase). */
+  public String transferCode() {
+    return switch (this) {
+      case MTN -> "MTN";
+      case TELECEL -> "VOD";
+      case AT -> "ATL";
+    };
+  }
 }
