@@ -39,7 +39,7 @@ collections:
     execution:
       enabled: ${PAYOUT_EXECUTION_ENABLED:false}
     fee-provider: ${PAYOUT_FEE_PROVIDER:none}
-    transfer-fee-minor-units: ${PAYOUT_TRANSFER_FEE_MINOR_UNITS:100}
+    transfer-fee-minor-units: ${PAYOUT_TRANSFER_FEE_MINOR_UNITS}
     approval-ttl: ${PAYOUT_APPROVAL_TTL:PT10M}
     token-ttl: ${PAYOUT_TOKEN_TTL:PT24H}
     approval-max-attempts: ${PAYOUT_APPROVAL_MAX_ATTEMPTS:5}

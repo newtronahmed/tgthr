@@ -57,6 +57,10 @@ public class PayoutService {
     this.clock = clock;
     this.meters = meters;
     this.minimumHoldMinutes = minimumHoldMinutes;
+    if (minimumHoldMinutes < 1) {
+      throw new IllegalArgumentException(
+          "collections.payout.minimum-hold-minutes must be at least 1");
+    }
   }
 
   @Transactional

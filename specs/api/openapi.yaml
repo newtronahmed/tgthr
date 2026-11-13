@@ -340,7 +340,8 @@ paths:
       description: |
         The approver name and phone must be supplied together and the phone must differ from the
         organizer. The phone is encrypted and never returned. Settings cannot change after the
-        first payout; a zero hold is refused with HOLD_REQUIRED.
+        first payout; a hold below the configured minimum (at least one minute) is refused with
+        HOLD_REQUIRED.
       security:
         - cookieAuth: []
       parameters:
@@ -703,6 +704,7 @@ components:
           description: Payout debit X at or above which a second approval is required.
         holdWindowMinutes:
           type: integer
+          description: Must be at least the configured minimum (at least 1); a lower value is refused with 422 HOLD_REQUIRED.
         surplusRule:
           type: string
           enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
@@ -951,7 +953,7 @@ components:
           minimum: 0
           maximum: 1440
           default: 60
-          description: Use at least 1; 0 is refused with 422 HOLD_REQUIRED.
+          description: Must be at least the configured minimum (at least 1); a lower value is refused with 422 HOLD_REQUIRED.
         surplusRule:
           type: string
           enum: [PAY_BENEFICIARY, WELFARE_RESERVE]
@@ -1095,7 +1097,7 @@ components:
     PayoutSettings:
       type: object
       minProperties: 1
-      description: Supplying an approver requires both name and phone. A zero hold is refused with 422 HOLD_REQUIRED.
+      description: Supplying an approver requires both name and phone. A hold below the configured minimum (at least one minute) is refused with 422 HOLD_REQUIRED.
       properties:
         secondApproverName:
           type: string
@@ -1108,7 +1110,7 @@ components:
           type: integer
           minimum: 0
           maximum: 1440
-          description: Use at least 1; 0 is refused with 422 HOLD_REQUIRED.
+          description: Must be at least the configured minimum (at least 1); a lower value is refused with 422 HOLD_REQUIRED.
     OrganizerGoal:
       type: object
       required: [id, slug, title, template, targetType, status, deadline, destinationType, destinationAccountName, secondApproverName, secondApprover, secondApproverThresholdPesewas, holdWindowMinutes, surplusRule, raisedPesewas, contributorCount, createdAt]

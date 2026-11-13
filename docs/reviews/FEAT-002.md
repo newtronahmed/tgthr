@@ -328,6 +328,10 @@ Payout configuration (2026-11-13): T306 makes the payout flags, configured fee f
 token/code TTLs, maximum attempts, resend delay and minimum hold explicit in `application.yml`
 (`PAYOUT_*` environment overrides) and wires them into `PayoutApprovalService`, `PayoutService`,
 `PayoutHoldService` and `OrganizerGoalService`. The approval TTL and attempt count are no longer
-hard-coded, and a hold below the configured minimum is rejected on goal creation and settings
-updates. `PayoutConfigIT` runs with `PT2M`/`PT2H`/2 attempts/3-minute minimum hold and proves both
-the hold rejection and the stored challenge values. Trace stays 91/91/0; `make check` green.
+hard-coded. The configured fee provider has **no default amount**: selecting it without
+`PAYOUT_TRANSFER_FEE_MINOR_UNITS` still fails startup, and `ConfiguredPayoutFeeProviderTest` covers
+both cases. The minimum hold must be at least 1 in all three constructors; `PayoutConfigIT` proves a
+stored hold below the configured minimum is rejected on request (no payout row), and
+`PayoutHoldServiceTest` covers the hold start. The spec, failure table, plan and OpenAPI wording now
+describe the configured minimum rather than a fixed one-minute/zero-hold rule. Trace stays 91/91/0;
+`make check` green.

@@ -88,6 +88,24 @@ class PayoutConfigIT extends ApiIntegrationTest {
   }
 
   @Test
+  void requestRejectsAStoredHoldBelowTheConfiguredMinimum() {
+    Session session = session("0240000804", "Ama Mensah");
+    UUID goalId =
+        UUID.fromString((String) createGoal(session, 3, "OFF", null, null).getBody().get("id"));
+    jdbc.update("update goals set hold_window_minutes = 2 where id = ?", goalId);
+    fundGoal(goalId, 5_000);
+
+    ResponseEntity<Map<String, Object>> payout = request(session, goalId, 1_000);
+    assertThat(payout.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    assertThat(payout.getBody()).isNotNull();
+    assertThat(payout.getBody().get("code")).isEqualTo("HOLD_REQUIRED");
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from payouts where goal_id = ?", Integer.class, goalId))
+        .isZero();
+  }
+
+  @Test
   void approvalChallengeUsesConfiguredTtlAndAttempts() {
     Session session = session("0240000802", "Ama Mensah");
     UUID goalId =

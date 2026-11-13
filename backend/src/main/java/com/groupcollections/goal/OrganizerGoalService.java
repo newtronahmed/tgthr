@@ -65,6 +65,10 @@ public class OrganizerGoalService {
     this.rateLimiter = rateLimiter;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.minimumHoldMinutes = minimumHoldMinutes;
+    if (minimumHoldMinutes < 1) {
+      throw new IllegalArgumentException(
+          "collections.payout.minimum-hold-minutes must be at least 1");
+    }
   }
 
   public OrganizerGoal create(
