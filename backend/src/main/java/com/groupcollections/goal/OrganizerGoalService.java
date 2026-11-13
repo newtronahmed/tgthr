@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class OrganizerGoalService {
   private final AlertPublisher alerts;
   private final GoalRateLimiter rateLimiter;
   private final TransactionTemplate transactionTemplate;
+  private final int minimumHoldMinutes;
 
   public OrganizerGoalService(
       OrganizerGoalRepository goals,
@@ -50,7 +52,8 @@ public class OrganizerGoalService {
       MeterRegistry meters,
       AlertPublisher alerts,
       GoalRateLimiter rateLimiter,
-      PlatformTransactionManager transactionManager) {
+      PlatformTransactionManager transactionManager,
+      @Value("${collections.payout.minimum-hold-minutes:1}") int minimumHoldMinutes) {
     this.goals = goals;
     this.users = users;
     this.phones = phones;
@@ -61,6 +64,7 @@ public class OrganizerGoalService {
     this.alerts = alerts;
     this.rateLimiter = rateLimiter;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
+    this.minimumHoldMinutes = minimumHoldMinutes;
   }
 
   public OrganizerGoal create(
@@ -119,9 +123,9 @@ public class OrganizerGoalService {
             : request.secondApproverThresholdPesewas();
     int holdWindow =
         request.holdWindowMinutes() == null
-            ? DEFAULT_HOLD_WINDOW_MINUTES
+            ? Math.max(DEFAULT_HOLD_WINDOW_MINUTES, minimumHoldMinutes)
             : request.holdWindowMinutes();
-    if (holdWindow < 1) {
+    if (holdWindow < minimumHoldMinutes) {
       throw OrganizerGoalException.holdRequired();
     }
     SurplusRule surplus =
@@ -218,7 +222,7 @@ public class OrganizerGoalService {
         && request.holdWindowMinutes() == null) {
       throw OrganizerGoalException.invalid("provide at least one payout setting");
     }
-    if (request.holdWindowMinutes() != null && request.holdWindowMinutes() < 1) {
+    if (request.holdWindowMinutes() != null && request.holdWindowMinutes() < minimumHoldMinutes) {
       throw OrganizerGoalException.holdRequired();
     }
 

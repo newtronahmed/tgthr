@@ -323,3 +323,11 @@ payout-side goal lock the PATCH waits and returns 409 `PAYOUT_SETTINGS_LOCKED` w
 60; removing `lockByIdAndCreator` from `PayoutService.request` makes the test fail because the PATCH
 commits 200 during the blocked quote. AC-PAYOUT-020 remains covered by the existing 422 test.
 Trace stays 91/91/0; `make check` green.
+
+Payout configuration (2026-11-13): T306 makes the payout flags, configured fee fallback, approval
+token/code TTLs, maximum attempts, resend delay and minimum hold explicit in `application.yml`
+(`PAYOUT_*` environment overrides) and wires them into `PayoutApprovalService`, `PayoutService`,
+`PayoutHoldService` and `OrganizerGoalService`. The approval TTL and attempt count are no longer
+hard-coded, and a hold below the configured minimum is rejected on goal creation and settings
+updates. `PayoutConfigIT` runs with `PT2M`/`PT2H`/2 attempts/3-minute minimum hold and proves both
+the hold rejection and the stored challenge values. Trace stays 91/91/0; `make check` green.

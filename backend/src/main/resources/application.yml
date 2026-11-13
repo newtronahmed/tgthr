@@ -35,6 +35,16 @@ collections:
     paystack-fee-bps: ${PAYSTACK_FEE_BPS:195}
     timeout: ${CONTRIBUTION_TIMEOUT:PT5M}
   payout:
+    enabled: ${PAYOUT_ENABLED:false}
+    execution:
+      enabled: ${PAYOUT_EXECUTION_ENABLED:false}
+    fee-provider: ${PAYOUT_FEE_PROVIDER:none}
+    transfer-fee-minor-units: ${PAYOUT_TRANSFER_FEE_MINOR_UNITS:100}
+    approval-ttl: ${PAYOUT_APPROVAL_TTL:PT10M}
+    token-ttl: ${PAYOUT_TOKEN_TTL:PT24H}
+    approval-max-attempts: ${PAYOUT_APPROVAL_MAX_ATTEMPTS:5}
+    approval-resend-seconds: ${PAYOUT_APPROVAL_RESEND_SECONDS:60}
+    minimum-hold-minutes: ${PAYOUT_MINIMUM_HOLD_MINUTES:1}
     stuck-after: ${PAYOUT_STUCK_AFTER:PT10M}
     stuck-scan-ms: ${PAYOUT_STUCK_SCAN_MS:60000}
   rate-limit:

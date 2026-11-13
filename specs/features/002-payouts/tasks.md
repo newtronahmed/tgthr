@@ -9,7 +9,7 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 - [x] T303 Add goal approver fields and `PATCH /organizer/goals/{id}/payout-settings` (before first payout only); encrypt the phone; update OpenAPI
 - [x] T304 Add V9: `payouts` (with reservation states), `payout_approvals`, `payout_reports`, `payout_notifications`, `payout_events`, goal approver/settings fields; append-only events; unique request/provider references
 - [x] T305 Build the payout state machine with unit tests for every legal/illegal transition
-- [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold
+- [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold (YAML keys, `PayoutConfigIT`; tick on merge)
 - [x] T307 Add fake SMS/approval and fake transfer adapters to the test harness
 - [x] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
 - [ ] T309 Obtain a fresh CODEOWNER review plan for the payout posting and contributor notification paths
