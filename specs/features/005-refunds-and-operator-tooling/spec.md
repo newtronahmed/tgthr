@@ -82,9 +82,12 @@ inflating a goal, and every action is attributable, idempotent and safe against 
    outside the goal lock. Only a confirmed provider success posts the one `REVERSAL` set and moves the
    contribution `CONFIRMED → REFUNDED`. A pending/unknown provider result leaves the refund
    `PROVIDER_PENDING` with the reservation held and raises an alert; it is never posted twice.
-6. **Exact ledger.** The refund reverses the contribution's goal amount and the fee components
-   allowed by the fee policy; every set balances, uses integer minor units and GHS, and the goal pool
-   never goes negative. The fee policy is an open P1 decision below.
+6. **Exact ledger.** The refund reverses the account(s) actually credited for the policy-selected
+   components: `GOAL_POOL` for a normal contribution or `SUSPENSE` for a suspended/late contribution;
+   platform/processing fee components debit `PLATFORM_FEE`/`FEE` only if the accepted fee policy
+   refunds them. `PARTNER_HELD` is credited the same total Paystack refunds. Every set balances, uses
+   integer minor units and GHS, and no account goes negative. On success the reversal replaces the
+   reservation, so availability drops once — not once for the reservation and again for the posting.
 7. **Idempotency.** `Idempotency-Key` is required, unique per contribution. The same key and body
    returns the original refund; a different body returns `409 IDEMPOTENCY_CONFLICT`. Provider
    duplicates are resolved by the provider refund reference, never by a second refund call.
@@ -108,7 +111,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | AC-REFUND-004 | P1 | Given a provider timeout/unknown, when the refund is recorded, then it stays `PROVIDER_PENDING`, the reservation remains held, an alert is raised and no ledger posts until verification. | Integration |
 | AC-REFUND-005 | P1 | Given any active payout or a completed payout for the goal, when a refund is requested, then `409 PAYOUT_IN_FLIGHT` or `REFUND_AFTER_PAYOUT` is returned and no refund/provider call is created. | Integration |
 | AC-REFUND-006 | P1 | Given concurrent refund requests for one contribution, when they race, then exactly one active refund/provider call exists and the other returns the original or `REFUND_IN_PROGRESS`. | Integration |
-| AC-REFUND-007 | P1 | Given the fee policy, when a refund succeeds, then the goal, platform-fee and processing-fee components reverse exactly, the posting set nets to zero and `GOAL_POOL` never goes negative. | Integration |
+| AC-REFUND-007 | P1 | Given the accepted refund fee policy, when a refund succeeds, then only the policy-selected components reverse from the account(s) actually credited, the `PARTNER_HELD` credit equals the amount Paystack refunds, the posting set nets to zero and no account goes negative. | Integration |
 | AC-REFUND-008 | P1 | Given a non-operator, foreign contribution or phone in the audit payload, when the action is attempted, then it is unauthorized/not found and no phone is stored or returned. | Integration |
 | AC-REFUND-009 | P2 | Given a completed payout, when the operator opens a post-payout recovery request, then the request and recovery outcome are audited without changing the goal pool until a loss is approved. | Integration |
 | AC-REFUND-010 | P2 | Given an unrecoverable post-payout shortfall, when an authorized operator approves a loss, then one `LOSS_ALLOCATION` posting moves the shortfall to `PLATFORM_LOSS` with a reason; no negative pool. | Integration |
@@ -147,9 +150,12 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 - New append-only `refund_events` and `operator_actions` audit tables.
 - `contributions.state` uses the existing `REFUNDED`; no new contribution state is required while a
   refund is pending; availability subtracts active refunds.
-- Ledger: one `REVERSAL` set on confirmed success. The exact account split depends on the open fee
-  policy: goal amount `A`, platform fee `P`, processing fee `F`, all or a subset of
-  `A + P + F` debited from `GOAL_POOL`/`PLATFORM_FEE`/`FEE` and credited to `PARTNER_HELD`.
+- Ledger: one `REVERSAL` set on confirmed provider success. It debits the account(s) actually
+  credited for the refunded components: `GOAL_POOL` for a normal contribution, `SUSPENSE` for a
+  suspended/late contribution; `PLATFORM_FEE`/`FEE` only for the fee components the accepted policy
+  refunds. `PARTNER_HELD` is credited the same total Paystack refunds, so the set nets to zero and no
+  account goes negative.
+- On success the ledger reversal replaces the refund reservation: availability falls once, not twice.
   Suspense reclassification: debit `SUSPENSE`, credit `GOAL_POOL`. Misc income: debit `SUSPENSE`,
   credit the platform revenue account. No set may leave `GOAL_POOL` or `SUSPENSE` negative.
 - Payout eligibility excludes `REFUNDED` contributions and active refund reservations.

@@ -34,7 +34,7 @@ A contribution is one payment attempt. Its state decides whether it counts towar
 | PENDING | Timeout and the partner confirms no payment | EXPIRED | History row |
 | EXPIRED | Valid late SUCCESS callback or poll result | CONFIRMED | Ledger entries posted; alert raised; if goal closed: flag requires_reconciliation and post to SUSPENSE (ADR 0013) |
 | FAILED | Valid late SUCCESS callback or poll result | CONFIRMED | Ledger entries posted; alert raised; if goal closed: flag requires_reconciliation and post to SUSPENSE (ADR 0013) |
-| CONFIRMED | Approved refund or correction (before payout) | REFUNDED | REVERSAL entries debit goal pool |
+| CONFIRMED | Approved refund or correction (before payout) | REFUNDED | One `REVERSAL` set debits the account(s) that were credited (goal pool or suspense); it posts only after the provider confirms, after the refund request commits, never inside the request transaction |
 
 Any other event for a given state is an illegal transition: it is logged with the contribution id and ignored.
 
@@ -52,3 +52,6 @@ Any other event for a given state is an illegal transition: it is logged with th
 - 2026-11-06: a valid SUCCESS while INITIATED confirms the contribution. The callback is proof that the prompt was sent and paid; acknowledging it and leaving the row INITIATED would drop a confirmed payment. The create path's later PROMPT_SENT is then illegal and ignored.
 - 2026-11-06: a stale INITIATED row whose poll confirms no payment expires. Without this, a crash between the insert and PROMPT_SENT leaves the row INITIATED forever.
 - 2026-11-08: late success after goal closure flags `requires_reconciliation` and posts to SUSPENSE account, not goal pool (ADR 0013). Automatic increase of payout balance is prevented; operator must investigate and reclassify.
+- 2026-11-13: a refund request reserves but does not post. The `CONFIRMED → REFUNDED` reversal posts
+  only after the payment provider confirms the refund, after the request transaction commits. A
+  refunded suspense contribution debits `SUSPENSE`, not `GOAL_POOL`.
