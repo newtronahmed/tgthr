@@ -350,7 +350,9 @@ destination, transfers the beneficiary net with `tgthr-payout-<payout id>` as th
 `success`/`failed`/`otp`/`pending` and resolves duplicate references through
 `GET /transfer/verify`. 4xx responses are terminal, 5xx/timeouts are UNKNOWN. The fee provider uses
 the documented GHS 1 MoMo fee (configurable). `FakePaystackServer` now serves recipient, transfer and
-verify endpoints; unit tests cover success, failure, OTP, 5xx and the duplicate-reference path. The
-T301 spike is recorded in `docs/runbooks/paystack-transfer-spike.md`; live sign-off is blocked
-because the test business is still a starter and cannot initiate third-party payouts. No automated
-test calls Paystack. Trace stays 91/91/0; `make check` green.
+verify endpoints; unit tests cover success, failure, OTP, 5xx, amount/currency mismatch, transient
+4xx and the duplicate-reference path. Stored E.164 destinations are converted to the local MoMo form,
+and a success is only accepted when the returned amount equals the beneficiary net and the currency
+is GHS. The T301 spike is recorded in `docs/runbooks/paystack-transfer-spike.md`; live sign-off is
+blocked because the test business is still a starter and cannot initiate third-party payouts. No
+automated test calls Paystack. Trace stays 91/91/0; `make check` green.

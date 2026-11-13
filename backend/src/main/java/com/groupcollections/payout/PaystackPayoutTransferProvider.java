@@ -5,6 +5,7 @@ import com.groupcollections.payments.Network;
 import com.groupcollections.security.PhoneCipher;
 import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -39,13 +40,17 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
       if (destination == null || destination.phoneCiphertext() == null) {
         return failed("DESTINATION_MISSING");
       }
-      String phone = phones.decrypt(destination.phoneCiphertext());
+      if (destination.network() == null) {
+        return failed("DESTINATION_INVALID");
+      }
+      String phone = localNumber(phones.decrypt(destination.phoneCiphertext()));
       String bankCode = Network.valueOf(destination.network()).transferCode();
       recipient = createRecipient(phone, bankCode, destination.accountName());
     } catch (IllegalArgumentException | IllegalStateException failure) {
       return failed("DESTINATION_INVALID");
     } catch (RestClientResponseException failure) {
       return failure.getStatusCode().is4xxClientError()
+              && !transientClientError(failure.getStatusCode())
           ? failed("PROVIDER_RECIPIENT_REJECTED")
           : unknown();
     } catch (RestClientException failure) {
@@ -77,12 +82,15 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
                       "GHS"))
               .retrieve()
               .body(JsonNode.class);
-      return map(response);
+      return map(response, payout);
     } catch (RestClientResponseException failure) {
       if (failure.getStatusCode().value() == 400 && duplicate(failure.getResponseBodyAsString())) {
-        return verify(reference);
+        return verify(reference, payout);
       }
-      return failure.getStatusCode().is4xxClientError() ? failed("PROVIDER_REJECTED") : unknown();
+      return failure.getStatusCode().is4xxClientError()
+              && !transientClientError(failure.getStatusCode())
+          ? failed("PROVIDER_REJECTED")
+          : unknown();
     } catch (RestClientException failure) {
       return unknown();
     }
@@ -114,7 +122,7 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
     return code == null || code.isBlank() ? null : code;
   }
 
-  private TransferResult verify(String reference) {
+  private TransferResult verify(String reference, Payout payout) {
     try {
       JsonNode response =
           restClient
@@ -122,13 +130,13 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
               .uri("/transfer/verify/{reference}", reference)
               .retrieve()
               .body(JsonNode.class);
-      return map(response);
+      return map(response, payout);
     } catch (RestClientException failure) {
       return unknown();
     }
   }
 
-  private static TransferResult map(JsonNode response) {
+  private static TransferResult map(JsonNode response, Payout payout) {
     if (response == null || !response.path("status").asBoolean(false)) {
       return failed("PROVIDER_REJECTED");
     }
@@ -136,14 +144,38 @@ public class PaystackPayoutTransferProvider implements PayoutTransferProvider {
     String status = data.path("status").asText("");
     String code = data.path("transfer_code").asText(null);
     return switch (status) {
-      case "success" ->
-          code == null || code.isBlank()
-              ? unknown()
-              : new TransferResult(TransferResult.Status.SUCCESS, code, null);
+      case "success" -> {
+        boolean amountMatches = data.path("amount").asLong(-1) == payout.netPesewas();
+        boolean currencyMatches = payout.currency().equals(data.path("currency").asText());
+        if (code == null || code.isBlank() || !amountMatches || !currencyMatches) {
+          yield unknown();
+        }
+        yield new TransferResult(TransferResult.Status.SUCCESS, code, null);
+      }
       case "failed", "reversed" -> failed("PROVIDER_FAILED");
       case "otp", "pending" -> unknown();
       default -> unknown();
     };
+  }
+
+  /** Paystack expects the local MoMo form (0XXXXXXXXX), not the stored E.164 form. */
+  private static String localNumber(String stored) {
+    if (stored == null) {
+      throw new IllegalArgumentException("missing destination number");
+    }
+    String value = stored.trim();
+    if (value.startsWith("+233") && value.length() == 13) {
+      return "0" + value.substring(4);
+    }
+    if (value.startsWith("0") && value.length() == 10) {
+      return value;
+    }
+    throw new IllegalArgumentException("destination is not a Ghanaian mobile number");
+  }
+
+  private static boolean transientClientError(HttpStatusCode status) {
+    int code = status.value();
+    return code == 401 || code == 403 || code == 408 || code == 429;
   }
 
   private static boolean duplicate(String body) {

@@ -23,7 +23,7 @@ import org.springframework.web.client.RestClient;
 class PaystackPayoutTransferProviderTest {
 
   private static final String PHONE_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-  private static final String RECIPIENT_PHONE = "0551234987";
+  private static final String RECIPIENT_PHONE = "+233551234987";
 
   private final ObjectMapper mapper = new ObjectMapper();
   private FakePaystackServer fake;
@@ -62,6 +62,9 @@ class PaystackPayoutTransferProviderTest {
 
     assertThat(result.status()).isEqualTo(TransferResult.Status.SUCCESS);
     assertThat(result.providerReference()).isEqualTo("TRF_FAKE_OK");
+    JsonNode recipient = mapper.readTree(fake.recipientBodies().get(0));
+    assertThat(recipient.path("account_number").asText()).isEqualTo("0551234987");
+    assertThat(recipient.path("bank_code").asText()).isEqualTo("MTN");
     JsonNode body = mapper.readTree(fake.transferBodies().get(0));
     assertThat(body.path("amount").asLong()).isEqualTo(payout.netPesewas());
     assertThat(body.path("reference").asText()).isEqualTo("tgthr-payout-" + payout.id());
@@ -101,6 +104,41 @@ class PaystackPayoutTransferProviderTest {
 
     assertThat(result.status()).isEqualTo(TransferResult.Status.SUCCESS);
     assertThat(result.providerReference()).isEqualTo("TRF_FAKE_OK");
+  }
+
+  @Test
+  void amountMismatchIsUnknown() {
+    fake.transferScenario("MISMATCH");
+
+    assertThat(provider.transfer(payout()).status()).isEqualTo(TransferResult.Status.UNKNOWN);
+  }
+
+  @Test
+  void rateLimitedTransferIsUnknown() {
+    fake.transferScenario("RATE_LIMITED");
+
+    assertThat(provider.transfer(payout()).status()).isEqualTo(TransferResult.Status.UNKNOWN);
+  }
+
+  @Test
+  void rateLimitedRecipientIsUnknown() {
+    fake.transferScenario("RECIPIENT_RATE_LIMITED");
+
+    assertThat(provider.transfer(payout()).status()).isEqualTo(TransferResult.Status.UNKNOWN);
+  }
+
+  @Test
+  void missingNetworkIsDestinationInvalid() {
+    when(payouts.findDestination(any()))
+        .thenReturn(
+            Optional.of(
+                new PayoutRepository.PayoutDestination(
+                    phones.encrypt(RECIPIENT_PHONE), null, "Ama Mensah")));
+
+    TransferResult result = provider.transfer(payout());
+
+    assertThat(result.status()).isEqualTo(TransferResult.Status.FAILED);
+    assertThat(result.failureCode()).isEqualTo("DESTINATION_INVALID");
   }
 
   private Payout payout() {

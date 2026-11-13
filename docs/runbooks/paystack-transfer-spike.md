@@ -50,8 +50,12 @@ before every transfer through the existing claim check.
 - Transfer amount is the **beneficiary net** (`amount − fee`); the goal bears the fee in the ledger
 - Recipient is created from the goal's encrypted destination phone and network:
   `MTN → MTN`, `TELECEL → VOD`, `AT → ATL`
+- Stored destinations are E.164 (`+233XXXXXXXXX`); the adapter converts them to the local MoMo form
+  (`0XXXXXXXXX`) before calling Paystack
+- A success is accepted only when the returned `amount` equals the beneficiary net and the currency
+  is `GHS`; otherwise the result is UNKNOWN
 - Provider statuses: `success` → SUCCESS, `failed`/`reversed` → FAILED, `otp`/`pending` → UNKNOWN
-- 4xx responses are terminal (FAILED); 5xx/timeouts are UNKNOWN and are never blindly re-executed
+- 401/403/408/429 and 5xx/timeouts are UNKNOWN; definite 4xx rejections are FAILED
 - Tests use `FakePaystackServer`; no automated test calls Paystack
 
 ## OTP prerequisite
