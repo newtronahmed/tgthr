@@ -364,3 +364,10 @@ retry semantics, public reports, frozen goals, phone-decryption handling and the
 checklist. It records the known gaps: no operator completion/retry API (FEAT-005), no transfers OTP
 finalization, the starter-business block, and the fresh CODEOWNER review T365. Docs only; trace stays
 91/91/0.
+
+CODEOWNER review plan (2026-11-13): T309 adds `docs/reviews/FEAT-002-CODEOWNER-REVIEW-PLAN.md`, a
+bounded plan for T365 covering the payout posting and contributor notification paths: prerequisites
+and evidence, exact file scope, money/state/notification/concurrency checklists, failure-path
+evidence, the review procedure and explicit `ledger/`/`payments/` sign-off. It records the live
+Paystack blocker and the FEAT-005 operator-tooling gap. This is an input to T365, not the review
+itself. Docs only; trace stays 91/91/0.
