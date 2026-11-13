@@ -19,23 +19,32 @@ into a ticket.
 | `PAYOUT_TRANSFER_FEE_MINOR_UNITS` | required when `fee-provider=configured` | Fallback fee |
 | `PAYOUT_MINIMUM_HOLD_MINUTES` | `1` | Hold floor; must be at least 1 |
 | `PAYOUT_STUCK_AFTER` | `PT10M` | EXECUTING age before the sweep flags a payout |
-| `PAYOUT_PROVIDER_TIMEOUT` | `PT5S` | Floor for `stuck-after`; startup fails if the threshold is not greater |
+| `PAYOUT_PROVIDER_TIMEOUT` | `PT5S` | Validation floor only: `stuck-after` must be greater; it does **not** set the HTTP deadline |
 | `PAYSTACK_BASE_URL` | `https://api.paystack.co` | Paystack API base |
 | `PAYSTACK_SECRET_KEY` | required | Bearer secret; test and live keys are separate |
+| `PAYSTACK_READ_TIMEOUT` | `PT5S` | Paystack HTTP read deadline |
 | `PAYER_PHONE_KEY` | required | Base64 32-byte phone encryption key |
 
-Do not enable `PAYOUT_EXECUTION_ENABLED` without a `PAYOUT_TRANSFER_PROVIDER`; startup intentionally
-fails rather than execute with no provider.
+The YAML placeholders resolve from the short names above; Spring also accepts direct
+`COLLECTIONS_PAYOUT_*` and `COLLECTIONS_PAYMENTS_PAYSTACK_*` overrides. During an incident, inspect
+the process environment for `collections.payout.*` and `collections.payments.paystack.*`, not only
+the short names.
+
+Enabling `PAYOUT_ENABLED` also requires a `PAYOUT_FEE_PROVIDER` (`paystack` or `configured`); without
+a fee bean the request path fails at startup. Enabling `PAYOUT_EXECUTION_ENABLED` requires a
+`PAYOUT_TRANSFER_PROVIDER`; startup intentionally fails rather than execute with no provider.
 
 ## Alerts and metrics
 
 | Alert | Metric | Meaning |
 | --- | --- | --- |
 | `PAYOUT_FEE_MISMATCH` | `payout.fee_mismatch` | Re-quote differs from the stored fee; payout is FAILED, no transfer, no ledger |
-| `PAYOUT_EXECUTION_STUCK` | `payout.execution.stuck` | Unknown provider result, completion not persisted, or stale EXECUTING |
+| `PAYOUT_EXECUTION_STUCK` | `payout.execution.unknown` + `PROVIDER_UNKNOWN` event | Provider result unknown/timeout (immediate) |
+| `PAYOUT_EXECUTION_STUCK` | `payout.execution.reference_rejected` | Provider reference could not be persisted |
+| `PAYOUT_EXECUTION_STUCK` | `payout.execution.stuck` | Completion not persisted, or the later stale-EXECUTING sweep |
 | — | `payout.execution.stuck.current` | Current EXECUTING backlog older than `stuck-after` |
 | `SMS_FAILURE` | `payout.approval.sms.failed`, `payout.organizer_notification.failed`, `payout.notification.failed` | Approval/organizer/contributor SMS failed |
-| `PAYOUT_BLOCKED_FROZEN` | `payout.execution.frozen_blocked` | READY payouts blocked by a frozen goal |
+| `PAYOUT_BLOCKED_FROZEN` | `payout.execution.frozen_blocked` | One summary per worker scan (`payout-worker`) plus one per frozen payout in `claimNext` |
 | `PAYOUT_REPORTED` | `payout.report.received` | Contributor report; payout state never changes |
 
 ## 1. Paystack transfer go-live checklist
@@ -82,8 +91,9 @@ Expect `failure_code = PAYOUT_FEE_MISMATCH`, a `FEE_MISMATCH` event, and **zero*
 
 ## 3. Stuck EXECUTING
 
-**Symptom:** `PAYOUT_EXECUTION_STUCK`, event `VERIFICATION_REQUIRED`, gauge backlog, payout state
-`EXECUTING`.
+**Symptom:** `PAYOUT_EXECUTION_STUCK`, payout state `EXECUTING`. An immediate unknown result writes a
+`PROVIDER_UNKNOWN` event and increments `payout.execution.unknown`; the later sweep adds a
+`VERIFICATION_REQUIRED` event and increments `payout.execution.stuck` and the backlog gauge.
 
 ```sql
 select id, state, amount_minor_units, fee_minor_units, net_minor_units,
@@ -108,9 +118,10 @@ curl -s -H "Authorization: Bearer $PAYSTACK_SECRET_KEY" \
 | `pending` / `otp` | Wait or fix OTP; the platform has no OTP finalization. Escalate before any manual action |
 | 404 / unknown | Do not blindly retry the transfer. Capture the reference and escalate; a manual provider search may be required |
 
-Never call `POST /transfer` again for the same payout. The reference is intentionally idempotent,
-but a second transfer would be a duplicate payout. If the provider reference is absent, the payout
-may have been claimed before the provider call; treat it as manual reconciliation.
+Never call `POST /transfer` for this payout, and never mint a new reference. Repeating the same
+`tgthr-payout-<id>` is the duplicate-reference path (not yet observed live); a **new** reference is
+what would send the money again. If the provider reference is absent, the payout may have been
+claimed before the provider call; treat it as manual reconciliation.
 
 ## 4. Notification failures
 
@@ -141,8 +152,10 @@ terminal and does not change. Retry is informative only.
 - `PAYOUT_REPORTED`: a rate-limited contributor report is stored and alerted; the payout state never
   changes. Review the report and the payout evidence; escalate suspected fraud to the operator.
 - `PAYOUT_BLOCKED_FROZEN`: READY payouts are waiting on a frozen goal. Do not force execution; the
-  organizer can cancel, or the goal can be unfrozen through the operator path (FEAT-005). The alert
-  is emitted once per worker scan, not per payout.
+  organizer can cancel, or the goal can be unfrozen through the operator path (FEAT-005).
+  `reportFrozenBlocked` emits one summary alert with subject `payout-worker`; `claimNext` emits one
+  alert per frozen payout with that payout's id. The `payout.execution.frozen_blocked` metric is
+  incremented in both.
 
 ## 6. Decryption operations
 
