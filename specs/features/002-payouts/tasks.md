@@ -80,7 +80,7 @@ Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 
 - [x] T360 Failure-path tests for every row in the spec failure table (covered across `Payout*IT`)
 - [x] T361 Phone-free event/metric/alert tests; abuse tests (approval pumping, token stuffing, cross-goal, report spam) (approval limits in `PayoutApprovalRateLimitIT`, report spam in `PayoutReportRateLimitIT`, cross-goal in `PayoutContributorIT`/`PayoutCancelIT`, phone-free assertions in the payout ITs)
-- [ ] T362 Provider sandbox and fee-mismatch runbook; notification/decryption operations
+- [ ] T362 Provider sandbox and fee-mismatch runbook; notification/decryption operations (`docs/runbooks/payout-operations.md` written; tick on merge)
 - [x] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
 - [x] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
 - [ ] T365 Fresh CODEOWNER review of the payout posting before merge

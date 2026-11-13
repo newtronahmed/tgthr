@@ -356,3 +356,11 @@ and a success is only accepted when the returned amount equals the beneficiary n
 is GHS. The T301 spike is recorded in `docs/runbooks/paystack-transfer-spike.md`; live sign-off is
 blocked because the test business is still a starter and cannot initiate third-party payouts. No
 automated test calls Paystack. Trace stays 91/91/0; `make check` green.
+
+Payout operations runbook (2026-11-13): T362 adds `docs/runbooks/payout-operations.md` covering the
+configuration flags, alert/metric names, fee-mismatch evidence and actions, stuck-EXECUTING
+verification via Paystack with the no-re-execution rule, contributor/approval/organizer notification
+retry semantics, public reports, frozen goals, phone-decryption handling and the transfer go-live
+checklist. It records the known gaps: no operator completion/retry API (FEAT-005), no transfers OTP
+finalization, the starter-business block, and the fresh CODEOWNER review T365. Docs only; trace stays
+91/91/0.
