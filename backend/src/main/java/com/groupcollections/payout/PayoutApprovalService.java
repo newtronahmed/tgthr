@@ -33,9 +33,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class PayoutApprovalService {
 
   private static final Logger log = LoggerFactory.getLogger(PayoutApprovalService.class);
-  private static final Duration TOKEN_TTL = Duration.ofHours(24);
-  private static final Duration CODE_TTL = Duration.ofMinutes(10);
-  private static final int MAX_ATTEMPTS = 5;
 
   private final PayoutApprovalRepository approvals;
   private final PayoutRepository payouts;
@@ -50,6 +47,9 @@ public class PayoutApprovalService {
   private final AlertPublisher alerts;
   private final String webOrigin;
   private final long resendSeconds;
+  private final Duration tokenTtl;
+  private final Duration codeTtl;
+  private final int maxAttempts;
 
   public PayoutApprovalService(
       PayoutApprovalRepository approvals,
@@ -64,7 +64,10 @@ public class PayoutApprovalService {
       MeterRegistry meters,
       AlertPublisher alerts,
       @Value("${collections.web.origin:http://localhost:3000}") String webOrigin,
-      @Value("${collections.payout.approval-resend-seconds:60}") long resendSeconds) {
+      @Value("${collections.payout.approval-resend-seconds:60}") long resendSeconds,
+      @Value("${collections.payout.token-ttl:PT24H}") Duration tokenTtl,
+      @Value("${collections.payout.approval-ttl:PT10M}") Duration codeTtl,
+      @Value("${collections.payout.approval-max-attempts:5}") int maxAttempts) {
     this.approvals = approvals;
     this.payouts = payouts;
     this.goals = goals;
@@ -78,6 +81,16 @@ public class PayoutApprovalService {
     this.alerts = alerts;
     this.webOrigin = webOrigin;
     this.resendSeconds = resendSeconds;
+    this.tokenTtl = tokenTtl;
+    this.codeTtl = codeTtl;
+    this.maxAttempts = maxAttempts;
+    if (maxAttempts < 1) {
+      throw new IllegalArgumentException(
+          "collections.payout.approval-max-attempts must be positive");
+    }
+    if (tokenTtl.isZero() || tokenTtl.isNegative() || codeTtl.isZero() || codeTtl.isNegative()) {
+      throw new IllegalArgumentException("payout approval TTLs must be positive");
+    }
   }
 
   /**
@@ -113,9 +126,9 @@ public class PayoutApprovalService {
             payoutId,
             tokenHash(token),
             phones.hashOtpCode(code),
-            now.plus(TOKEN_TTL),
-            now.plus(CODE_TTL),
-            MAX_ATTEMPTS,
+            now.plus(tokenTtl),
+            now.plus(codeTtl),
+            maxAttempts,
             now);
     return new Challenge(id, token, code);
   }

@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,15 +15,24 @@ public class PayoutHoldService {
 
   private final PayoutRepository payouts;
   private final Clock clock;
+  private final int minimumHoldMinutes;
 
-  public PayoutHoldService(PayoutRepository payouts, Clock clock) {
+  public PayoutHoldService(
+      PayoutRepository payouts,
+      Clock clock,
+      @Value("${collections.payout.minimum-hold-minutes:1}") int minimumHoldMinutes) {
     this.payouts = payouts;
     this.clock = clock;
+    this.minimumHoldMinutes = minimumHoldMinutes;
+    if (minimumHoldMinutes < 1) {
+      throw new IllegalArgumentException(
+          "collections.payout.minimum-hold-minutes must be at least 1");
+    }
   }
 
   @Transactional
   public void startHold(UUID payoutId, int holdWindowMinutes, Instant now) {
-    if (holdWindowMinutes < 1) {
+    if (holdWindowMinutes < minimumHoldMinutes) {
       throw PayoutException.holdRequired();
     }
     PayoutStateMachine.transition(

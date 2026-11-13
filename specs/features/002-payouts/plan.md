@@ -119,8 +119,8 @@ CODEOWNER review of the posting.
   additive, with a payout-link check and one-line-per-account uniqueness.
 - `V11__payout_stuck_verification.sql`: once-only verification event index and the stale-EXECUTING
   scan index; additive.
-- Backward compatible: yes. Legacy goals with non-OFF rules or zero hold must set payout settings
-  before their first payout.
+- Backward compatible: yes. Legacy goals with non-OFF rules or a hold below the configured minimum
+  must set payout settings before their first payout.
 
 ## Rollout
 

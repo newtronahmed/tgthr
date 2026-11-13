@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class PayoutService {
   private final PayoutHoldService holds;
   private final Clock clock;
   private final MeterRegistry meters;
+  private final int minimumHoldMinutes;
 
   public PayoutService(
       OrganizerGoalRepository goals,
@@ -44,7 +46,8 @@ public class PayoutService {
       PayoutFeeProvider fees,
       PayoutHoldService holds,
       Clock clock,
-      MeterRegistry meters) {
+      MeterRegistry meters,
+      @Value("${collections.payout.minimum-hold-minutes:1}") int minimumHoldMinutes) {
     this.goals = goals;
     this.payouts = payouts;
     this.approvals = approvals;
@@ -53,6 +56,11 @@ public class PayoutService {
     this.holds = holds;
     this.clock = clock;
     this.meters = meters;
+    this.minimumHoldMinutes = minimumHoldMinutes;
+    if (minimumHoldMinutes < 1) {
+      throw new IllegalArgumentException(
+          "collections.payout.minimum-hold-minutes must be at least 1");
+    }
   }
 
   @Transactional
@@ -137,7 +145,7 @@ public class PayoutService {
     if (goal.secondApprover() != SecondApprover.OFF && goal.secondApproverName() == null) {
       throw reject("approver_required", PayoutException.approverRequired());
     }
-    if (goal.holdWindowMinutes() < 1) {
+    if (goal.holdWindowMinutes() < minimumHoldMinutes) {
       throw reject("hold_required", PayoutException.holdRequired());
     }
     boolean approvalRequired = approvalRequired(goal, amountPesewas);

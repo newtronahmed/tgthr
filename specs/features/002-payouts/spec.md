@@ -77,8 +77,9 @@ the transfer once on completion.
    `PATCH /organizer/goals/{id}/payout-settings`. A payout request before they are set returns 422
    `APPROVER_REQUIRED`. The approver phone must be valid, must differ from the organizer, is
    encrypted with a keyed lookup hash, and is never public; only the name is public. The same
-   settings endpoint sets a positive hold window. A hold below one minute is refused with 422
-   `HOLD_REQUIRED`; zero-hold legacy goals cannot request payouts until fixed.
+   settings endpoint sets a hold window at or above the configured minimum, which is never below one
+   minute. A hold below that minimum is refused with 422 `HOLD_REQUIRED`; legacy goals with a stored
+   hold below the minimum cannot request payouts until fixed.
 5. **Approval trigger.** Approval is required for `ALWAYS`, or `ABOVE_THRESHOLD` with
    `X >= secondApproverThresholdPesewas` (the live API field; the DB stores minor units). Otherwise
    the payout is auto-approved. A required payout stays `REQUESTED` until approved.
@@ -89,8 +90,9 @@ the transfer once on completion.
    expires, `REQUESTED → CANCELLED (approval expired)` and the organizer is notified; exhausting the
    five attempts also cancels and releases the reservation; a new payout request is required. The
    approver may decline, which cancels the payout.
-7. **Hold.** After approval, `HOLD` for the positive hold window, then `READY`. Held payouts can be
-   cancelled. The hold is mandatory (Article V.2/ADR 0005).
+7. **Hold.** After approval, `HOLD` for the goal's hold window, which is at or above the configured
+   minimum and never below one minute, then `READY`. Held payouts can be cancelled. The hold is
+   mandatory (Article V.2/ADR 0005).
 8. **Freeze and close.** A `FROZEN` goal rejects new payout requests with 409 and blocks
    `READY → EXECUTING`; the payout stays `READY` until unfrozen or cancelled. `CLOSED` allows
    payouts. No freeze/unfreeze endpoint in this feature.
@@ -138,7 +140,7 @@ the transfer once on completion.
 | AC-PAYOUT-013 | P1 | Given in-flight payouts, when concurrent requests with different keys arrive, then goal-locked reservations prevent total X above available; cancel/failure releases. | Integration |
 | AC-PAYOUT-014 | P1 | Given a held or completed payout, when a contributor views the goal, then amount/state/hold are visible, a report action exists, and a completion notifies funded contributors once. | Integration + E2E |
 | AC-PAYOUT-015 | P1 | Given READY, when the provider fee differs from the quote, then FAILED `PAYOUT_FEE_MISMATCH` before any provider call. | Integration |
-| AC-PAYOUT-016 | P1 | Given a hold window below one minute, when a payout is requested, then 422 `HOLD_REQUIRED` and no payout. | Integration |
+| AC-PAYOUT-016 | P1 | Given a hold window below the configured minimum (never below one minute), when a payout is requested, then 422 `HOLD_REQUIRED` and no payout. | Integration |
 | AC-PAYOUT-017 | P1 | Given an approval token/code, when resend or expiry occurs, then the previous values are invalid and an expired token cancels the payout; no stuck REQUESTED. | Integration |
 | AC-PAYOUT-018 | P1 | Given the same idempotency key with a different amount, then 409 `IDEMPOTENCY_CONFLICT`. | Integration |
 | AC-PAYOUT-019 | P1 | Given READY, when cancel and the execution worker race, then one compare-and-set wins; no duplicate provider call. | Integration |
@@ -162,7 +164,7 @@ the transfer once on completion.
 | Approval token expires | CANCELLED, organizer notified; new request | AC-PAYOUT-017 |
 | Approver equals organizer | 422 at setup | AC-PAYOUT-006 |
 | Approver not set before payout | 422 `APPROVER_REQUIRED`, no payout | AC-PAYOUT-020/004 |
-| Zero hold | 422 `HOLD_REQUIRED` | AC-PAYOUT-016 |
+| Hold below the configured minimum | 422 `HOLD_REQUIRED` | AC-PAYOUT-016 |
 | Goal FROZEN at request/execution | 409; payout stays READY | AC-PAYOUT-007 |
 | Cancel after EXECUTING | 409 | AC-PAYOUT-008 |
 | Duplicate key different amount | 409 | AC-PAYOUT-018 |

@@ -9,7 +9,7 @@ Order is test-first. Tick a task only when its tests are green and the pull requ
 - [x] T303 Add goal approver fields and `PATCH /organizer/goals/{id}/payout-settings` (before first payout only); encrypt the phone; update OpenAPI
 - [x] T304 Add V9: `payouts` (with reservation states), `payout_approvals`, `payout_reports`, `payout_notifications`, `payout_events`, goal approver/settings fields; append-only events; unique request/provider references
 - [x] T305 Build the payout state machine with unit tests for every legal/illegal transition
-- [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold
+- [ ] T306 Add payout config: feature flag, fee fallback, approval TTL/attempts/resend, minimum hold (YAML keys, `PayoutConfigIT`; tick on merge)
 - [x] T307 Add fake SMS/approval and fake transfer adapters to the test harness
 - [x] T308 Add payout API schemas/paths to `specs/api/openapi.yaml`
 - [ ] T309 Obtain a fresh CODEOWNER review plan for the payout posting and contributor notification paths
@@ -84,4 +84,4 @@ Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 - [x] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
 - [x] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
 - [ ] T365 Fresh CODEOWNER review of the payout posting before merge
-- [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout (gauge `payout.execution.stuck.current`; startup check vs `collections.payout.provider-timeout`; tick on merge)
+- [x] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout (gauge `payout.execution.stuck.current`; startup check vs `collections.payout.provider-timeout`)
