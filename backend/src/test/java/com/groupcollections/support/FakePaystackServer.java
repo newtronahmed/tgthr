@@ -48,7 +48,11 @@ public final class FakePaystackServer implements AutoCloseable {
   private final HttpClient httpClient = HttpClient.newHttpClient();
   private final String secret;
   private final List<String> chargeBodies = new CopyOnWriteArrayList<>();
+  private final List<String> transferBodies = new CopyOnWriteArrayList<>();
+  private final List<String> recipientBodies = new CopyOnWriteArrayList<>();
+  private volatile String transferScenario = "SUCCESS";
   private final Map<String, String> scenarioByReference = new ConcurrentHashMap<>();
+  private final Map<String, Long> transferAmountByReference = new ConcurrentHashMap<>();
   private final Map<String, Long> amountByReference = new ConcurrentHashMap<>();
   private final HttpServer server;
 
@@ -65,6 +69,9 @@ public final class FakePaystackServer implements AutoCloseable {
     server.setExecutor(executor);
     server.createContext("/charge", this::handleCharge);
     server.createContext("/transaction/verify/", this::handleVerify);
+    server.createContext("/transferrecipient", this::handleTransferRecipient);
+    server.createContext("/transfer/verify/", this::handleTransferVerify);
+    server.createContext("/transfer", this::handleTransfer);
     server.start();
   }
 
@@ -80,12 +87,29 @@ public final class FakePaystackServer implements AutoCloseable {
   /** Clears recorded prompts and scenario state between tests. */
   public void reset() {
     chargeBodies.clear();
+    transferBodies.clear();
+    recipientBodies.clear();
+    transferAmountByReference.clear();
+    transferScenario = "SUCCESS";
     scenarioByReference.clear();
     amountByReference.clear();
   }
 
   public List<String> chargeBodies() {
     return List.copyOf(chargeBodies);
+  }
+
+  public List<String> transferBodies() {
+    return List.copyOf(transferBodies);
+  }
+
+  public List<String> recipientBodies() {
+    return List.copyOf(recipientBodies);
+  }
+
+  /** SUCCESS, FAILED, OTP, DUPLICATE or UNKNOWN. */
+  public void transferScenario(String scenario) {
+    transferScenario = scenario;
   }
 
   public int sendSuccessCallback(String webhookUrl, String reference, long amount) {
@@ -219,6 +243,115 @@ public final class FakePaystackServer implements AutoCloseable {
             "reference", reference,
             "status", "pending",
             "display_text", "Approve the prompt on your phone"));
+  }
+
+  private void handleTransferRecipient(HttpExchange exchange) throws IOException {
+    recipientBodies.add(read(exchange.getRequestBody()));
+    if ("RECIPIENT_RATE_LIMITED".equals(transferScenario)) {
+      respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
+      return;
+    }
+    respond(
+        exchange,
+        201,
+        Map.of(
+            "status",
+            true,
+            "data",
+            Map.of(
+                "recipient_code", "RCP_FAKE",
+                "type", "mobile_money",
+                "currency", "GHS",
+                "active", true)));
+  }
+
+  private void handleTransfer(HttpExchange exchange) throws IOException {
+    String body = read(exchange.getRequestBody());
+    transferBodies.add(body);
+    JsonNode request = mapper.readTree(body);
+    String reference = request.path("reference").asText();
+    long amount = request.path("amount").asLong();
+    transferAmountByReference.put(reference, amount);
+    switch (transferScenario) {
+      case "FAILED" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  Map.of(
+                      "status", "failed",
+                      "transfer_code", "TRF_FAKE_FAIL",
+                      "reference", reference,
+                      "failures", "declined")));
+      case "OTP" ->
+          respond(
+              exchange,
+              200,
+              Map.of("status", true, "data", Map.of("status", "otp", "reference", reference)));
+      case "DUPLICATE" ->
+          respond(
+              exchange,
+              400,
+              Map.of("status", false, "message", "Transfer reference already exists"));
+      case "UNKNOWN" ->
+          respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
+      case "RATE_LIMITED" ->
+          respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
+      case "MISMATCH" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  Map.of(
+                      "status", "success",
+                      "transfer_code", "TRF_FAKE_OK",
+                      "reference", reference,
+                      "amount", amount + 100,
+                      "currency", "GHS")));
+      default ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  Map.of(
+                      "status", "success",
+                      "transfer_code", "TRF_FAKE_OK",
+                      "reference", reference,
+                      "amount", amount,
+                      "currency", "GHS")));
+    }
+  }
+
+  private void handleTransferVerify(HttpExchange exchange) throws IOException {
+    String reference = exchange.getRequestURI().getPath().substring("/transfer/verify/".length());
+    boolean failed = "FAILED".equals(transferScenario);
+    respond(
+        exchange,
+        200,
+        Map.of(
+            "status",
+            true,
+            "data",
+            Map.of(
+                "status",
+                failed ? "failed" : "success",
+                "transfer_code",
+                failed ? "TRF_FAKE_FAIL" : "TRF_FAKE_OK",
+                "reference",
+                reference,
+                "amount",
+                transferAmountByReference.getOrDefault(reference, 0L),
+                "currency",
+                "GHS")));
   }
 
   private void respond(HttpExchange exchange, int statusCode, Map<String, ?> payload)
