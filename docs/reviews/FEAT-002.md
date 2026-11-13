@@ -323,3 +323,11 @@ payout-side goal lock the PATCH waits and returns 409 `PAYOUT_SETTINGS_LOCKED` w
 60; removing `lockByIdAndCreator` from `PayoutService.request` makes the test fail because the PATCH
 commits 200 during the blocked quote. AC-PAYOUT-020 remains covered by the existing 422 test.
 Trace stays 91/91/0; `make check` green.
+
+Backlog gauge and threshold validation (2026-11-12): T366 adds the
+`payout.execution.stuck.current` gauge, which counts EXECUTING payouts older than the stuck
+threshold at scrape time (including already-flagged rows, so a lost alert is visible). Startup now
+refuses a `collections.payout.stuck-after` that is zero, negative, or not greater than
+`collections.payout.provider-timeout` (defaults `PT10M` and `PT5S`), preventing an alert storm while
+a transfer may still be in flight. The gauge assertions were red before registration, and unit tests
+cover the threshold rule. Trace stays 91/91/0; `make check` green.

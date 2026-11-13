@@ -2,6 +2,7 @@ package com.groupcollections.payout;
 
 import com.groupcollections.alerts.Alert;
 import com.groupcollections.alerts.AlertPublisher;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,6 +36,7 @@ public class PayoutVerificationService {
       PayoutRepository payouts,
       Clock clock,
       @Value("${collections.payout.stuck-after:PT10M}") Duration stuckAfter,
+      @Value("${collections.payout.provider-timeout:PT5S}") Duration providerTimeout,
       MeterRegistry meters,
       AlertPublisher alerts) {
     this.payouts = payouts;
@@ -42,6 +44,32 @@ public class PayoutVerificationService {
     this.stuckAfter = stuckAfter;
     this.meters = meters;
     this.alerts = alerts;
+    validateThreshold(stuckAfter, providerTimeout);
+    Gauge.builder("payout.execution.stuck.current", this, service -> service.currentStuck())
+        .description("EXECUTING payouts older than the stuck threshold")
+        .register(meters);
+  }
+
+  /**
+   * A threshold at or below the provider timeout would flag a transfer that may still be in flight.
+   * Fail startup rather than create an alert storm.
+   */
+  static void validateThreshold(Duration stuckAfter, Duration providerTimeout) {
+    if (stuckAfter == null || stuckAfter.isZero() || stuckAfter.isNegative()) {
+      throw new IllegalArgumentException("collections.payout.stuck-after must be positive");
+    }
+    if (stuckAfter.compareTo(providerTimeout) <= 0) {
+      throw new IllegalArgumentException(
+          "collections.payout.stuck-after ("
+              + stuckAfter
+              + ") must be greater than collections.payout.provider-timeout ("
+              + providerTimeout
+              + ")");
+    }
+  }
+
+  public long currentStuck() {
+    return payouts.countStuckExecuting(Instant.now(clock).minus(stuckAfter));
   }
 
   public int verifyStuck() {

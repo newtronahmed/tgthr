@@ -349,6 +349,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
                 payoutId))
         .isEqualTo(1);
     assertThat(counter("payout.execution.stuck") - stuckBefore).isEqualTo(1.0);
+    assertThat(meterRegistry.get("payout.execution.stuck.current").gauge().value()).isEqualTo(1.0);
 
     assertThat(verification.verifyStuck()).isZero();
     assertThat(stuckAlerts(payoutId)).isEqualTo(alertsBefore + 1);
@@ -478,6 +479,7 @@ class PayoutExecutionIT extends ApiIntegrationTest {
         "update payouts set executing_at = now() - interval '20 minutes' where id = ?", payoutId);
 
     assertThat(verification.verifyStuck()).isZero();
+    assertThat(meterRegistry.get("payout.execution.stuck.current").gauge().value()).isZero();
     assertThat(
             jdbc.queryForObject(
                 "select count(*) from payout_events where payout_id = ? and event = 'VERIFICATION_REQUIRED'",

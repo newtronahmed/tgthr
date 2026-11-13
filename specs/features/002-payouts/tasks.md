@@ -27,7 +27,7 @@ Criteria: AC-PAYOUT-001, AC-PAYOUT-002, AC-PAYOUT-003, AC-PAYOUT-013
 - [x] T316 Write failing full AC-009 case for no second posting (request idempotency is AC-018/T317)
 - [x] T317 Implement the unique request key and different-amount conflict (request-phase part done; full AC-009 remains T316)
 - [x] T318 Refactor; keep the suite green
-- [ ] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; gate and goal lock covered by a race test that fails without the payout lock; tick on merge) (Slice 1)
+- [x] T319 Write and implement the payout-request `APPROVER_REQUIRED` gate for a non-OFF goal without a configured approver, and take the goal lock before inserting the payout (AC-PAYOUT-020; gate and goal lock covered by a race test that fails without the payout lock) (Slice 1)
 
 ## Slice 2 (P1): Approver, settings and approval
 
@@ -84,4 +84,4 @@ Criteria: AC-PAYOUT-011, AC-PAYOUT-012
 - [x] T363 Run `make check`, web checks and E2E; remove every `@Disabled` marker for FEAT-002
 - [x] T364 Independent review at slice boundaries; record in `docs/reviews/FEAT-002.md`
 - [ ] T365 Fresh CODEOWNER review of the payout posting before merge
-- [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout
+- [ ] T366 Add a stuck-EXECUTING backlog gauge and validate `collections.payout.stuck-after` against the provider timeout (gauge `payout.execution.stuck.current`; startup check vs `collections.payout.provider-timeout`; tick on merge)
