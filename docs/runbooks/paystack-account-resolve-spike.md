@@ -39,9 +39,11 @@ stored `+233XXXXXXXXX` before calling. `bank_code` uses the Paystack transfer co
 
 ## Failure mapping
 
-- 4xx (not found/invalid): the resolver returns `null` → goal creation returns 422
-  `DESTINATION_UNVERIFIED`.
-- 5xx/timeout/transport error: `503 DESTINATION_CHECK_UNAVAILABLE`; the organizer can retry.
+- Definite 4xx (not found/invalid, e.g. 404): the resolver returns `null` → goal creation returns
+  422 `DESTINATION_UNVERIFIED`.
+- 401/403/408/429: partner auth/timeout/throttle → `503 DESTINATION_CHECK_UNAVAILABLE`; the
+  organizer can retry. These must not be reported as an unknown number.
+- 5xx/timeout/transport error: `503 DESTINATION_CHECK_UNAVAILABLE`.
 - Automated tests use `FakePaystackServer`; only this manual spike calls Paystack.
 
 ## Adapter

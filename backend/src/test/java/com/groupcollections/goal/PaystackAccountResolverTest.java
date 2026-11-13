@@ -66,6 +66,26 @@ class PaystackAccountResolverTest {
   }
 
   @Test
+  void unauthorizedIsUnavailableNotUnresolved() {
+    fake.resolveScenario("UNAUTHORIZED");
+
+    assertThatThrownBy(() -> resolver.resolve("+233551234987", Network.MTN))
+        .isInstanceOfSatisfying(
+            OrganizerGoalException.class,
+            failure -> assertThat(failure.code()).isEqualTo("DESTINATION_CHECK_UNAVAILABLE"));
+  }
+
+  @Test
+  void rateLimitedIsUnavailableNotUnresolved() {
+    fake.resolveScenario("RATE_LIMITED");
+
+    assertThatThrownBy(() -> resolver.resolve("+233551234987", Network.MTN))
+        .isInstanceOfSatisfying(
+            OrganizerGoalException.class,
+            failure -> assertThat(failure.code()).isEqualTo("DESTINATION_CHECK_UNAVAILABLE"));
+  }
+
+  @Test
   void missingNetworkIsUnavailable() {
     assertThatThrownBy(() -> resolver.resolve("+233551234987", null))
         .isInstanceOfSatisfying(

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.groupcollections.payments.MomoNumbers;
 import com.groupcollections.payments.Network;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -45,12 +46,19 @@ public class PaystackAccountResolver implements AccountResolver {
       String name = response.path("data").path("account_name").asText(null);
       return name == null || name.isBlank() ? null : name;
     } catch (RestClientResponseException failure) {
-      if (failure.getStatusCode().is4xxClientError()) {
+      if (failure.getStatusCode().is4xxClientError()
+          && !transientClientError(failure.getStatusCode())) {
         return null;
       }
       throw OrganizerGoalException.destinationUnavailable();
     } catch (RestClientException failure) {
       throw OrganizerGoalException.destinationUnavailable();
     }
+  }
+
+  /** Auth, timeout and throttling responses are transient; they are not "number not found". */
+  private static boolean transientClientError(HttpStatusCode status) {
+    int code = status.value();
+    return code == 401 || code == 403 || code == 408 || code == 429;
   }
 }

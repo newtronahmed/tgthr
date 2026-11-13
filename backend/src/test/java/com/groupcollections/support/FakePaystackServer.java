@@ -265,6 +265,10 @@ public final class FakePaystackServer implements AutoCloseable {
     switch (resolveScenario) {
       case "NOT_FOUND" ->
           respond(exchange, 404, Map.of("status", false, "message", "Cannot resolve account"));
+      case "UNAUTHORIZED" ->
+          respond(exchange, 401, Map.of("status", false, "message", "Invalid key"));
+      case "RATE_LIMITED" ->
+          respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
       case "UNKNOWN" ->
           respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
       default ->
