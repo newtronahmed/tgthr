@@ -6,7 +6,7 @@ green on `main`; release still requires a pull request.
 
 ## Setup
 
-- [ ] T001 Spike the Paystack sandbox MoMo account-resolution endpoint; record the request, response and name format (no real provider in automated tests)
+- [ ] T001 Spike the Paystack sandbox MoMo account-resolution endpoint; record the request, response and name format (no real provider in automated tests) (spike recorded at `docs/runbooks/paystack-account-resolve-spike.md`; tick on merge)
 - [x] T002 Accept ADR 0009 (SMS provider adapter) and ADR 0010 (opaque sessions); if the spike fails, amend the plan before coding
 - [x] T003 Update `specs/api/openapi.yaml`: cookie auth scheme, OTP/profile/goal schemas, organizer endpoints, 401/403/404/409/422/429/503 problems
 - [x] T004 Add configuration keys: `WEB_ORIGIN`, `SMS_PROVIDER` (fake/logging), `SESSION_TTL`, `OTP_TTL`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_SECONDS`; no secrets in the repository
@@ -82,7 +82,7 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 - [x] T168 Forward `Origin`, `Cookie` and `X-Forwarded-For` in the BFF auth/organizer routes and cover the relay in the web E2E
 - [ ] T169 Add a deterministic `Clock` test seam for OTP/session expiry and assert the 60-second and 30-day production defaults
 - [x] T170 Serialize OTP requests per phone (advisory lock or one-active-challenge index) and add a concurrency test
-- [ ] T171 Add the production `AccountResolver` (Paystack `/bank/resolve` with the MoMo telco code) after T001 and test it against the fake partner
+- [ ] T171 Add the production `AccountResolver` (Paystack `/bank/resolve` with the MoMo telco code) after T001 and test it against the fake partner (`PaystackAccountResolver` with success/not-found/5xx/network tests; tick on merge)
 - [x] T172 Use only the stored legal name for ADMIN_MOMO, require the destination to be the organizer's own phone, and stop mutating identity at goal create
 - [x] T173 Add a same-key concurrency test for goal creation (fix landed: resolution outside the write transaction)
 - [ ] T174 Add a slug-collision test with an injectable slug source (fix landed: all-constraint ON CONFLICT)
