@@ -21,10 +21,10 @@ secrets/config; never commit them.
 
 ## Current status (2026-11-13)
 
-The supplied key returns **`401 Invalid key`** from `/api/v2/sms/send` and
-`102 Authentication Failed` from the v1 balance endpoint. Re-copy the **Main API key** from the
-Arkesel dashboard (SMS API section); a sandbox/test or truncated key will not authenticate. No SMS
-was spent on the failed checks.
+The key now authenticates. A free sandbox send with sender `Tgthr` to `233551234987` returned
+`200 {"status":"success", ...}` with one sandbox id. **No SMS was delivered or charged.** The one
+real OTP delivery test remains before go-live; confirm `Tgthr` is approved for production in the
+Arkesel dashboard first. Set `ARKESEL_SANDBOX=true` for local checks to avoid spending credit.
 
 ## Free sandbox check
 
