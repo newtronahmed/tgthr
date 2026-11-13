@@ -177,6 +177,15 @@ public class PayoutRepository {
         == 1;
   }
 
+  public long countStuckExecuting(Instant cutoff) {
+    Long count =
+        jdbc.queryForObject(
+            "select count(*) from payouts where state = 'EXECUTING' and executing_at <= ?",
+            Long.class,
+            Timestamp.from(cutoff));
+    return count == null ? 0 : count;
+  }
+
   public long countFrozenReady() {
     Long count =
         jdbc.queryForObject(

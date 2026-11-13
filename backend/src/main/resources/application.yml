@@ -47,6 +47,7 @@ collections:
     minimum-hold-minutes: ${PAYOUT_MINIMUM_HOLD_MINUTES:1}
     stuck-after: ${PAYOUT_STUCK_AFTER:PT10M}
     stuck-scan-ms: ${PAYOUT_STUCK_SCAN_MS:60000}
+    provider-timeout: ${PAYOUT_PROVIDER_TIMEOUT:PT5S}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     per-ip-per-minute: ${RATE_LIMIT_PER_IP_PER_MINUTE:30}
