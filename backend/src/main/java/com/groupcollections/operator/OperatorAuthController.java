@@ -47,8 +47,9 @@ public class OperatorAuthController {
     rateLimiter.checkLogin(servletRequest.getRemoteAddr());
     OperatorAuthService.LoginChallenge challenge =
         auth.beginLogin(request.username(), request.password());
-    return ResponseEntity.ok(
-        new OperatorLoginResponse(challenge.challengeToken(), challenge.expiresAt()));
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(new OperatorLoginResponse(challenge.challengeToken(), challenge.expiresAt()));
   }
 
   @PostMapping("/auth/mfa")
@@ -57,17 +58,15 @@ public class OperatorAuthController {
     rateLimiter.checkMfa(servletRequest.getRemoteAddr());
     OperatorAuthService.Authenticated authenticated =
         auth.verifyMfa(request.challengeToken(), request.code());
-    ResponseCookie cookie =
-        ResponseCookie.from(OperatorSessionService.COOKIE_NAME, authenticated.session().token())
-            .httpOnly(true)
-            .secure(cookieSecure)
-            .sameSite("Strict")
-            .path(sessions.cookiePath())
-            .maxAge(sessions.sessionTtl())
-            .build();
-    return ResponseEntity.ok()
-        .header(HttpHeaders.SET_COOKIE, cookie.toString())
-        .body(OperatorProfile.from(authenticated.principal()));
+    return sessionResponse(authenticated);
+  }
+
+  @PostMapping("/auth/recovery")
+  public ResponseEntity<OperatorProfile> recovery(
+      @Valid @RequestBody OperatorRecoveryRequest request, HttpServletRequest servletRequest) {
+    rateLimiter.checkLogin(servletRequest.getRemoteAddr());
+    return sessionResponse(
+        auth.recover(request.username(), request.password(), request.recoveryCode()));
   }
 
   @PostMapping("/auth/logout")
@@ -109,5 +108,21 @@ public class OperatorAuthController {
       }
     }
     return null;
+  }
+
+  private ResponseEntity<OperatorProfile> sessionResponse(
+      OperatorAuthService.Authenticated authenticated) {
+    ResponseCookie cookie =
+        ResponseCookie.from(OperatorSessionService.COOKIE_NAME, authenticated.session().token())
+            .httpOnly(true)
+            .secure(cookieSecure)
+            .sameSite("Strict")
+            .path(sessions.cookiePath())
+            .maxAge(sessions.sessionTtl())
+            .build();
+    return ResponseEntity.ok()
+        .header(HttpHeaders.SET_COOKIE, cookie.toString())
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(OperatorProfile.from(authenticated.principal()));
   }
 }

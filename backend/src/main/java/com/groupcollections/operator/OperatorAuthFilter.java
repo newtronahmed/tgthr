@@ -42,7 +42,10 @@ public class OperatorAuthFilter extends OncePerRequestFilter {
     }
     return path.equals("/operator/auth/login")
         || path.equals("/operator/auth/mfa")
-        || path.equals("/operator/auth/logout");
+        || path.equals("/operator/auth/recovery")
+        || path.equals("/operator/auth/logout")
+        || path.equals("/operator/auth/enroll")
+        || path.equals("/operator/auth/enroll/confirm");
   }
 
   @Override

@@ -265,6 +265,34 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /operator/auth/recovery:
+    post:
+      tags: [Operator]
+      operationId: operatorRecovery
+      summary: Sign in with a single-use recovery code instead of TOTP
+      description: The recovery code is consumed and cannot be reused; sensitive actions still require a fresh TOTP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorRecoveryRequest'
+      responses:
+        '200':
+          description: The operator profile; the session is set as an HttpOnly cookie
+          headers:
+            Set-Cookie:
+              description: Opaque key tgthr_operator_session; HttpOnly; Secure; SameSite=Strict; Path=/v1/operator
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorProfile'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
   /operator/auth/logout:
     post:
       tags: [Operator]
@@ -293,6 +321,203 @@ paths:
               schema:
                 $ref: '#/components/schemas/OperatorProfile'
         '401':
+          $ref: '#/components/responses/Problem'
+  /operator/auth/enroll:
+    post:
+      tags: [Operator]
+      operationId: enrollOperator
+      summary: Set the password and receive the TOTP secret for an admin-created account
+      description: Requires the one-time enrollment token. The TOTP secret is returned once and is never stored in plaintext.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorEnrollmentRequest'
+      responses:
+        '200':
+          description: The TOTP secret, provisioning URI and one-time recovery codes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorEnrollmentDetails'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/auth/enroll/confirm:
+    post:
+      tags: [Operator]
+      operationId: confirmOperatorEnrollment
+      summary: Verify the first TOTP code and activate the account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorEnrollmentConfirmRequest'
+      responses:
+        '204':
+          description: Account activated and the enrollment token consumed
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/operators:
+    post:
+      tags: [Operator]
+      operationId: createOperator
+      summary: Create an operator account and issue a one-time enrollment token
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/OperatorTotpHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOperatorRequest'
+      responses:
+        '200':
+          description: The new account and its one-time enrollment token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorCreated'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      tags: [Operator]
+      operationId: listOperators
+      summary: List operator accounts without secrets
+      security:
+        - operatorSession: []
+      responses:
+        '200':
+          description: Operator accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OperatorAdminView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /operator/operators/{id}:
+    get:
+      tags: [Operator]
+      operationId: getOperator
+      summary: Read one operator account
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/OperatorId'
+      responses:
+        '200':
+          description: Operator account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorAdminView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /operator/operators/{id}/roles:
+    put:
+      tags: [Operator]
+      operationId: changeOperatorRoles
+      summary: Replace an operator's roles
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/OperatorId'
+        - $ref: '#/components/parameters/OperatorTotpHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRolesRequest'
+      responses:
+        '200':
+          description: Updated operator account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorAdminView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/operators/{id}/disable:
+    post:
+      tags: [Operator]
+      operationId: disableOperator
+      summary: Disable an operator and revoke their sessions
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/OperatorId'
+        - $ref: '#/components/parameters/OperatorTotpHeader'
+      responses:
+        '200':
+          description: Updated operator account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorAdminView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /operator/operators/{id}/enable:
+    post:
+      tags: [Operator]
+      operationId: enableOperator
+      summary: Enable a disabled operator
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/OperatorId'
+        - $ref: '#/components/parameters/OperatorTotpHeader'
+      responses:
+        '200':
+          description: Updated operator account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorAdminView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
           $ref: '#/components/responses/Problem'
   /public/goals/{slug}/payouts/{payoutId}/report:
     post:
@@ -710,6 +935,22 @@ components:
       schema:
         type: string
         format: uuid
+    OperatorId:
+      name: id
+      in: path
+      required: true
+      description: Operator identifier
+      schema:
+        type: string
+        format: uuid
+    OperatorTotpHeader:
+      name: X-Operator-TOTP
+      in: header
+      required: false
+      description: Current six-digit TOTP code when the last verification is older than five minutes.
+      schema:
+        type: string
+        pattern: '^[0-9]{6}$'
   responses:
     Problem:
       description: Error in RFC 9457 problem format
@@ -1298,6 +1539,22 @@ components:
         code:
           type: string
           pattern: '^[0-9]{6}$'
+    OperatorRecoveryRequest:
+      type: object
+      required: [username, password, recoveryCode]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 1024
+        recoveryCode:
+          type: string
+          description: One unused single-use recovery code.
     OperatorProfile:
       type: object
       required: [id, username, roles]
@@ -1313,6 +1570,99 @@ components:
             type: string
             enum: [REFUND_OPERATOR, RECONCILER, FINANCE_APPROVER, OPERATOR_ADMIN]
       description: Never contains a phone number, password hash or TOTP secret.
+    CreateOperatorRequest:
+      type: object
+      required: [username, roles]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+          pattern: '^[A-Za-z0-9._-]+$'
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OperatorRole'
+    ChangeRolesRequest:
+      type: object
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OperatorRole'
+    OperatorRole:
+      type: string
+      enum: [REFUND_OPERATOR, RECONCILER, FINANCE_APPROVER, OPERATOR_ADMIN]
+    OperatorCreated:
+      type: object
+      required: [id, username, enrollmentToken, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        enrollmentToken:
+          type: string
+          description: One-time enrollment token; returned once and stored hashed.
+        expiresAt:
+          type: string
+          format: date-time
+    OperatorAdminView:
+      type: object
+      required: [id, username, status, roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+          enum: [PENDING_ENROLLMENT, ACTIVE, DISABLED]
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperatorRole'
+    OperatorEnrollmentRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          description: One-time enrollment token.
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 1024
+    OperatorEnrollmentConfirmRequest:
+      type: object
+      required: [token, code]
+      properties:
+        token:
+          type: string
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+    OperatorEnrollmentDetails:
+      type: object
+      required: [totpSecret, otpauthUri, recoveryCodes]
+      properties:
+        totpSecret:
+          type: string
+          description: Base32 TOTP secret; returned once.
+        otpauthUri:
+          type: string
+          description: Provisioning URI for an authenticator app.
+        recoveryCodes:
+          type: array
+          items:
+            type: string
+          description: Ten single-use recovery codes; returned once.
     Problem:
       type: object
       required: [type, title, status, code]

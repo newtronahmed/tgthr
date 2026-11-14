@@ -139,6 +139,22 @@ public class OperatorSessionService {
     }
   }
 
+  public int revokeAllForOperator(UUID operatorId, Instant now) {
+    int revoked =
+        jdbc.update(
+            """
+            update operator_sessions
+            set revoked_at = ?
+            where operator_id = ? and revoked_at is null
+            """,
+            Timestamp.from(now),
+            operatorId);
+    if (revoked > 0) {
+      meters.counter("operator.session.revoked").increment(revoked);
+    }
+    return revoked;
+  }
+
   public Duration sessionTtl() {
     return sessionTtl;
   }

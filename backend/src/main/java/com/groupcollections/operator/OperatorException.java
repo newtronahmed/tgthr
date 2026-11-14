@@ -42,6 +42,28 @@ public final class OperatorException extends RuntimeException {
     return new OperatorException(429, "RATE_LIMITED", "Too many attempts", "Try again later");
   }
 
+  public static OperatorException stepUpRequired() {
+    return new OperatorException(
+        403, "STEP_UP_REQUIRED", "Fresh MFA required", "Verify a current TOTP code");
+  }
+
+  public static OperatorException enrollmentInvalid() {
+    return new OperatorException(
+        401, "ENROLLMENT_INVALID", "Enrollment failed", "The enrollment token is invalid");
+  }
+
+  public static OperatorException notFound() {
+    return new OperatorException(404, "OPERATOR_NOT_FOUND", "Not found", "Operator not found");
+  }
+
+  public static OperatorException conflict(String code, String detail) {
+    return new OperatorException(409, code, "Conflict", detail);
+  }
+
+  public static OperatorException invalid(String code, String detail) {
+    return new OperatorException(422, code, "Invalid request", detail);
+  }
+
   public int status() {
     return status;
   }
