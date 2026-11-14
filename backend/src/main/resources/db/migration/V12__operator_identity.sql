@@ -109,6 +109,14 @@ CREATE TRIGGER operator_auth_events_append_only
 BEFORE UPDATE OR DELETE ON operator_auth_events
 FOR EACH ROW EXECUTE FUNCTION reject_append_only_mutation();
 
+CREATE TRIGGER operator_auth_events_no_truncate
+BEFORE TRUNCATE ON operator_auth_events
+FOR EACH STATEMENT EXECUTE FUNCTION reject_append_only_truncate();
+
 CREATE TRIGGER operator_actions_append_only
 BEFORE UPDATE OR DELETE ON operator_actions
 FOR EACH ROW EXECUTE FUNCTION reject_append_only_mutation();
+
+CREATE TRIGGER operator_actions_no_truncate
+BEFORE TRUNCATE ON operator_actions
+FOR EACH STATEMENT EXECUTE FUNCTION reject_append_only_truncate();

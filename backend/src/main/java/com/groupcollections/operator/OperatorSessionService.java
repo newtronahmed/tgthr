@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 public class OperatorSessionService {
 
   public static final String COOKIE_NAME = "tgthr_operator_session";
-  public static final String COOKIE_PATH = "/operator";
+  public static final String COOKIE_SUFFIX = "/operator";
 
   public record IssuedSession(String token, Instant expiresAt) {}
 
@@ -32,6 +32,7 @@ public class OperatorSessionService {
   private final Clock clock;
   private final Duration sessionTtl;
   private final Duration idleTimeout;
+  private final String cookiePath;
   private final MeterRegistry meters;
 
   public OperatorSessionService(
@@ -41,7 +42,8 @@ public class OperatorSessionService {
       Clock clock,
       MeterRegistry meters,
       @Value("${collections.operator.session-ttl:PT8H}") Duration sessionTtl,
-      @Value("${collections.operator.idle-timeout:PT30M}") Duration idleTimeout) {
+      @Value("${collections.operator.idle-timeout:PT30M}") Duration idleTimeout,
+      @Value("${server.servlet.context-path:}") String contextPath) {
     this.jdbc = jdbc;
     this.operators = operators;
     this.random = random;
@@ -49,6 +51,7 @@ public class OperatorSessionService {
     this.meters = meters;
     this.sessionTtl = sessionTtl;
     this.idleTimeout = idleTimeout;
+    this.cookiePath = cookiePath(contextPath);
   }
 
   public IssuedSession issue(UUID operatorId, Instant now) {
@@ -142,6 +145,21 @@ public class OperatorSessionService {
 
   public Duration idleTimeout() {
     return idleTimeout;
+  }
+
+  public String cookiePath() {
+    return cookiePath;
+  }
+
+  static String cookiePath(String contextPath) {
+    if (contextPath == null || contextPath.isBlank() || "/".equals(contextPath)) {
+      return COOKIE_SUFFIX;
+    }
+    String normalized =
+        contextPath.endsWith("/")
+            ? contextPath.substring(0, contextPath.length() - 1)
+            : contextPath;
+    return normalized + COOKIE_SUFFIX;
   }
 
   private byte[] hash(String token) {

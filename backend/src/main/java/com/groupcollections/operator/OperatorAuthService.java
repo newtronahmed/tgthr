@@ -41,6 +41,7 @@ public class OperatorAuthService {
   private final Duration mfaTtl;
   private final int maxFailedAttempts;
   private final Duration lockout;
+  private final String dummyHash;
 
   public OperatorAuthService(
       OperatorRepository operators,
@@ -65,6 +66,7 @@ public class OperatorAuthService {
     this.mfaTtl = mfaTtl;
     this.maxFailedAttempts = maxFailedAttempts;
     this.lockout = lockout;
+    this.dummyHash = hasher.hash("timing-equalisation-password");
   }
 
   @Transactional(noRollbackFor = OperatorException.class)
@@ -72,6 +74,7 @@ public class OperatorAuthService {
     Instant now = Instant.now(clock);
     Optional<Operator> found = operators.findByUsername(username);
     if (found.isEmpty()) {
+      hasher.matches(password, dummyHash);
       audit(null, "LOGIN_FAILED", "invalid credentials", now);
       meters.counter("operator.auth.login", "result", "invalid").increment();
       throw OperatorException.invalidCredentials();
@@ -79,6 +82,7 @@ public class OperatorAuthService {
     Operator operator = found.get();
     if (operator.status() != OperatorStatus.ACTIVE
         || (operator.lockedUntil() != null && operator.lockedUntil().isAfter(now))) {
+      hasher.matches(password, operator.passwordHash());
       audit(operator.id(), "LOGIN_BLOCKED", "inactive or locked", now);
       meters.counter("operator.auth.login", "result", "blocked").increment();
       throw OperatorException.invalidCredentials();
@@ -89,6 +93,7 @@ public class OperatorAuthService {
     }
     String challengeToken = randomToken();
     Instant expiresAt = now.plus(mfaTtl);
+    challenges.consumeOpenForOperator(operator.id(), now);
     challenges.insert(operator.id(), hash(challengeToken), now, expiresAt, maxFailedAttempts);
     audit(operator.id(), "LOGIN_PASSWORD_OK", null, now);
     meters.counter("operator.auth.login", "result", "challenge").increment();
