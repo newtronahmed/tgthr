@@ -23,6 +23,7 @@ public class OperatorRateLimiter {
   private final int mfaPerIpPerMinute;
   private final MeterRegistry meters;
   private final Map<String, Window> windows = new ConcurrentHashMap<>();
+  private volatile Instant lastPrune;
 
   public OperatorRateLimiter(
       Clock clock,
@@ -50,10 +51,26 @@ public class OperatorRateLimiter {
     if (!enabled) {
       return;
     }
+    pruneIfNeeded(Instant.now(clock));
     if (!allow("operator:" + scope + ":ip:" + clientIp, limit)) {
       meters.counter("operator.auth.rate_limited", "scope", scope).increment();
       throw OperatorException.rateLimited();
     }
+  }
+
+  int windowCount() {
+    return windows.size();
+  }
+
+  private void pruneIfNeeded(Instant now) {
+    Instant last = lastPrune;
+    if (last != null && now.isBefore(last.plusSeconds(WINDOW_SECONDS))) {
+      return;
+    }
+    lastPrune = now;
+    windows
+        .entrySet()
+        .removeIf(entry -> !now.isBefore(entry.getValue().start().plusSeconds(WINDOW_SECONDS)));
   }
 
   private boolean allow(String key, int limit) {

@@ -1,6 +1,7 @@
 package com.groupcollections.operator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.groupcollections.support.ApiIntegrationTest;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -120,7 +122,7 @@ class OperatorAuthIT extends ApiIntegrationTest {
     String setCookie = mfa.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
     assertThat(setCookie)
         .contains(OperatorSessionService.COOKIE_NAME + "=")
-        .contains("HttpOnly", "SameSite=Strict", "Path=/operator", "Secure");
+        .contains("HttpOnly", "SameSite=Strict", "Path=/v1/operator", "Secure");
     String token = sessionToken(mfa);
 
     byte[] storedHash =
@@ -177,7 +179,7 @@ class OperatorAuthIT extends ApiIntegrationTest {
 
     assertThat(logout.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     assertThat(logout.getHeaders().getFirst(HttpHeaders.SET_COOKIE))
-        .contains(OperatorSessionService.COOKIE_NAME + "=", "Max-Age=0", "Path=/operator");
+        .contains(OperatorSessionService.COOKIE_NAME + "=", "Max-Age=0", "Path=/v1/operator");
     assertThat(me(token).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(
             jdbc.queryForObject(
@@ -286,6 +288,66 @@ class OperatorAuthIT extends ApiIntegrationTest {
                 operator.id()))
         .isTrue();
     assertThat(auditCount(operator.id(), "MFA_FAILED")).isEqualTo(5);
+  }
+
+  @Test
+  void cookiePathIncludesTheApiContext() {
+    assertThat(OperatorSessionService.cookiePath("/v1")).isEqualTo("/v1/operator");
+    assertThat(OperatorSessionService.cookiePath("/v1/")).isEqualTo("/v1/operator");
+    assertThat(OperatorSessionService.cookiePath("")).isEqualTo("/operator");
+    assertThat(OperatorSessionService.cookiePath("/")).isEqualTo("/operator");
+  }
+
+  @Test
+  void secondLoginConsumesTheEarlierMfaChallenge() {
+    TestOperator operator =
+        createOperator("refund.eleven", OperatorStatus.ACTIVE, OperatorRole.REFUND_OPERATOR);
+    String firstChallenge =
+        (String) login(operator.username(), PASSWORD).getBody().get("challengeToken");
+    String secondChallenge =
+        (String) login(operator.username(), PASSWORD).getBody().get("challengeToken");
+    String code = code(operator);
+
+    ResponseEntity<Map<String, Object>> first = mfa(firstChallenge, code);
+    assertThat(first.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(first.getBody()).containsEntry("code", "MFA_CHALLENGE_EXPIRED");
+
+    assertThat(mfa(secondChallenge, code).getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
+  void sessionDiesWhenTheOperatorIsDisabled() {
+    TestOperator operator =
+        createOperator("refund.twelve", OperatorStatus.ACTIVE, OperatorRole.REFUND_OPERATOR);
+    String token = signIn(operator);
+
+    jdbc.update("update operators set status = 'DISABLED' where id = ?", operator.id());
+
+    assertThat(me(token).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  void expiredSessionIsRejected() {
+    TestOperator operator =
+        createOperator("refund.thirteen", OperatorStatus.ACTIVE, OperatorRole.REFUND_OPERATOR);
+    String token = signIn(operator);
+    jdbc.update(
+        """
+        update operator_sessions
+        set created_at = now() - interval '2 hours', expires_at = now() - interval '1 hour'
+        where operator_id = ?
+        """,
+        operator.id());
+
+    assertThat(me(token).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  void appendOnlyAuditTablesRejectTruncate() {
+    assertThatThrownBy(() -> jdbc.execute("truncate table operator_auth_events"))
+        .isInstanceOf(DataAccessException.class);
+    assertThatThrownBy(() -> jdbc.execute("truncate table operator_actions"))
+        .isInstanceOf(DataAccessException.class);
   }
 
   private TestOperator createOperator(

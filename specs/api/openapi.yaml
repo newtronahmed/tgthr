@@ -254,7 +254,7 @@ paths:
           description: The operator profile; the session is set as an HttpOnly cookie
           headers:
             Set-Cookie:
-              description: Opaque key tgthr_operator_session; HttpOnly; Secure; SameSite=Strict; Path=/operator
+              description: Opaque key tgthr_operator_session; HttpOnly; Secure; SameSite=Strict; Path=/v1/operator
               schema:
                 type: string
           content:
@@ -275,7 +275,7 @@ paths:
           description: Session revoked, or there was no session
           headers:
             Set-Cookie:
-              description: Clears tgthr_operator_session (Max-Age=0; HttpOnly; Secure; SameSite=Strict; Path=/operator)
+              description: Clears tgthr_operator_session (Max-Age=0; HttpOnly; Secure; SameSite=Strict; Path=/v1/operator)
               schema:
                 type: string
   /operator/me:
