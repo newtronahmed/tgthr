@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 
-class TotpTest {
+class OperatorTotpTest {
 
   private static final byte[] RFC_SECRET = "12345678901234567890".getBytes(US_ASCII);
 

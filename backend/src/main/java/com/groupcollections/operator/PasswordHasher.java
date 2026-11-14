@@ -14,6 +14,8 @@ public final class PasswordHasher {
 
   public static final int DEFAULT_ITERATIONS = 600_000;
   public static final int MAX_ITERATIONS = 2_000_000;
+  public static final int MIN_PASSWORD_LENGTH = 12;
+  public static final int MAX_PASSWORD_LENGTH = 1_024;
 
   private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
   private static final String PREFIX = "pbkdf2-sha256";
@@ -28,17 +30,19 @@ public final class PasswordHasher {
   }
 
   public PasswordHasher(int iterations, SecureRandom random) {
-    if (iterations < 1 || iterations > MAX_ITERATIONS) {
-      throw new IllegalArgumentException("password hashing iterations are out of range");
+    if (iterations < DEFAULT_ITERATIONS || iterations > MAX_ITERATIONS) {
+      throw new IllegalArgumentException(
+          "password hashing iterations must be between "
+              + DEFAULT_ITERATIONS
+              + " and "
+              + MAX_ITERATIONS);
     }
     this.iterations = iterations;
     this.random = random;
   }
 
   public String hash(String password) {
-    if (password == null || password.isEmpty()) {
-      throw new IllegalArgumentException("a password is required");
-    }
+    requirePolicy(password);
     byte[] salt = new byte[SALT_BYTES];
     random.nextBytes(salt);
     byte[] hash = derive(password, salt, iterations);
@@ -52,7 +56,7 @@ public final class PasswordHasher {
   }
 
   public boolean matches(String password, String encoded) {
-    if (password == null || encoded == null) {
+    if (password == null || encoded == null || !policyLength(password.length())) {
       return false;
     }
     String[] parts = encoded.split("\\$", -1);
@@ -65,7 +69,7 @@ public final class PasswordHasher {
     } catch (NumberFormatException failure) {
       return false;
     }
-    if (storedIterations < 1 || storedIterations > MAX_ITERATIONS) {
+    if (storedIterations < DEFAULT_ITERATIONS || storedIterations > MAX_ITERATIONS) {
       return false;
     }
     byte[] salt;
@@ -76,11 +80,26 @@ public final class PasswordHasher {
     } catch (IllegalArgumentException failure) {
       return false;
     }
-    if (salt.length == 0 || expected.length != HASH_BITS / 8) {
+    if (salt.length != SALT_BYTES || expected.length != HASH_BITS / 8) {
       return false;
     }
     byte[] actual = derive(password, salt, storedIterations);
     return MessageDigest.isEqual(actual, expected);
+  }
+
+  private static void requirePolicy(String password) {
+    if (password == null || !policyLength(password.length())) {
+      throw new IllegalArgumentException(
+          "password must be between "
+              + MIN_PASSWORD_LENGTH
+              + " and "
+              + MAX_PASSWORD_LENGTH
+              + " characters");
+    }
+  }
+
+  private static boolean policyLength(int length) {
+    return length >= MIN_PASSWORD_LENGTH && length <= MAX_PASSWORD_LENGTH;
   }
 
   private static byte[] derive(String password, byte[] salt, int iterations) {

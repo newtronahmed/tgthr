@@ -6,10 +6,12 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Single-use recovery codes. Codes are high-entropy random values, so they are stored with SHA-256
  * rather than a password KDF; regenerating a set invalidates the old one in the operator service.
+ * {@link #matches(String, String)} does not consume a code; the caller marks the hash used.
  */
 public final class RecoveryCodes {
 
@@ -20,6 +22,11 @@ public final class RecoveryCodes {
     public Generated {
       plaintext = List.copyOf(plaintext);
       hashes = List.copyOf(hashes);
+    }
+
+    @Override
+    public String toString() {
+      return "Generated[plaintext=[REDACTED], hashCount=" + hashes.size() + "]";
     }
   }
 
@@ -42,8 +49,13 @@ public final class RecoveryCodes {
     if (code == null || hash == null) {
       return false;
     }
+    String normalized = code.trim().toUpperCase(Locale.ROOT);
+    if (normalized.isEmpty()) {
+      return false;
+    }
     return MessageDigest.isEqual(
-        sha256(code).getBytes(StandardCharsets.US_ASCII), hash.getBytes(StandardCharsets.US_ASCII));
+        sha256(normalized).getBytes(StandardCharsets.US_ASCII),
+        hash.getBytes(StandardCharsets.US_ASCII));
   }
 
   static String sha256(String value) {

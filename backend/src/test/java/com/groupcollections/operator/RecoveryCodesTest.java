@@ -28,4 +28,24 @@ class RecoveryCodesTest {
     assertThat(RecoveryCodes.matches("not-a-code", generated.hashes().getFirst())).isFalse();
     assertThat(RecoveryCodes.matches(generated.plaintext().getFirst(), "not-a-hash")).isFalse();
   }
+
+  @Test
+  void acceptsLowercaseAndSurroundingWhitespace() {
+    RecoveryCodes.Generated generated = RecoveryCodes.generate(new SecureRandom());
+    String code = generated.plaintext().getFirst();
+
+    assertThat(
+            RecoveryCodes.matches("  " + code.toLowerCase() + "\n", generated.hashes().getFirst()))
+        .isTrue();
+  }
+
+  @Test
+  void neverPrintsPlaintextCodes() {
+    RecoveryCodes.Generated generated = RecoveryCodes.generate(new SecureRandom());
+
+    assertThat(generated.toString())
+        .contains("[REDACTED]")
+        .doesNotContain(generated.plaintext().getFirst())
+        .doesNotContain(generated.plaintext().getLast());
+  }
 }
