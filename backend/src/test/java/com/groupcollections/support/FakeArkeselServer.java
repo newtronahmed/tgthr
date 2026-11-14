@@ -56,6 +56,11 @@ public final class FakeArkeselServer implements AutoCloseable {
               Map.of("status", "error", "message", "Insufficient balance or invalid coverage!"));
       case "UNAUTHORIZED" ->
           respond(exchange, 401, Map.of("status", "error", "message", "Invalid API key"));
+      case "PAYMENT_REQUIRED" ->
+          respond(
+              exchange,
+              402,
+              Map.of("status", "error", "message", "Insufficient balance or invalid coverage!"));
       case "SERVER" ->
           respond(exchange, 500, Map.of("status", "error", "message", "SMS request failed!"));
       default ->

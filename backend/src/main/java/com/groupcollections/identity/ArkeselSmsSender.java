@@ -1,6 +1,7 @@
 package com.groupcollections.identity;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -10,8 +11,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Arkesel SMS v2 adapter. The OTP is generated and verified locally; Arkesel only delivers the
@@ -25,6 +28,7 @@ public class ArkeselSmsSender implements SmsSender {
   private final String apiKey;
   private final String senderId;
   private final boolean sandbox;
+  private final MeterRegistry meters;
 
   public ArkeselSmsSender(
       @Value("${collections.sms.arkesel.base-url:https://sms.arkesel.com}") String baseUrl,
@@ -32,7 +36,8 @@ public class ArkeselSmsSender implements SmsSender {
       @Value("${collections.sms.arkesel.sender-id}") String senderId,
       @Value("${collections.sms.arkesel.sandbox:false}") boolean sandbox,
       @Value("${collections.sms.arkesel.connect-timeout:PT3S}") Duration connectTimeout,
-      @Value("${collections.sms.arkesel.read-timeout:PT5S}") Duration readTimeout) {
+      @Value("${collections.sms.arkesel.read-timeout:PT5S}") Duration readTimeout,
+      MeterRegistry meters) {
     if (apiKey == null || apiKey.isBlank()) {
       throw new IllegalArgumentException(
           "ARKESEL_SMS_API_KEY is required when SMS_PROVIDER=arkesel");
@@ -43,6 +48,7 @@ public class ArkeselSmsSender implements SmsSender {
     this.apiKey = apiKey;
     this.senderId = senderId;
     this.sandbox = sandbox;
+    this.meters = meters;
     HttpClient httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
     JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
     requestFactory.setReadTimeout(readTimeout);
@@ -67,11 +73,33 @@ public class ArkeselSmsSender implements SmsSender {
               .retrieve()
               .body(JsonNode.class);
       if (response == null || !"success".equals(response.path("status").asText())) {
+        failure("provider_rejected");
         throw IdentityException.smsUnavailable();
       }
+    } catch (RestClientResponseException failure) {
+      failure(statusReason(failure.getStatusCode().value()));
+      throw IdentityException.smsUnavailable();
+    } catch (ResourceAccessException failure) {
+      failure("timeout");
+      throw IdentityException.smsUnavailable();
     } catch (RestClientException failure) {
+      failure("transport");
       throw IdentityException.smsUnavailable();
     }
+  }
+
+  private void failure(String reason) {
+    meters.counter("sms.provider.failure", "reason", reason).increment();
+  }
+
+  private static String statusReason(int status) {
+    return switch (status) {
+      case 401, 403 -> "unauthorized";
+      case 402 -> "insufficient_balance";
+      case 422 -> "invalid_request";
+      case 429 -> "rate_limited";
+      default -> status >= 500 ? "server_error" : "provider_rejected";
+    };
   }
 
   /** Arkesel examples use the country code without `+`; accept E.164 or local input. */

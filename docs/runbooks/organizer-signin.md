@@ -2,10 +2,11 @@
 
 ## Production
 
-- Set `WEB_ORIGIN` to the exact public web origin (scheme and host), `SMS_PROVIDER=arkesel` with
-  `ARKESEL_SMS_API_KEY` and an approved `ARKESEL_SENDER_ID`, and `ACCOUNT_RESOLVER=paystack` (the
-  resolver is implemented; the live spike uses the test key). See `docs/runbooks/sms-operations.md`
-  for the free sandbox check and the one-real-SMS OTP test.
+- Set `WEB_ORIGIN` to the exact public web origin (scheme and host) and
+  `ACCOUNT_RESOLVER=paystack`. Keep `SMS_PROVIDER=none` in production until the `Tgthr` sender is
+  approved and the **one real OTP delivery test** is recorded in `docs/runbooks/sms-operations.md`;
+  then set `SMS_PROVIDER=arkesel` with `ARKESEL_SMS_API_KEY` and the approved
+  `ARKESEL_SENDER_ID`. See that runbook for the free sandbox check.
 - Keep `COOKIE_SECURE=true` (the default). The session cookie is HttpOnly, SameSite=Lax, 30 days.
 - Never set `SMS_PROVIDER=dev` or `ACCOUNT_RESOLVER=dev` in production: both bypass the real SMS
   and destination-name checks.
