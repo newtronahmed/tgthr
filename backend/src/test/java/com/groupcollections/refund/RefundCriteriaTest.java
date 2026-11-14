@@ -139,4 +139,11 @@ class RefundCriteriaTest {
   void payoutAndNotificationReviewDoesNotReexecute() {
     fail("not implemented");
   }
+
+  @Test
+  @Disabled("pending: FEAT-005 plan")
+  @Criterion("AC-OPS-009")
+  void miscIncomeRequiresTwoDistinctOperators() {
+    fail("not implemented");
+  }
 }

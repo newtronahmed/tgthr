@@ -133,6 +133,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | AC-OPS-006 | P1 | Given two operators resolving the same item or a retry, when they race, then one resolution wins, the other is rejected, and the aging/count metrics and alerts reflect the remaining queue. | Integration |
 | AC-OPS-007 | P2 | Given a settlement report file, when an operator uploads it, then batches/items are created idempotently, unmatched lines raise alerts and no duplicate contribution settlement is accepted. | Integration |
 | AC-OPS-008 | P2 | Given a reported/stuck payout or failed notification, when an operator reviews it, then the evidence and retry/completion action are audited without re-executing a transfer or double-posting. | Integration |
+| AC-OPS-009 | P1 | Given a proposed miscellaneous income, when the same operator tries to approve it or a distinct second approver is missing, then `409 DUAL_CONTROL_REQUIRED` is returned and no posting occurs. | Integration |
 
 ## Failure modes and edge cases
 
@@ -149,6 +150,8 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | Refund would overdraw `GOAL_POOL` | Refuse; operator reconciles the shortfall; no negative pool | AC-REFUND-007 |
 | Suspense item resolved twice | One winner; second 409; audit unchanged | AC-OPS-006 |
 | Misc-income before timeout | 409 `SUSPENSE_NOT_AGED`; no posting | AC-OPS-004 |
+| Same operator proposes and approves income | 409 `DUAL_CONTROL_REQUIRED`; no posting | AC-OPS-009 |
+| Suspense item on the normal refund path | 409 `SUSPENSE_REQUIRES_RECONCILIATION`; use the queue action | AC-OPS-003 |
 | Unauthorized operator | 401/403; no data/phone | AC-REFUND-008/AC-OPS-005 |
 | Chargeback after refund | Alert; no second refund; settlement/P2 handling | gap: AC-OPS-007/P2 |
 
@@ -178,8 +181,11 @@ inflating a goal, and every action is attributable, idempotent and safe against 
   operator session; password + TOTP; no public registration or self-signup)
 - `POST /operator/contributions/{id}/refund` (operator auth, `Idempotency-Key`, reason)
 - `GET /operator/refunds/{id}` and a queue/list
+- `POST /operator/refunds/{id}/verify` (operator-triggered provider verification for
+  `PROVIDER_PENDING`; no automated polling in P1)
 - `GET /operator/reconciliation/pending`
 - `POST /operator/reconciliation/{contributionId}/reclassify|refund|income`
+- `POST /operator/reconciliation/{contributionId}/income/approve` (distinct `FINANCE_APPROVER`)
 - New operator security scheme and schemas in `specs/api/openapi.yaml`
 - Additive; no change to public/organizer payout endpoints. No public refund endpoint in P1.
 
@@ -244,6 +250,6 @@ Recorded 2026-11-14:
 - [x] No open question blocks a P1 story
 - [x] Failure modes each map to a criterion or an explicit gap
 - [x] API impact listed; OpenAPI changes land in the implementation PR
-- [ ] Constitution articles touched are named in the plan
+- [x] Constitution articles touched are named in the plan
 - [x] Operator auth ADR accepted (ADR 0017)
 - [x] Refund fee policy accepted (full `A + P + F`, `PLATFORM_LOSS` fallback)
