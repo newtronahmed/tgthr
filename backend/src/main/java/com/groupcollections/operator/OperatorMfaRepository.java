@@ -78,4 +78,15 @@ public class OperatorMfaRepository {
         Timestamp.from(now),
         challengeId);
   }
+
+  public int consumeOpenForOperator(UUID operatorId, Instant now) {
+    return jdbc.update(
+        """
+        update operator_mfa_challenges
+        set consumed_at = ?
+        where operator_id = ? and consumed_at is null
+        """,
+        Timestamp.from(now),
+        operatorId);
+  }
 }
