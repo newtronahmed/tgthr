@@ -16,7 +16,9 @@ One decision per file, numbered, never edited once accepted (supersede instead).
 | [0010](0010-opaque-sessions.md) | Opaque server-side sessions | Accepted |
 | [0011](0011-currency-aware-money.md) | Currency-aware Money type | Accepted |
 | [0012](0012-settlement-tracking.md) | Settlement tracking architecture | Accepted |
-| [0013](0013-refund-and-loss-allocation.md) | Refund and loss allocation policy | Accepted |
+| [0013](0013-refund-and-loss-allocation.md) | Refund and loss allocation policy | Superseded in part by 0018 |
 | [0014](0014-directional-settlement-and-goal-owned-eligibility.md) | Directional settlement and goal-owned eligibility | Accepted |
 | [0015](0015-legacy-financial-column-names.md) | Legacy financial column names for the MVP | Rejected |
 | [0016](0016-payout-approval-and-fee-policy.md) | Payout approval, fee and execution policy | Accepted |
+| [0017](0017-operator-identity-and-mfa.md) | Operator identity and MFA | Accepted |
+| [0018](0018-refund-shortfall-and-loss-allocation.md) | Refund shortfall and loss-allocation shape | Accepted |
