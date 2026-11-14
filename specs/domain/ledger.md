@@ -47,6 +47,18 @@ Confirmed account mapping (ADR 0006):
 | LOSS_ALLOCATION of L after failed recovery | Platform loss L | Goal pool L (to clear negative) OR Partner held L (if partner compensates) |
 | RESERVE_ROLLOVER of S | Goal pool S | Welfare reserve S |
 
+### Refund mapping (FEAT-005)
+
+| Business event | Debit | Credit |
+| --- | --- | --- |
+| Full pre-payout refund of `A + P + F` | Goal pool `A` (or suspense `A`); PLATFORM_FEE `P`; FEE `F` | Partner held `A + P + F` |
+| Partner retains `F` on that refund | PLATFORM_LOSS `F` | BANK `F` |
+
+The refund reversal posts only after the provider confirms, after the refund request commits. It
+reverses the original obligation posting, so `FEE` is cleared and `PARTNER_HELD` falls by the gross
+amount the partner refunds. The loss set posts only when the partner retains the processing fee; the
+contributor still receives the full amount. Neither set may leave an account negative.
+
 Financial columns use integer `*_minor_units` names as of V8 (ADR 0011); V5 also renamed
 `ledger_entries.currency` to `currency_code`. Both renames are destructive rolling-deploy steps, so
 the MVP deploy needs a maintenance window or an expand/contract replacement before production.

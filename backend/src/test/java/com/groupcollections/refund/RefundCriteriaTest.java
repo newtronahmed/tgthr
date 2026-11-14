@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Acceptance criteria for FEAT-005, specs/features/005-refunds-and-operator-tooling/spec.md.
  *
- * <p>Each test is pending: resolve the P1 open questions, then remove @Disabled, watch it fail and
- * implement the slice.
+ * <p>Each test is pending: the FEAT-005 plan and its implementation slices remove @Disabled, watch
+ * the test fail, then implement it. P1 decisions are recorded in the spec and ADR 0017.
  */
 class RefundCriteriaTest {
 
@@ -59,7 +59,7 @@ class RefundCriteriaTest {
   @Test
   @Disabled("pending: FEAT-005 plan")
   @Criterion("AC-REFUND-007")
-  void refundFeePolicyBalancesLedger() {
+  void fullRefundBalancesLedgerWithOrWithoutReturnedFee() {
     fail("not implemented");
   }
 
