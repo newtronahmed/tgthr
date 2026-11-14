@@ -10,7 +10,7 @@ Provider tests use the fake only; the sandbox is a manual spike.
   `docs/runbooks/refund-operations.md`. Do not refund a real contributor.
 - [ ] T402 Add operator/refund config and `RefundConfigIT` (`enabled`, provider `none|fake|paystack`,
   timeouts, suspense income age, session TTL/idle, lockout).
-- [ ] T403 Add V12/V13 migrations and the operator/refund/reconciliation schemas and paths to
+- [ ] T403 Add V12/V14 migrations and the operator/refund/reconciliation schemas and paths to
   `specs/api/openapi.yaml`; no behavior yet.
 - [ ] T404 Add the fake Paystack refund server, fixed TOTP clock and refund test builders.
 - [ ] T405 Write ADR 0018 (refund shortfall and `LOSS_ALLOCATION` shape); it supersedes only ADR
