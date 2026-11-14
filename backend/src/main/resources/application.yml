@@ -58,6 +58,14 @@ collections:
     stuck-after: ${PAYOUT_STUCK_AFTER:PT10M}
     stuck-scan-ms: ${PAYOUT_STUCK_SCAN_MS:60000}
     provider-timeout: ${PAYOUT_PROVIDER_TIMEOUT:PT5S}
+  operator:
+    enabled: ${OPERATOR_ENABLED:false}
+    totp-secret-key: ${OPERATOR_TOTP_ENCRYPTION_KEY:}
+    session-ttl: ${OPERATOR_SESSION_TTL:PT8H}
+    idle-timeout: ${OPERATOR_IDLE_TIMEOUT:PT30M}
+    mfa-ttl: ${OPERATOR_MFA_TTL:PT5M}
+    max-failed-attempts: ${OPERATOR_MAX_FAILED_ATTEMPTS:5}
+    lockout: ${OPERATOR_LOCKOUT:PT15M}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     per-ip-per-minute: ${RATE_LIMIT_PER_IP_PER_MINUTE:30}
@@ -70,6 +78,8 @@ collections:
     approval-per-ip-per-minute: ${APPROVAL_RATE_LIMIT_PER_IP_PER_MINUTE:20}
     approval-per-approver-per-minute: ${APPROVAL_RATE_LIMIT_PER_APPROVER_PER_MINUTE:5}
     payout-report-per-ip-per-minute: ${PAYOUT_REPORT_RATE_LIMIT_PER_IP_PER_MINUTE:10}
+    operator-login-per-ip-per-minute: ${OPERATOR_LOGIN_RATE_LIMIT_PER_IP_PER_MINUTE:10}
+    operator-mfa-per-ip-per-minute: ${OPERATOR_MFA_RATE_LIMIT_PER_IP_PER_MINUTE:20}
 
 logging:
   pattern:
