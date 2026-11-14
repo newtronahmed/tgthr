@@ -7,7 +7,7 @@
 | Owner | Ahmed Zubairu |
 | Area code | REFUND, OPS |
 | Created | 2026-11-13 |
-| Related | ADR 0013 (refund and loss allocation), ADR 0017 (operator identity and MFA), ADR 0007 (platform fee), ADR 0012/0014 (settlement), `specs/domain/contribution-state-machine.md`, `specs/domain/settlement.md`, `docs/runbooks/payout-operations.md` |
+| Related | ADR 0013 (refund and loss allocation), ADR 0017 (operator identity and MFA), ADR 0018 (refund shortfall and loss-allocation shape), ADR 0007 (platform fee), ADR 0012/0014 (settlement), `specs/domain/contribution-state-machine.md`, `specs/domain/settlement.md`, `docs/runbooks/payout-operations.md` |
 
 ## Problem and outcome
 
@@ -66,11 +66,13 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 
 1. **Eligibility.** A refund is allowed only for a `CONFIRMED` contribution with at least one
    successful ledger posting, no active refund, and **no payout in `REQUESTED`, `APPROVED`, `HOLD`,
-   `READY` or `EXECUTING` for the same goal**. A completed payout makes the refund a post-payout
-   recovery (P2), refused here with `REFUND_AFTER_PAYOUT`. An in-flight payout returns
-   `PAYOUT_IN_FLIGHT` naming the conflicting payout id/state. The operator retries after it reaches
-   a terminal state; a stuck `EXECUTING` payout is resolved through the payout operations runbook
-   (and the P2 operator action), never by forcing a refund.
+   `READY` or `EXECUTING` for the same goal**. A `FAILED` or `CANCELLED` payout does not block a
+   refund. Any `COMPLETED` payout makes the refund a post-payout recovery (P2), refused here with
+   `REFUND_AFTER_PAYOUT`; this applies to every contribution on the goal, including money still in
+   the pool after a partial payout. An in-flight payout returns `PAYOUT_IN_FLIGHT` naming the
+   conflicting payout id/state. The operator retries after it reaches a terminal state; a stuck
+   `EXECUTING` payout is resolved through the payout operations runbook (and the P2 operator
+   action), never by forcing a refund.
 2. **Operator-only.** Every refund and reconciliation action requires an authenticated operator with
    the relevant role. The operator supplies a reason; actions are scoped to the contribution and
    cannot name a different destination or amount than the policy computes.
@@ -83,21 +85,28 @@ inflating a goal, and every action is attributable, idempotent and safe against 
    availability (that money was never in the pool). The reservation is released on a definitive
    provider failure.
 5. **No ledger before provider success.** The provider refund is called after the refund row commits,
-   outside the goal lock. Only a confirmed provider success posts the one `REVERSAL` set and moves the
-   contribution `CONFIRMED → REFUNDED`. A pending/unknown provider result leaves the refund
+   outside the goal lock. Only a confirmed provider success posts the one `REVERSAL` set and, when
+   Paystack retains the processing fee, the `LOSS_ALLOCATION` set in the same transaction, and moves
+   the contribution `CONFIRMED → REFUNDED`. A pending/unknown provider result leaves the refund
    `PROVIDER_PENDING` with the reservation held and raises an alert; it is never posted twice.
+   `POST /operator/refunds/{id}/verify` is a `REFUND_OPERATOR` action: it requires a reason, is
+   audited and idempotent, and enters the same confirmation path because it can post the ledger.
 6. **Exact ledger.** The policy is a **full refund of `A + P + F`** (goal amount, platform fee,
    processing fee). On confirmed success, one `REVERSAL` set debits `GOAL_POOL` (`A`) or `SUSPENSE`
    (`A`) for a suspense item, `PLATFORM_FEE` (`P`) and `FEE` (`F`), and credits `PARTNER_HELD` the
-   gross amount Paystack refunds (`A + P + F`). When Paystack retains `F`, a separate
-   `LOSS_ALLOCATION` set debits `PLATFORM_LOSS` (`F`) and credits `BANK` (`F`) with the refund
-   reason, funding the shortfall so the contributor still receives the full amount; when Paystack
-   returns `F`, no loss set posts. Every set balances, uses integer minor units and GHS, and no
-   account goes negative. On success the reversal replaces the reservation, so goal availability
-   drops once — not once for the reservation and again for the posting.
+   gross amount Paystack refunds (`A + P + F`). When Paystack retains `F`, the `LOSS_ALLOCATION` set
+   debits `PLATFORM_LOSS` (`F`) and credits `PARTNER_HELD` (`F`) in the same transaction; the
+   `PARTNER_HELD` credit is the fee the platform owes the partner, which funds the gross refund
+   through the partner and remains until a settlement-posting ADR clears it (ADR 0018). No `BANK`
+   entry posts. When Paystack returns `F`, no loss set posts. Every set balances, uses integer minor
+   units and GHS, and no account goes negative; the `PARTNER_HELD` credit balance of `F` on the
+   retained-fee path is the allowed obligation to the partner (ADR 0018). On success the reversal
+   replaces the reservation, so goal availability drops once — not once for the reservation and
+   again for the posting.
 7. **Idempotency.** `Idempotency-Key` is required, unique per contribution. The same key and body
-   returns the original refund; a different body returns `409 IDEMPOTENCY_CONFLICT`. Provider
-   duplicates are resolved by the provider refund reference, never by a second refund call.
+   returns the original refund; a different body — including a different reason — returns
+   `409 IDEMPOTENCY_CONFLICT`. Provider duplicates are resolved by the provider refund reference,
+   never by a second refund call.
 8. **Suspense resolution.** A reconciliation item is resolved exactly once by refund, reclassification
    or miscellaneous income. Reclassification debits `SUSPENSE` and credits `GOAL_POOL`; income debits
    `SUSPENSE` and credits the dedicated platform-revenue account defined by the suspense-slice ADR;
@@ -116,12 +125,12 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | ID | Priority | Given / When / Then | Test level |
 | --- | --- | --- | --- |
 | AC-REFUND-001 | P1 | Given an eligible confirmed contribution and an authorized operator, when a full pre-payout refund is requested, then a refund is created in `PENDING` with the goal amount `A` reserved (nothing reserved against the goal for a suspense item) and no ledger/provider call has happened inside the transaction. | Integration |
-| AC-REFUND-002 | P1 | Given a pending refund, when the provider confirms success, then exactly one balanced `REVERSAL` set posts, the contribution becomes `REFUNDED`, the reservation is released and payout availability excludes it. | Integration |
+| AC-REFUND-002 | P1 | Given a pending refund, when the provider confirms success, then exactly one balanced `REVERSAL` set posts, plus the `LOSS_ALLOCATION` set only when Paystack retains `F`, the contribution becomes `REFUNDED`, the reservation is released and payout availability excludes it. | Integration |
 | AC-REFUND-003 | P1 | Given a provider definitive failure, when the refund result is processed, then no ledger entry posts, the contribution stays `CONFIRMED`, the reservation is released and the refund is `FAILED` with an alert. | Integration |
 | AC-REFUND-004 | P1 | Given a provider timeout/unknown, when the refund is recorded, then it stays `PROVIDER_PENDING`, the reservation remains held, an alert is raised and no ledger posts until verification. | Integration |
-| AC-REFUND-005 | P1 | Given any active payout or a completed payout for the goal, when a refund is requested, then `409 PAYOUT_IN_FLIGHT` (naming the payout id and state) or `REFUND_AFTER_PAYOUT` is returned and no refund/provider call is created. | Integration |
+| AC-REFUND-005 | P1 | Given an active payout, a completed payout, or a `FAILED`/`CANCELLED` payout for the goal, when a refund is requested, then active returns `409 PAYOUT_IN_FLIGHT` (naming the payout id and state), completed returns `REFUND_AFTER_PAYOUT` for every contribution including money left after a partial payout, failed/cancelled allow the refund, and a blocked request creates no refund or provider call. | Integration |
 | AC-REFUND-006 | P1 | Given concurrent refund requests for one contribution, when they race, then exactly one active refund/provider call exists and the other returns the original or `REFUND_IN_PROGRESS`. | Integration |
-| AC-REFUND-007 | P1 | Given the accepted full-refund policy, when a refund succeeds, then one `REVERSAL` set debits `A` from `GOAL_POOL` or `SUSPENSE`, `P` from `PLATFORM_FEE` and `F` from `FEE`, credits `PARTNER_HELD` the gross `A + P + F` Paystack refunds, and — only when Paystack retains `F` — a separate `LOSS_ALLOCATION` set debits `PLATFORM_LOSS` and credits `BANK` for `F`; every set nets to zero and no account goes negative. | Integration |
+| AC-REFUND-007 | P1 | Given the accepted full-refund policy, when a refund succeeds, then one `REVERSAL` set debits `A` from `GOAL_POOL` or `SUSPENSE`, `P` from `PLATFORM_FEE` and `F` from `FEE`, credits `PARTNER_HELD` the gross `A + P + F` Paystack refunds, and — only when Paystack retains `F` — a `LOSS_ALLOCATION` set in the same transaction debits `PLATFORM_LOSS` and credits `PARTNER_HELD` for `F`; every set nets to zero and no account goes negative except the allowed `PARTNER_HELD` `F` obligation. | Integration |
 | AC-REFUND-008 | P1 | Given a non-operator, foreign contribution or phone in the audit payload, when the action is attempted, then it is unauthorized/not found and no phone is stored or returned. | Integration |
 | AC-REFUND-009 | P2 | Given a completed payout, when the operator opens a post-payout recovery request, then the request and recovery outcome are audited without changing the goal pool until a loss is approved. | Integration |
 | AC-REFUND-010 | P2 | Given an unrecoverable post-payout shortfall, when an authorized operator approves a loss, then one `LOSS_ALLOCATION` posting moves the shortfall to `PLATFORM_LOSS` with a reason; no negative pool. | Integration |
@@ -134,6 +143,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | AC-OPS-007 | P2 | Given a settlement report file, when an operator uploads it, then batches/items are created idempotently, unmatched lines raise alerts and no duplicate contribution settlement is accepted. | Integration |
 | AC-OPS-008 | P2 | Given a reported/stuck payout or failed notification, when an operator reviews it, then the evidence and retry/completion action are audited without re-executing a transfer or double-posting. | Integration |
 | AC-OPS-009 | P1 | Given a proposed miscellaneous income, when the same operator tries to approve it or a distinct second approver is missing, then `409 DUAL_CONTROL_REQUIRED` is returned and no posting occurs. | Integration |
+| AC-OPS-010 | P1 | Given a sensitive operator action (miscellaneous income approval, loss allocation, or role change), when the operator's last TOTP verification is older than five minutes, then `403 STEP_UP_REQUIRED` is returned and no state/ledger change occurs. | Integration |
 
 ## Failure modes and edge cases
 
@@ -141,9 +151,10 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | --- | --- | --- |
 | Contribution not confirmed | 409 `REFUND_NOT_ELIGIBLE`; no refund | AC-REFUND-001 |
 | Any active payout for the goal | 409 `PAYOUT_IN_FLIGHT`; no refund | AC-REFUND-005 |
-| Payout already completed | 409 `REFUND_AFTER_PAYOUT`; recovery path P2 | AC-REFUND-005 |
+| Payout already completed (including after a partial payout) | 409 `REFUND_AFTER_PAYOUT` for every contribution on the goal; recovery path P2 | AC-REFUND-005 |
 | Duplicate request key, same body | Return the original refund | AC-REFUND-006 |
-| Duplicate key, different amount | 409 `IDEMPOTENCY_CONFLICT` | AC-REFUND-006 |
+| Duplicate key, different body (including reason) | 409 `IDEMPOTENCY_CONFLICT` | AC-REFUND-006 |
+| Failed or cancelled payout for the goal | Refund allowed; no block | AC-REFUND-005 |
 | Provider refund fails | No ledger; release reservation; alert; retry with a new key | AC-REFUND-003 |
 | Provider timeout/unknown | Hold reservation; `PROVIDER_PENDING`; verify; no blind retry | AC-REFUND-004 |
 | Provider reports success twice | One ledger set, one `REFUNDED` transition | AC-REFUND-002 |
@@ -152,6 +163,8 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | Misc-income before timeout | 409 `SUSPENSE_NOT_AGED`; no posting | AC-OPS-004 |
 | Same operator proposes and approves income | 409 `DUAL_CONTROL_REQUIRED`; no posting | AC-OPS-009 |
 | Suspense item on the normal refund path | 409 `SUSPENSE_REQUIRES_RECONCILIATION`; use the queue action | AC-OPS-003 |
+| Verify by a non-`REFUND_OPERATOR` | 403; no provider/ledger call | AC-REFUND-008/AC-OPS-005 |
+| Income/loss/role change with TOTP older than five minutes | 403 `STEP_UP_REQUIRED`; no action | AC-OPS-010 |
 | Unauthorized operator | 401/403; no data/phone | AC-REFUND-008/AC-OPS-005 |
 | Chargeback after refund | Alert; no second refund; settlement/P2 handling | gap: AC-OPS-007/P2 |
 
@@ -166,9 +179,10 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 - Ledger: one `REVERSAL` set on confirmed provider success for the full-refund policy. It debits
   `GOAL_POOL` (`A`) for a normal contribution or `SUSPENSE` (`A`) for a suspended/late contribution,
   `PLATFORM_FEE` (`P`) and `FEE` (`F`), and credits `PARTNER_HELD` the gross `A + P + F` Paystack
-  refunds. When Paystack retains `F`, a separate `LOSS_ALLOCATION` set debits `PLATFORM_LOSS` (`F`)
-  and credits `BANK` (`F`) with the refund reason. Every set nets to zero and no account goes
-  negative.
+  refunds. When Paystack retains `F`, a `LOSS_ALLOCATION` set in the same transaction debits
+  `PLATFORM_LOSS` (`F`) and credits `PARTNER_HELD` (`F`) with the refund reason; the credit is the
+  fee owed to the partner (ADR 0018), not a cash posting. Every set nets to zero and no account goes
+  negative except the allowed `PARTNER_HELD` `F` obligation.
 - On success the ledger reversal replaces the refund reservation: availability falls once, not twice.
   Suspense reclassification: debit `SUSPENSE`, credit `GOAL_POOL`. Misc income: debit `SUSPENSE`,
   credit the platform revenue account. No set may leave `GOAL_POOL` or `SUSPENSE` negative.
@@ -181,8 +195,8 @@ inflating a goal, and every action is attributable, idempotent and safe against 
   operator session; password + TOTP; no public registration or self-signup)
 - `POST /operator/contributions/{id}/refund` (operator auth, `Idempotency-Key`, reason)
 - `GET /operator/refunds/{id}` and a queue/list
-- `POST /operator/refunds/{id}/verify` (operator-triggered provider verification for
-  `PROVIDER_PENDING`; no automated polling in P1)
+- `POST /operator/refunds/{id}/verify` (requires `REFUND_OPERATOR` and a reason; can post the
+  ledger, so it is audited and idempotent; no automated polling in P1)
 - `GET /operator/reconciliation/pending`
 - `POST /operator/reconciliation/{contributionId}/reclassify|refund|income`
 - `POST /operator/reconciliation/{contributionId}/income/approve` (distinct `FINANCE_APPROVER`)
@@ -198,8 +212,9 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 - Reasons and evidence are stored; phone numbers are never in operator responses, events, logs or
   tickets. If evidence requires a phone, access is restricted and audited.
 - Dual control is required for miscellaneous income (P1) and loss allocation (P2); recommended for
-  reclassification. Rate-limit operator and login attempts, lock accounts after repeated failures,
-  and alert on unusual volume.
+  reclassification. Income approval, loss allocation and role changes require a fresh TOTP check
+  within the previous five minutes (`403 STEP_UP_REQUIRED` otherwise). Rate-limit operator and login
+  attempts, lock accounts after repeated failures, and alert on unusual volume.
 - A compromised operator session must not be able to create a payout or change a destination.
 
 ## Observability
@@ -228,8 +243,9 @@ Recorded 2026-11-14:
    platform fee, processing fee) to the original payer, and the checkout/receipt discloses the full
    refund. The plan must verify in the Paystack sandbox whether Paystack returns its processing fee
    with the refund. If it retains `F`, the platform funds the difference so the contributor still
-   receives the gross `A + P + F`, and a separate `LOSS_ALLOCATION` set books `F` to `PLATFORM_LOSS`
-   with the refund reason. This verification is a plan prerequisite, not an open question.
+   receives the gross `A + P + F`, and a `LOSS_ALLOCATION` set in the same transaction books `F` to
+   `PLATFORM_LOSS` and credits `PARTNER_HELD` `F` — the fee the platform owes the partner (ADR 0018).
+   This verification is a plan prerequisite, not an open question.
 2. **Operator identity — separate, per person, MFA.** Operators get their own identity with password
    + TOTP, not an organizer role or a shared token. SSO is deferred; see ADR 0017.
 3. **Operator-only initiation in P1.** Contributors and organizers ask support; there is no public or

@@ -29,13 +29,15 @@ accepted for organizer actions.
   PBKDF2-HMAC-SHA256 with at least 600,000 iterations if no Argon2 implementation is available.
   Passwords, TOTP secrets and recovery codes never appear in logs or audit payloads.
 - TOTP follows RFC 6238: SHA-1, 6 digits, 30-second step, one step of clock skew, and a consumed step
-  cannot be replayed. The TOTP secret is encrypted at rest with an application key.
+  cannot be replayed. The TOTP secret is encrypted at rest with `OPERATOR_TOTP_ENCRYPTION_KEY`, a
+  required environment variable with no default. Startup fails when operator auth is enabled and the
+  key is missing.
 - Ten single-use recovery codes are generated at enrollment, stored hashed, and regenerating them
   invalidates the old set.
 - An administrator creates the account and issues a one-time enrollment token. First sign-in forces a
   password change and TOTP enrollment before any role becomes effective.
-- The first `OPERATOR_ADMIN` is provisioned by a migration or CLI bootstrap with a one-time token,
-  never by a public endpoint.
+- The first `OPERATOR_ADMIN` is provisioned at deploy time by a CLI or one-shot runner using a
+  one-time token. Migrations never contain a password, TOTP secret, recovery code or token.
 - Sessions are opaque and server-side: 8-hour absolute lifetime, 30-minute idle timeout, `HttpOnly`,
   `Secure`, `SameSite=Strict`, a cookie name distinct from the organizer session, and server-side
   revocation on logout. The session id rotates after password and TOTP verification.

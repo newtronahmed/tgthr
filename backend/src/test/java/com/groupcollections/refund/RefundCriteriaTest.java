@@ -146,4 +146,11 @@ class RefundCriteriaTest {
   void miscIncomeRequiresTwoDistinctOperators() {
     fail("not implemented");
   }
+
+  @Test
+  @Disabled("pending: FEAT-005 plan")
+  @Criterion("AC-OPS-010")
+  void sensitiveActionsRequireFreshTotp() {
+    fail("not implemented");
+  }
 }
