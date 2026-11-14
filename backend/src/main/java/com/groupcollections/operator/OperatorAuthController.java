@@ -62,7 +62,7 @@ public class OperatorAuthController {
             .httpOnly(true)
             .secure(cookieSecure)
             .sameSite("Strict")
-            .path(OperatorSessionService.COOKIE_PATH)
+            .path(sessions.cookiePath())
             .maxAge(sessions.sessionTtl())
             .build();
     return ResponseEntity.ok()
@@ -84,7 +84,7 @@ public class OperatorAuthController {
             .httpOnly(true)
             .secure(cookieSecure)
             .sameSite("Strict")
-            .path(OperatorSessionService.COOKIE_PATH)
+            .path(sessions.cookiePath())
             .maxAge(Duration.ZERO)
             .build();
     return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cleared.toString()).build();
