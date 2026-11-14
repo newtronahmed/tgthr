@@ -164,7 +164,7 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
 
 - Flags/config: `collections.operator.enabled=false`, `collections.refunds.enabled=false`,
   `collections.refunds.provider=none`, `collections.refunds.suspense-income-after=P30D`,
-  `collections.operator.session-ttl=P8H`, `collections.operator.idle-timeout=PT30M`,
+  `collections.operator.session-ttl=PT8H`, `collections.operator.idle-timeout=PT30M`,
   `collections.operator.max-failed-attempts=5`, `collections.operator.lockout=PT15M`.
 - Required secret: `OPERATOR_TOTP_ENCRYPTION_KEY`, no default; startup fails when operator auth is
   enabled without it. The first `OPERATOR_ADMIN` is provisioned at deploy time from a one-time token;

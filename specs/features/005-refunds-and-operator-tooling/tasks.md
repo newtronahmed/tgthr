@@ -28,8 +28,8 @@ Criteria: AC-REFUND-008, AC-OPS-005, AC-OPS-009, AC-OPS-010
 - [ ] T411 Implement TOTP/Base32, recovery codes and password hashing until T410 is green.
 - [ ] T412 Write failing `OperatorAuthIT` (login, MFA, wrong/expired/replayed code, lockout, session
   TTL/idle, logout, no public registration, audit).
-- [ ] T413 Implement operator tables, repositories, auth endpoints, session service and filter until
-  T412 is green.
+- [ ] T413 Implement operator tables, repositories, auth endpoints, session service, filter and
+  per-IP login/MFA rate limits until T412 is green.
 - [ ] T414 Write failing `OperatorAuthorizationIT` (roles, disabled account, revoked session, distinct
   approver for income).
 - [ ] T415 Implement roles, dual-control checks and admin account/role endpoints until T414 is green.

@@ -15,6 +15,8 @@ tags:
     description: Called by the payment partner, never by clients
   - name: Organizer
     description: Phone-verified organizer account, session and own goals
+  - name: Operator
+    description: Separate per-person operator identity with password and TOTP MFA
   - name: Approval
     description: Public SMS-token approval for a designated group member
 paths:
@@ -210,6 +212,87 @@ paths:
               schema:
                 type: string
         '403':
+          $ref: '#/components/responses/Problem'
+  /operator/auth/login:
+    post:
+      tags: [Operator]
+      operationId: operatorLogin
+      summary: Verify the operator password and start an MFA challenge
+      description: A session is not issued until the TOTP code is verified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorLoginRequest'
+      responses:
+        '200':
+          description: Short-lived MFA challenge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorLoginResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /operator/auth/mfa:
+    post:
+      tags: [Operator]
+      operationId: operatorMfa
+      summary: Verify the TOTP code and start an operator session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorMfaRequest'
+      responses:
+        '200':
+          description: The operator profile; the session is set as an HttpOnly cookie
+          headers:
+            Set-Cookie:
+              description: Opaque key tgthr_operator_session; HttpOnly; Secure; SameSite=Strict; Path=/operator
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorProfile'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/auth/logout:
+    post:
+      tags: [Operator]
+      operationId: operatorLogout
+      summary: Revoke the current operator session and clear the cookie
+      responses:
+        '204':
+          description: Session revoked, or there was no session
+          headers:
+            Set-Cookie:
+              description: Clears tgthr_operator_session (Max-Age=0; HttpOnly; Secure; SameSite=Strict; Path=/operator)
+              schema:
+                type: string
+  /operator/me:
+    get:
+      tags: [Operator]
+      operationId: operatorMe
+      summary: Read the signed-in operator and roles
+      security:
+        - operatorSession: []
+      responses:
+        '200':
+          description: Operator profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorProfile'
+        '401':
           $ref: '#/components/responses/Problem'
   /public/goals/{slug}/payouts/{payoutId}/report:
     post:
@@ -597,6 +680,10 @@ components:
       type: apiKey
       in: cookie
       name: tgthr_session
+    operatorSession:
+      type: apiKey
+      in: cookie
+      name: tgthr_operator_session
   parameters:
     GoalSlug:
       name: slug
@@ -1178,6 +1265,54 @@ components:
         createdAt:
           type: string
           format: date-time
+    OperatorLoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+          pattern: '^[A-Za-z0-9._-]+$'
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 1024
+    OperatorLoginResponse:
+      type: object
+      required: [challengeToken, expiresAt]
+      properties:
+        challengeToken:
+          type: string
+          description: Short-lived MFA challenge token; hashed at rest.
+        expiresAt:
+          type: string
+          format: date-time
+    OperatorMfaRequest:
+      type: object
+      required: [challengeToken, code]
+      properties:
+        challengeToken:
+          type: string
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+    OperatorProfile:
+      type: object
+      required: [id, username, roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [REFUND_OPERATOR, RECONCILER, FINANCE_APPROVER, OPERATOR_ADMIN]
+      description: Never contains a phone number, password hash or TOTP secret.
     Problem:
       type: object
       required: [type, title, status, code]
