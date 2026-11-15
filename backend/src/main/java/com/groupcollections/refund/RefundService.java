@@ -201,7 +201,9 @@ public class RefundService {
     try {
       result = provider.refund(refund);
     } catch (RuntimeException failure) {
-      result = RefundProvider.RefundResult.pending(null);
+      result =
+          RefundProvider.RefundResult.pending(
+              null, RefundProvider.RefundResult.PendingReason.UNKNOWN_STATUS);
     }
     try {
       completion.process(refund.id(), result);
