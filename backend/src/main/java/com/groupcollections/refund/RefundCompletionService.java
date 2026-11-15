@@ -8,6 +8,7 @@ import com.groupcollections.ledger.LedgerRepository;
 import com.groupcollections.ledger.PostingSet;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ public class RefundCompletionService {
   private final MeterRegistry meters;
   private final Clock clock;
   private final boolean feeRetained;
+  private final Duration verificationInitialDelay;
 
   public RefundCompletionService(
       RefundRepository refunds,
@@ -41,7 +43,9 @@ public class RefundCompletionService {
       AlertPublisher alerts,
       MeterRegistry meters,
       Clock clock,
-      @Value("${collections.refunds.partner-retains-processing-fee:true}") boolean feeRetained) {
+      @Value("${collections.refunds.partner-retains-processing-fee:true}") boolean feeRetained,
+      @Value("${collections.refunds.verification.initial-delay:PT5M}")
+          Duration verificationInitialDelay) {
     this.refunds = refunds;
     this.contributions = contributions;
     this.resolutions = resolutions;
@@ -50,6 +54,7 @@ public class RefundCompletionService {
     this.meters = meters;
     this.clock = clock;
     this.feeRetained = feeRetained;
+    this.verificationInitialDelay = verificationInitialDelay;
   }
 
   @Transactional
@@ -79,7 +84,8 @@ public class RefundCompletionService {
           RefundState.PROVIDER_PENDING.name(),
           "contribution state " + candidate.state(),
           now);
-      refunds.markProviderPending(refund.id(), result.providerReference(), now);
+      refunds.markProviderPending(
+          refund.id(), result.providerReference(), now.plus(verificationInitialDelay), now);
       meters.counter("refunds.success_not_confirmed").increment();
       alerts.publish(
           new Alert(
@@ -160,7 +166,8 @@ public class RefundCompletionService {
         result.pendingReason() == null
             ? RefundProvider.RefundResult.PendingReason.UNKNOWN_STATUS.name()
             : result.pendingReason().name();
-    refunds.markProviderPending(refund.id(), result.providerReference(), now);
+    refunds.markProviderPending(
+        refund.id(), result.providerReference(), now.plus(verificationInitialDelay), now);
     refunds.appendEvent(
         refund.id(),
         "PROVIDER_PENDING",

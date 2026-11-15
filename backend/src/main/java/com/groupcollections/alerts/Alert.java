@@ -23,6 +23,7 @@ public record Alert(AlertType type, String reference, String detail) {
     PAYOUT_EXECUTION_STUCK,
     PAYOUT_BLOCKED_FROZEN,
     REFUND_PROVIDER_PENDING,
+    REFUND_VERIFICATION_EXHAUSTED,
     REFUND_COMPLETION_FAILED
   }
 }

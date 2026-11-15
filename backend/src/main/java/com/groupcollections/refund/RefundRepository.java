@@ -138,18 +138,21 @@ public class RefundRepository {
         COLUMNS + "where state = ? order by created_at desc limit ?", MAPPER, state.name(), limit);
   }
 
-  public int markProviderPending(UUID id, String providerReference, Instant now) {
+  public int markProviderPending(
+      UUID id, String providerReference, Instant nextVerificationAt, Instant now) {
     return jdbc.update(
         """
         update refunds
         set state = 'PROVIDER_PENDING',
             provider_reference = coalesce(?, provider_reference),
             provider_requested_at = coalesce(provider_requested_at, ?),
+            next_verification_at = coalesce(next_verification_at, ?),
             updated_at = ?
         where id = ? and state in ('PENDING', 'PROVIDER_PENDING')
         """,
         providerReference,
         Timestamp.from(now),
+        nextVerificationAt == null ? null : Timestamp.from(nextVerificationAt),
         Timestamp.from(now),
         id);
   }
@@ -161,6 +164,7 @@ public class RefundRepository {
         set state = 'SUCCEEDED',
             provider_reference = coalesce(?, provider_reference),
             succeeded_at = ?,
+            next_verification_at = null,
             updated_at = ?
         where id = ? and state in ('PENDING', 'PROVIDER_PENDING')
         """,
@@ -174,7 +178,8 @@ public class RefundRepository {
     return jdbc.update(
         """
         update refunds
-        set state = 'FAILED', failure_code = ?, failed_at = ?, updated_at = ?
+        set state = 'FAILED', failure_code = ?, failed_at = ?,
+            next_verification_at = null, updated_at = ?
         where id = ? and state in ('PENDING', 'PROVIDER_PENDING')
         """,
         failureCode,
@@ -182,6 +187,63 @@ public class RefundRepository {
         Timestamp.from(now),
         id);
   }
+
+  /**
+   * Refunds whose next automatic check is due; the claim below resolves races between instances.
+   */
+  public List<RefundVerificationCandidate> findDueForVerification(Instant now, int limit) {
+    return jdbc.query(
+        """
+        select id, verification_attempts
+        from refunds
+        where state = 'PROVIDER_PENDING'
+          and verification_exhausted_at is null
+          and next_verification_at is not null
+          and next_verification_at <= ?
+        order by next_verification_at
+        limit ?
+        """,
+        (resultSet, rowNumber) ->
+            new RefundVerificationCandidate(
+                resultSet.getObject("id", UUID.class), resultSet.getInt("verification_attempts")),
+        Timestamp.from(now),
+        limit);
+  }
+
+  public int claimVerification(
+      UUID id, int expectedAttempts, Instant nextVerificationAt, Instant now) {
+    return jdbc.update(
+        """
+        update refunds
+        set verification_attempts = verification_attempts + 1,
+            next_verification_at = ?,
+            updated_at = ?
+        where id = ?
+          and state = 'PROVIDER_PENDING'
+          and verification_exhausted_at is null
+          and verification_attempts = ?
+          and next_verification_at <= ?
+        """,
+        Timestamp.from(nextVerificationAt),
+        Timestamp.from(now),
+        id,
+        expectedAttempts,
+        Timestamp.from(now));
+  }
+
+  public int markVerificationExhausted(UUID id, Instant now) {
+    return jdbc.update(
+        """
+        update refunds
+        set verification_exhausted_at = ?, next_verification_at = null, updated_at = ?
+        where id = ? and state = 'PROVIDER_PENDING' and verification_exhausted_at is null
+        """,
+        Timestamp.from(now),
+        Timestamp.from(now),
+        id);
+  }
+
+  public record RefundVerificationCandidate(UUID id, int attempts) {}
 
   public void appendEvent(
       UUID refundId, String event, String fromState, String toState, String detail, Instant now) {
