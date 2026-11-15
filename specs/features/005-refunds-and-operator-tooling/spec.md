@@ -91,6 +91,9 @@ inflating a goal, and every action is attributable, idempotent and safe against 
    `PROVIDER_PENDING` with the reservation held and raises an alert; it is never posted twice.
    `POST /operator/refunds/{id}/verify` is a `REFUND_OPERATOR` action: it requires a reason, is
    audited and idempotent, and enters the same confirmation path because it can post the ledger.
+   A scheduled job also re-checks due `PROVIDER_PENDING` refunds with bounded exponential backoff.
+   Exhaustion is an escalation, not a failure: an unknown outcome does not prove the provider did
+   not refund, so the reservation stays held and automatic attempts stop until an operator verifies.
 6. **Exact ledger.** The policy is a **full refund of `A + P + F`** (goal amount, platform fee,
    processing fee). On confirmed success, one `REVERSAL` set debits `GOAL_POOL` (`A`) or `SUSPENSE`
    (`A`) for a suspense item, `PLATFORM_FEE` (`P`) and `FEE` (`F`), and credits `PARTNER_HELD` the
@@ -128,6 +131,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | AC-REFUND-002 | P1 | Given a pending refund, when the provider confirms success, then exactly one balanced `REVERSAL` set posts, plus the `LOSS_ALLOCATION` set only when Paystack retains `F`, the contribution becomes `REFUNDED`, the reservation is released and payout availability excludes it. | Integration |
 | AC-REFUND-003 | P1 | Given a provider definitive failure, when the refund result is processed, then no ledger entry posts, the contribution stays `CONFIRMED`, the reservation is released and the refund is `FAILED` with an alert. | Integration |
 | AC-REFUND-004 | P1 | Given a provider timeout/unknown, when the refund is recorded, then it stays `PROVIDER_PENDING`, the reservation remains held, an alert is raised and no ledger posts until verification. | Integration |
+| AC-REFUND-011 | P1 | Given a provider-pending refund that stays unresolved, when the scheduled verification runs, then it re-verifies only due refunds with bounded exponential backoff and records each attempt, and after the configured maximum it marks verification exhausted with one alert; no ledger posts, the reservation stays held and a later manual verify still posts exactly once. | Integration |
 | AC-REFUND-005 | P1 | Given an active payout, a completed payout, or a `FAILED`/`CANCELLED` payout for the goal, when a refund is requested, then active returns `409 PAYOUT_IN_FLIGHT` (naming the payout id and state), completed returns `REFUND_AFTER_PAYOUT` for every contribution including money left after a partial payout, failed/cancelled allow the refund, and a blocked request creates no refund or provider call. | Integration |
 | AC-REFUND-006 | P1 | Given concurrent refund requests for one contribution, when they race, then exactly one active refund/provider call exists and the other returns the original or `REFUND_IN_PROGRESS`. | Integration |
 | AC-REFUND-007 | P1 | Given the accepted full-refund policy, when a refund succeeds, then one `REVERSAL` set debits `A` from `GOAL_POOL` or `SUSPENSE`, `P` from `PLATFORM_FEE` and `F` from `FEE`, credits `PARTNER_HELD` the gross `A + P + F` Paystack refunds, and — only when Paystack retains `F` — a `LOSS_ALLOCATION` set in the same transaction debits `PLATFORM_LOSS` and credits `PARTNER_HELD` for `F`; every set nets to zero and no account goes negative except the allowed `PARTNER_HELD` `F` obligation. | Integration |
@@ -157,6 +161,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | Failed or cancelled payout for the goal | Refund allowed; no block | AC-REFUND-005 |
 | Provider refund fails | No ledger; release reservation; alert; retry with a new key | AC-REFUND-003 |
 | Provider timeout/unknown | Hold reservation; `PROVIDER_PENDING`; verify; no blind retry | AC-REFUND-004 |
+| Provider stays unknown after the maximum automatic checks | Mark verification exhausted; one alert; reservation held; manual verify still allowed | AC-REFUND-011 |
 | Provider reports success twice | One ledger set, one `REFUNDED` transition | AC-REFUND-002 |
 | Refund would overdraw `GOAL_POOL` | Refuse; operator reconciles the shortfall; no negative pool | AC-REFUND-007 |
 | Suspense item resolved twice | One winner; second 409; audit unchanged | AC-OPS-006 |
@@ -172,7 +177,8 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 
 - New `refunds` table: contribution, policy amounts, state (`PENDING`, `PROVIDER_PENDING`, `SUCCEEDED`,
   `FAILED`), provider reference, idempotency key, operator, reason, timestamps; partial unique index
-  for one active refund per contribution.
+  for one active refund per contribution. Bounded verification adds the attempt count, the next
+  attempt time and the exhaustion time; no stored balance.
 - New append-only `refund_events` and `operator_actions` audit tables.
 - `contributions.state` uses the existing `REFUNDED`; no new contribution state is required while a
   refund is pending; availability subtracts active refunds.

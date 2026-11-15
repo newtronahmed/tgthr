@@ -65,7 +65,8 @@ attributable.
 - `refunds`: id, contribution_id, goal_id, source_account (`GOAL_POOL` or `SUSPENSE`), amount `A`,
   platform_fee `P`, processing_fee `F`, total `A + P + F`, state (`PENDING`, `PROVIDER_PENDING`,
   `SUCCEEDED`, `FAILED`), idempotency_key, provider_reference, operator_id, reason, timestamps,
-  failure_code. A partial unique index allows one active refund per contribution.
+  failure_code, verification_attempts, next_verification_at, verification_exhausted_at. A partial
+  unique index allows one active refund per contribution.
 - `refund_events`: append-only request/provider/state events.
 - `reconciliation_resolutions`: contribution_id unique, resolution (`REFUND`, `RECLASSIFY`,
   `INCOME`), status (`PROPOSED` for an income proposal, `APPLIED` once posted), proposer/approver,
@@ -114,7 +115,8 @@ attributable.
    alert.
 4. A `REFUND_OPERATOR` uses `POST /operator/refunds/{id}/verify` with a reason to ask Paystack for
    the result; verification follows the same success/failure transitions, is audited, and never
-   posts twice.
+   posts twice. A scheduled job re-checks due `PROVIDER_PENDING` refunds with bounded exponential
+   backoff; exhaustion raises one alert and keeps the reservation because the outcome is unknown.
 5. Suspense resolution: the queue lists unresolved contributions without phones. Reclassification and
    refund use the same posting/guard rules; income is a two-step propose/approve flow with distinct
    operators.
@@ -129,6 +131,7 @@ attributable.
 | AC-REFUND-002 | Integration | `RefundPostingIT` | One reversal, `REFUNDED`, availability once. |
 | AC-REFUND-003 | Integration | `RefundProviderIT` | Definitive failure releases the reservation. |
 | AC-REFUND-004 | Integration | `RefundProviderIT` | Unknown stays `PROVIDER_PENDING`; verify. |
+| AC-REFUND-011 | Integration | `RefundVerificationIT` | Bounded automatic re-verification, escalation after exhaustion, reservation held, manual verify still posts. |
 | AC-REFUND-005 | Integration | `RefundRequestIT` | Active blocks with id/state; completed blocks every contribution; failed/cancelled allow. |
 | AC-REFUND-006 | Integration | `RefundRequestIT` | Concurrent requests, one winner, idempotency conflict. |
 | AC-REFUND-007 | Integration | `RefundPostingIT` | Full `A + P + F`; retained fee loss set; balanced; no account negative except the allowed `PARTNER_HELD` F obligation. |
@@ -164,6 +167,8 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
 - `V17` (working label): the suspense slice adds the dedicated revenue account named by ADR 0019
   (working label `PLATFORM_REVENUE`) to the ledger account check; no data rewrite. The ADR fixes the
   account symbol and migration number before implementation.
+- `V18__refund_verification_backoff.sql`: verification attempt count, next attempt time and
+  exhaustion time plus a partial index for due refunds. No data rewrite.
 - Backward compatible: yes. No destructive change; existing organizer sessions and money tables are
   untouched.
 
@@ -171,8 +176,13 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
 
 - Flags/config: `collections.operator.enabled=false`, `collections.refunds.enabled=false`,
   `collections.refunds.provider=none`, `collections.refunds.suspense-income-after=P30D`,
-  `collections.operator.session-ttl=PT8H`, `collections.operator.idle-timeout=PT30M`,
-  `collections.operator.max-failed-attempts=5`, `collections.operator.lockout=PT15M`.
+  `collections.refunds.verification.initial-delay=PT5M`,
+  `collections.refunds.verification.max-delay=PT6H`,
+  `collections.refunds.verification.max-attempts=8`,
+  `collections.refunds.verification.batch-size=20`,
+  `collections.refunds.verification.scan-ms=60000`, `collections.operator.session-ttl=PT8H`,
+  `collections.operator.idle-timeout=PT30M`, `collections.operator.max-failed-attempts=5`,
+  `collections.operator.lockout=PT15M`.
 - Required secret: `OPERATOR_TOTP_ENCRYPTION_KEY`, no default; startup fails when operator auth is
   enabled without it. The first `OPERATOR_ADMIN` is provisioned at deploy time from a one-time token;
   no migration contains a password, TOTP secret or token.
