@@ -459,7 +459,9 @@ public final class FakePaystackServer implements AutoCloseable {
       case "REQUEST_TIMEOUT" ->
           respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
       case "ALREADY_EXISTS" ->
-          respond(exchange, 400, Map.of("status", false, "message", "Refund already exists"));
+          respond(exchange, 409, Map.of("status", false, "message", "Refund already exists"));
+      case "RATE_LIMITED" ->
+          respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
       case "SERVER_ERROR" ->
           respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
       case "PENDING" ->
@@ -479,31 +481,238 @@ public final class FakePaystackServer implements AutoCloseable {
   private void handleRefundVerify(HttpExchange exchange) throws IOException {
     String path = exchange.getRequestURI().getPath();
     String query = exchange.getRequestURI().getQuery();
-    String transaction = null;
-    String reference;
     if ("/refund".equals(path) && query != null && query.contains("transaction=")) {
-      transaction = query.substring(query.indexOf("transaction=") + "transaction=".length());
-      int amp = transaction.indexOf('&');
-      if (amp >= 0) {
-        transaction = transaction.substring(0, amp);
-      }
-      reference = refundReferenceByTransaction.getOrDefault(transaction, "refund-" + transaction);
-    } else {
-      reference = path.substring("/refund/".length());
+      handleRefundList(exchange, transactionParameter(query));
+      return;
     }
-    long amount =
-        transaction == null
-            ? refundAmountByReference.getOrDefault(reference, 0L)
-            : refundAmountByTransaction.getOrDefault(transaction, 0L);
-    String currency =
-        transaction == null
-            ? refundCurrencyByReference.getOrDefault(reference, "GHS")
-            : refundCurrencyByTransaction.getOrDefault(transaction, "GHS");
+    handleRefundObject(exchange, path.substring("/refund/".length()));
+  }
+
+  /**
+   * Paystack documents {@code GET /refund?transaction=} as an array of refunds and {@code GET
+   * /refund/:id} as a single object; the fake mirrors both shapes.
+   */
+  private void handleRefundList(HttpExchange exchange, String transaction) throws IOException {
+    String reference =
+        refundReferenceByTransaction.getOrDefault(transaction, "refund-" + transaction);
+    long amount = refundAmountByTransaction.getOrDefault(transaction, 0L);
+    String currency = refundCurrencyByTransaction.getOrDefault(transaction, "GHS");
     switch (refundScenario) {
       case "SERVER_ERROR" ->
           respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
       case "REQUEST_TIMEOUT" ->
           respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
+      case "VERIFY_404" -> respond(exchange, 404, Map.of("status", false, "message", "not found"));
+      case "VERIFY_200_FALSE" ->
+          respond(exchange, 200, Map.of("status", false, "message", "refund not found"));
+      case "VERIFY_EMPTY" -> respond(exchange, 200, Map.of("status", true, "data", List.of()));
+      case "VERIFY_MULTIPLE" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          "refund-older",
+                          amount - 1,
+                          currency,
+                          transaction,
+                          "2026-01-01T00:00:00.000Z"),
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "VERIFY_MULTIPLE_MATCHING" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "pending",
+                          "refund-stale",
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-01T00:00:00.000Z"),
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "VERIFY_NO_MATCH" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount + 100,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "VERIFY_WRONG_TRANSACTION" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount,
+                          currency,
+                          "other-transaction",
+                          "2026-01-02T00:00:00.000Z"))));
+      case "UNKNOWN_STATUS" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "needs-attention",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "PENDING" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "pending",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "FAILED" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "failed",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "AMOUNT_MISMATCH" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount + 1,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "CURRENCY_MISMATCH" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount,
+                          "NGN",
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+      case "MISSING_AMOUNT" ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z",
+                          false))));
+      default ->
+          respond(
+              exchange,
+              200,
+              Map.of(
+                  "status",
+                  true,
+                  "data",
+                  List.of(
+                      refundEntry(
+                          "processed",
+                          reference,
+                          amount,
+                          currency,
+                          transaction,
+                          "2026-01-02T00:00:00.000Z"))));
+    }
+  }
+
+  private void handleRefundObject(HttpExchange exchange, String reference) throws IOException {
+    long amount = refundAmountByReference.getOrDefault(reference, 0L);
+    String currency = refundCurrencyByReference.getOrDefault(reference, "GHS");
+    switch (refundScenario) {
+      case "SERVER_ERROR" ->
+          respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
+      case "REQUEST_TIMEOUT" ->
+          respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
+      case "VERIFY_404" -> respond(exchange, 404, Map.of("status", false, "message", "not found"));
+      case "VERIFY_200_FALSE" ->
+          respond(exchange, 200, Map.of("status", false, "message", "refund not found"));
+      case "UNKNOWN_STATUS" ->
+          respond(exchange, 200, refundResponse("needs-attention", reference, amount, currency));
       case "PENDING" ->
           respond(exchange, 200, refundResponse("pending", reference, amount, currency));
       case "FAILED" ->
@@ -516,6 +725,43 @@ public final class FakePaystackServer implements AutoCloseable {
           respond(exchange, 200, refundResponse("processed", reference, amount, currency, false));
       default -> respond(exchange, 200, refundResponse("processed", reference, amount, currency));
     }
+  }
+
+  private static String transactionParameter(String query) {
+    String transaction = query.substring(query.indexOf("transaction=") + "transaction=".length());
+    int amp = transaction.indexOf('&');
+    return amp >= 0 ? transaction.substring(0, amp) : transaction;
+  }
+
+  private static Map<String, Object> refundEntry(
+      String status,
+      String reference,
+      long amount,
+      String currency,
+      String transaction,
+      String createdAt) {
+    return refundEntry(status, reference, amount, currency, transaction, createdAt, true);
+  }
+
+  private static Map<String, Object> refundEntry(
+      String status,
+      String reference,
+      long amount,
+      String currency,
+      String transaction,
+      String createdAt,
+      boolean includeAmount) {
+    Map<String, Object> entry = new LinkedHashMap<>();
+    entry.put("id", reference);
+    entry.put("status", status);
+    if (includeAmount) {
+      entry.put("amount", amount);
+    }
+    entry.put("currency", currency);
+    entry.put("reference", reference);
+    entry.put("created_at", createdAt);
+    entry.put("transaction", Map.of("reference", transaction));
+    return entry;
   }
 
   private static Map<String, ?> refundResponse(

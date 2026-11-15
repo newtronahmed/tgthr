@@ -75,6 +75,16 @@ class PaystackRefundProviderTest {
   }
 
   @Test
+  void rateLimitedRefundIsPending() {
+    fake.refundScenario("RATE_LIMITED");
+
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.failureCode()).isNull();
+  }
+
+  @Test
   void definitiveRejectionIsFailed() {
     fake.refundScenario("REQUEST_REJECTED");
 
@@ -147,6 +157,90 @@ class PaystackRefundProviderTest {
     RefundResult verified = provider.verify(refund("txn-123", null));
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
+  }
+
+  @Test
+  void verifySelectsTheMatchingEntryFromTheRefundList() {
+    RefundResult requested = provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_MULTIPLE");
+
+    RefundResult verified = provider.verify(refund("txn-123", null));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
+    assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+  }
+
+  @Test
+  void verifyUsesTheLatestMatchingEntry() {
+    RefundResult requested = provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_MULTIPLE_MATCHING");
+
+    RefundResult verified = provider.verify(refund("txn-123", null));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
+    assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+  }
+
+  @Test
+  void verifyWithAnEmptyRefundListStaysPending() {
+    provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_EMPTY");
+
+    RefundResult verified = provider.verify(refund("txn-123", null));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.providerReference()).isNull();
+  }
+
+  @Test
+  void verifyWithoutAMatchingAmountStaysPending() {
+    provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_NO_MATCH");
+
+    assertThat(provider.verify(refund("txn-123", null)).status())
+        .isEqualTo(RefundResult.Status.PENDING);
+  }
+
+  @Test
+  void verifyWithoutAMatchingTransactionStaysPending() {
+    provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_WRONG_TRANSACTION");
+
+    assertThat(provider.verify(refund("txn-123", null)).status())
+        .isEqualTo(RefundResult.Status.PENDING);
+  }
+
+  @Test
+  void verifyWithAnUnrecognisedProviderStatusStaysPending() {
+    RefundResult requested = provider.refund(refund("txn-123", null));
+    fake.refundScenario("UNKNOWN_STATUS");
+
+    RefundResult verified = provider.verify(refund("txn-123", requested.providerReference()));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+  }
+
+  @Test
+  void verifyWithA200ButFalseStatusStaysPending() {
+    RefundResult requested = provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_200_FALSE");
+
+    RefundResult verified = provider.verify(refund("txn-123", requested.providerReference()));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.providerReference()).isNull();
+  }
+
+  @Test
+  void verifyWithA404StaysPending() {
+    RefundResult requested = provider.refund(refund("txn-123", null));
+    fake.refundScenario("VERIFY_404");
+
+    RefundResult verified = provider.verify(refund("txn-123", requested.providerReference()));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
   }
 
   @Test
