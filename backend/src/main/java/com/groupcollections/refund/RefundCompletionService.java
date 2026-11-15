@@ -89,9 +89,10 @@ public class RefundCompletionService {
       return;
     }
     RefundStateMachine.require(refund.state(), RefundState.SUCCEEDED);
-    ledger.postRefund(refund.id(), RefundPosting.reversal(refund));
+    ledger.postRefund(refund.id(), refund.contributionId(), RefundPosting.reversal(refund));
     if (feeRetained) {
-      RefundPosting.loss(refund).ifPresent(loss -> ledger.postRefund(refund.id(), loss));
+      RefundPosting.loss(refund)
+          .ifPresent(loss -> ledger.postRefund(refund.id(), refund.contributionId(), loss));
     }
     if (contributions.apply(refund.contributionId(), ContributionEvent.REFUND_APPROVED).isEmpty()) {
       throw new IllegalStateException("contribution could not move to REFUNDED");

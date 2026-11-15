@@ -1,16 +1,23 @@
 package com.groupcollections.refund;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.groupcollections.contribution.ContributionRepository;
+import com.groupcollections.identity.OrganizerUser;
 import com.groupcollections.operator.Base32;
 import com.groupcollections.operator.OperatorRole;
 import com.groupcollections.operator.OperatorSecretCipher;
 import com.groupcollections.operator.OperatorSessionService;
 import com.groupcollections.operator.PasswordHasher;
 import com.groupcollections.operator.Totp;
+import com.groupcollections.payout.PayoutException;
+import com.groupcollections.payout.PayoutFeeProvider;
 import com.groupcollections.payout.PayoutRepository;
+import com.groupcollections.payout.PayoutService;
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
+import com.groupcollections.support.FakePayoutFeeProvider;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +30,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -39,15 +50,28 @@ import org.springframework.test.context.TestPropertySource;
       "collections.operator.session-ttl=PT1H",
       "collections.refunds.enabled=true",
       "collections.refunds.provider=paystack",
-      "collections.refunds.partner-retains-processing-fee=true"
+      "collections.refunds.partner-retains-processing-fee=true",
+      "collections.payout.enabled=true"
     })
+@Import(RefundRequestIT.PayoutConfiguration.class)
 class RefundRequestIT extends ApiIntegrationTest {
+
+  @TestConfiguration
+  static class PayoutConfiguration {
+    @Bean
+    @Primary
+    PayoutFeeProvider fakePayoutFeeProvider() {
+      return new FakePayoutFeeProvider();
+    }
+  }
 
   private static final String OPERATOR_PASSWORD = "correct horse battery staple";
 
   @Autowired private PasswordHasher hasher;
   @Autowired private OperatorSecretCipher cipher;
   @Autowired private PayoutRepository payouts;
+  @Autowired private ContributionRepository contributions;
+  @Autowired private PayoutService payoutService;
 
   @Test
   @Criterion("AC-REFUND-001")
@@ -161,7 +185,12 @@ class RefundRequestIT extends ApiIntegrationTest {
   void successPostsTheReversalAndRetainedFeeLoss() {
     PAYSTACK.refundScenario("SUCCESS");
     Contribution contribution = confirmedContribution();
+    OrganizerUser organizer = settleAndOwn(contribution);
     String token = signIn(operator("refund.success", OperatorRole.REFUND_OPERATOR));
+    assertThat(payouts.goalPoolBalance(contribution.goalId()).minorUnits())
+        .isEqualTo(contribution.amount());
+    assertThat(contributions.goalRaised(contribution.goalId(), "GHS").minorUnits())
+        .isEqualTo(contribution.amount());
 
     ResponseEntity<Map<String, Object>> response =
         request(contribution.id(), "refund-key-eight", "duplicate charge", token);
@@ -173,6 +202,8 @@ class RefundRequestIT extends ApiIntegrationTest {
             jdbc.queryForObject(
                 "select state from contributions where id = ?", String.class, contribution.id()))
         .isEqualTo("REFUNDED");
+    assertThat(payouts.goalPoolBalance(contribution.goalId()).minorUnits()).isZero();
+    assertThat(contributions.goalRaised(contribution.goalId(), "GHS").minorUnits()).isZero();
     assertThat(
             count(
                 "select count(*) from ledger_entries where refund_id = ? and entry_type = 'REVERSAL'",
@@ -185,6 +216,14 @@ class RefundRequestIT extends ApiIntegrationTest {
         .isEqualTo(2);
     assertThat(payouts.reservedMinorUnits(contribution.goalId())).isZero();
     assertThat(PAYSTACK.refundBodies()).hasSize(1);
+
+    assertThatThrownBy(
+            () ->
+                payoutService.request(
+                    organizer, contribution.goalId(), "payout-after-refund", contribution.amount()))
+        .isInstanceOfSatisfying(
+            PayoutException.class,
+            failure -> assertThat(failure.code()).isEqualTo("INSUFFICIENT_SETTLED_BALANCE"));
   }
 
   @Test
@@ -273,6 +312,64 @@ class RefundRequestIT extends ApiIntegrationTest {
         goalId,
         ((Number) created.get("amountPesewas")).longValue(),
         ((Number) created.get("totalPesewas")).longValue());
+  }
+
+  private OrganizerUser settleAndOwn(Contribution contribution) {
+    UUID userId =
+        jdbc.queryForObject(
+            """
+            insert into users (phone_ciphertext, phone_hash, display_name)
+            values (?, ?, 'Test Organizer')
+            returning id
+            """,
+            UUID.class,
+            randomBytes(),
+            randomBytes());
+    jdbc.update(
+        """
+        update goals
+        set created_by_user_id = ?,
+            destination_phone_ciphertext = ?,
+            destination_phone_hash = ?,
+            destination_network = 'MTN',
+            destination_account_name = 'Test Organizer',
+            destination_locked_at = now(),
+            create_idempotency_key = ?,
+            hold_window_minutes = 1
+        where id = ?
+        """,
+        userId,
+        randomBytes(),
+        randomBytes(),
+        "goal-" + UUID.randomUUID(),
+        contribution.goalId());
+    UUID settlementId =
+        jdbc.queryForObject(
+            """
+            insert into settlements
+                (provider, provider_settlement_reference, settlement_date,
+                 gross_amount_minor_units, currency_code, fees_minor_units,
+                 net_amount_minor_units, direction, status, received_at)
+            values ('PAYSTACK', ?, current_date, ?, 'GHS', 0, ?, 'CREDIT', 'SETTLED', now())
+            returning id
+            """,
+            UUID.class,
+            "settle-" + UUID.randomUUID(),
+            contribution.total(),
+            contribution.total());
+    jdbc.update(
+        """
+        insert into settlement_items
+            (settlement_id, contribution_id, item_type, direction, gross_minor_units,
+             currency_code, fee_minor_units, net_minor_units, goal_amount_minor_units)
+        values (?, ?, 'CONTRIBUTION', 'CREDIT', ?, 'GHS', 0, ?, ?)
+        """,
+        settlementId,
+        contribution.id(),
+        contribution.total(),
+        contribution.total(),
+        contribution.amount());
+    return new OrganizerUser(userId, "Test Organizer", "Test Organizer", Instant.now());
   }
 
   private TestOperator operator(String username, OperatorRole... roles) {
