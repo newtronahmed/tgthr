@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -58,6 +59,11 @@ public final class FakePaystackServer implements AutoCloseable {
   private volatile String refundScenario = "SUCCESS";
   private final Map<String, String> scenarioByReference = new ConcurrentHashMap<>();
   private final Map<String, Long> transferAmountByReference = new ConcurrentHashMap<>();
+  private final Map<String, Long> refundAmountByReference = new ConcurrentHashMap<>();
+  private final Map<String, String> refundCurrencyByReference = new ConcurrentHashMap<>();
+  private final Map<String, Long> refundAmountByTransaction = new ConcurrentHashMap<>();
+  private final Map<String, String> refundCurrencyByTransaction = new ConcurrentHashMap<>();
+  private final Map<String, String> refundReferenceByTransaction = new ConcurrentHashMap<>();
   private final Map<String, Long> amountByReference = new ConcurrentHashMap<>();
   private final HttpServer server;
 
@@ -99,6 +105,11 @@ public final class FakePaystackServer implements AutoCloseable {
     resolveQueries.clear();
     refundBodies.clear();
     transferAmountByReference.clear();
+    refundAmountByReference.clear();
+    refundCurrencyByReference.clear();
+    refundAmountByTransaction.clear();
+    refundCurrencyByTransaction.clear();
+    refundReferenceByTransaction.clear();
     transferScenario = "SUCCESS";
     resolveScenario = "SUCCESS";
     refundScenario = "SUCCESS";
@@ -430,48 +441,98 @@ public final class FakePaystackServer implements AutoCloseable {
     }
     String body = read(exchange.getRequestBody());
     refundBodies.add(body);
-    long amount = mapper.readTree(body).path("amount").asLong();
+    JsonNode request = mapper.readTree(body);
+    long amount = request.path("amount").asLong();
+    String currency = request.path("currency").asText("GHS");
+    String transaction = request.path("transaction").asText("");
     String reference = "refund-" + UUID.randomUUID();
+    if (!transaction.isBlank()) {
+      refundReferenceByTransaction.put(transaction, reference);
+      refundAmountByTransaction.put(transaction, amount);
+      refundCurrencyByTransaction.put(transaction, currency);
+    }
+    refundAmountByReference.put(reference, amount);
+    refundCurrencyByReference.put(reference, currency);
     switch (refundScenario) {
       case "REQUEST_REJECTED" ->
           respond(exchange, 400, Map.of("status", false, "message", "refund rejected"));
+      case "REQUEST_TIMEOUT" ->
+          respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
+      case "ALREADY_EXISTS" ->
+          respond(exchange, 400, Map.of("status", false, "message", "Refund already exists"));
       case "SERVER_ERROR" ->
           respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
-      case "PENDING" -> respond(exchange, 200, refundResponse("pending", reference, amount));
-      case "FAILED" -> respond(exchange, 200, refundResponse("failed", reference, amount));
-      default -> respond(exchange, 200, refundResponse("processed", reference, amount));
+      case "PENDING" ->
+          respond(exchange, 200, refundResponse("pending", reference, amount, currency));
+      case "FAILED" ->
+          respond(exchange, 200, refundResponse("failed", reference, amount, currency));
+      case "AMOUNT_MISMATCH" ->
+          respond(exchange, 200, refundResponse("processed", reference, amount + 1, currency));
+      case "CURRENCY_MISMATCH" ->
+          respond(exchange, 200, refundResponse("processed", reference, amount, "NGN"));
+      case "MISSING_AMOUNT" ->
+          respond(exchange, 200, refundResponse("processed", reference, amount, currency, false));
+      default -> respond(exchange, 200, refundResponse("processed", reference, amount, currency));
     }
   }
 
   private void handleRefundVerify(HttpExchange exchange) throws IOException {
     String path = exchange.getRequestURI().getPath();
     String query = exchange.getRequestURI().getQuery();
+    String transaction = null;
     String reference;
     if ("/refund".equals(path) && query != null && query.contains("transaction=")) {
-      String transaction = query.substring(query.indexOf("transaction=") + "transaction=".length());
+      transaction = query.substring(query.indexOf("transaction=") + "transaction=".length());
       int amp = transaction.indexOf('&');
       if (amp >= 0) {
         transaction = transaction.substring(0, amp);
       }
-      reference = "refund-" + transaction;
+      reference = refundReferenceByTransaction.getOrDefault(transaction, "refund-" + transaction);
     } else {
       reference = path.substring("/refund/".length());
     }
+    long amount =
+        transaction == null
+            ? refundAmountByReference.getOrDefault(reference, 0L)
+            : refundAmountByTransaction.getOrDefault(transaction, 0L);
+    String currency =
+        transaction == null
+            ? refundCurrencyByReference.getOrDefault(reference, "GHS")
+            : refundCurrencyByTransaction.getOrDefault(transaction, "GHS");
     switch (refundScenario) {
       case "SERVER_ERROR" ->
           respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
-      case "PENDING" -> respond(exchange, 200, refundResponse("pending", reference, 0));
-      case "FAILED" -> respond(exchange, 200, refundResponse("failed", reference, 0));
-      default -> respond(exchange, 200, refundResponse("processed", reference, 0));
+      case "REQUEST_TIMEOUT" ->
+          respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
+      case "PENDING" ->
+          respond(exchange, 200, refundResponse("pending", reference, amount, currency));
+      case "FAILED" ->
+          respond(exchange, 200, refundResponse("failed", reference, amount, currency));
+      case "AMOUNT_MISMATCH" ->
+          respond(exchange, 200, refundResponse("processed", reference, amount + 1, currency));
+      case "CURRENCY_MISMATCH" ->
+          respond(exchange, 200, refundResponse("processed", reference, amount, "NGN"));
+      case "MISSING_AMOUNT" ->
+          respond(exchange, 200, refundResponse("processed", reference, amount, currency, false));
+      default -> respond(exchange, 200, refundResponse("processed", reference, amount, currency));
     }
   }
 
-  private static Map<String, ?> refundResponse(String status, String reference, long amount) {
-    return Map.of(
-        "status",
-        true,
-        "data",
-        Map.of("id", reference, "status", status, "amount", amount, "currency", "GHS"));
+  private static Map<String, ?> refundResponse(
+      String status, String reference, long amount, String currency) {
+    return refundResponse(status, reference, amount, currency, true);
+  }
+
+  private static Map<String, ?> refundResponse(
+      String status, String reference, long amount, String currency, boolean includeAmount) {
+    Map<String, Object> data = new LinkedHashMap<>();
+    data.put("id", reference);
+    data.put("status", status);
+    if (includeAmount) {
+      data.put("amount", amount);
+    }
+    data.put("currency", currency);
+    return Map.of("status", true, "data", data);
   }
 
   private void respond(HttpExchange exchange, int statusCode, Map<String, ?> payload)
