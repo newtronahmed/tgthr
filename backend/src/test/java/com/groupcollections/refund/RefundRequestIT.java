@@ -148,6 +148,112 @@ class RefundRequestIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-REFUND-005")
+  void aCompletedPayoutBlocksEveryContributionOnTheGoal() {
+    Contribution first = confirmedContribution();
+    UUID payoutId = insertPayout(first.goalId(), "REQUESTED");
+    jdbc.update("update payouts set state = 'COMPLETED' where id = ?", payoutId);
+    Contribution second = confirmedContribution(first.goalId());
+    String token = signIn(operator("refund.completed.goal", OperatorRole.REFUND_OPERATOR));
+
+    ResponseEntity<Map<String, Object>> firstResponse =
+        request(first.id(), "refund-completed-one", "duplicate charge", token);
+    ResponseEntity<Map<String, Object>> secondResponse =
+        request(second.id(), "refund-completed-two", "duplicate charge", token);
+
+    assertThat(firstResponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(firstResponse.getBody()).containsEntry("code", "REFUND_AFTER_PAYOUT");
+    assertThat(secondResponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(secondResponse.getBody()).containsEntry("code", "REFUND_AFTER_PAYOUT");
+    assertThat(count("select count(*) from refunds where goal_id = ?", first.goalId())).isZero();
+    assertThat(PAYSTACK.refundBodies()).isEmpty();
+  }
+
+  @Test
+  @Criterion("AC-REFUND-005")
+  void aCancelledPayoutAllowsARefund() {
+    PAYSTACK.refundScenario("PENDING");
+    Contribution contribution = confirmedContribution();
+    UUID payoutId = insertPayout(contribution.goalId(), "REQUESTED");
+    jdbc.update("update payouts set state = 'CANCELLED' where id = ?", payoutId);
+    String token = signIn(operator("refund.cancelled", OperatorRole.REFUND_OPERATOR));
+
+    ResponseEntity<Map<String, Object>> response =
+        request(contribution.id(), "refund-cancelled-one", "duplicate charge", token);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+  }
+
+  @Test
+  @Criterion("AC-REFUND-005")
+  void anUnconfirmedContributionIsNotEligible() {
+    String slug = insertGoal("refund-unconfirmed", "OPEN", null);
+    Map<String, Object> created = createContribution(slug, 3_000, "0240000001").getBody();
+    UUID contributionId = UUID.fromString((String) created.get("id"));
+    String token = signIn(operator("refund.unconfirmed", OperatorRole.REFUND_OPERATOR));
+
+    ResponseEntity<Map<String, Object>> response =
+        request(contributionId, "refund-unconfirmed-one", "duplicate charge", token);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody()).containsEntry("code", "REFUND_NOT_ELIGIBLE");
+    assertThat(count("select count(*) from refunds where contribution_id = ?", contributionId))
+        .isZero();
+  }
+
+  @Test
+  @Criterion("AC-OPS-005")
+  void verificationRequiresTheRefundOperatorRole() {
+    PAYSTACK.refundScenario("PENDING");
+    Contribution contribution = confirmedContribution();
+    String refundToken = signIn(operator("refund.verify.owner", OperatorRole.REFUND_OPERATOR));
+    UUID refundId =
+        UUID.fromString(
+            (String)
+                request(contribution.id(), "refund-verify-role", "duplicate charge", refundToken)
+                    .getBody()
+                    .get("id"));
+    String reconcilerToken = signIn(operator("refund.verify.intruder", OperatorRole.RECONCILER));
+
+    ResponseEntity<Map<String, Object>> response = verify(refundId, "not my role", reconcilerToken);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).containsEntry("code", "FORBIDDEN");
+    assertThat(refundRow(refundId).get("state")).isEqualTo("PROVIDER_PENDING");
+    assertThat(count("select count(*) from ledger_entries where refund_id = ?", refundId)).isZero();
+  }
+
+  @Test
+  @Criterion("AC-REFUND-002")
+  void aSecondVerificationCannotPostTheSuccessAgain() {
+    PAYSTACK.refundScenario("SUCCESS");
+    Contribution contribution = confirmedContribution();
+    String token = signIn(operator("refund.twice", OperatorRole.REFUND_OPERATOR));
+    UUID refundId =
+        UUID.fromString(
+            (String)
+                request(contribution.id(), "refund-twice-one", "duplicate charge", token)
+                    .getBody()
+                    .get("id"));
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where refund_id = ? and entry_type = 'REVERSAL'",
+                refundId))
+        .isEqualTo(4);
+
+    ResponseEntity<Map<String, Object>> response = verify(refundId, "verify again", token);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody()).containsEntry("code", "REFUND_NOT_PENDING");
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where refund_id = ? and entry_type = 'REVERSAL'",
+                refundId))
+        .isEqualTo(4);
+    assertThat(refundRow(refundId).get("state")).isEqualTo("SUCCEEDED");
+  }
+
+  @Test
   void aSuspenseContributionMustUseReconciliation() {
     String slug = insertGoal("refund-suspense", "OPEN", null);
     Map<String, Object> created = createContribution(slug, 5_000, "0240000001").getBody();
@@ -333,7 +439,16 @@ class RefundRequestIT extends ApiIntegrationTest {
 
   private Contribution confirmedContribution() {
     String slug = insertGoal("refund-core", "OPEN", null);
-    Map<String, Object> created = createContribution(slug, 10_000, "0240000001").getBody();
+    return confirmedContribution(slug, 10_000, "0240000001");
+  }
+
+  private Contribution confirmedContribution(UUID goalId) {
+    String slug = jdbc.queryForObject("select slug from goals where id = ?", String.class, goalId);
+    return confirmedContribution(slug, 4_000, "0240000002");
+  }
+
+  private Contribution confirmedContribution(String slug, long amount, String momoNumber) {
+    Map<String, Object> created = createContribution(slug, amount, momoNumber).getBody();
     String contributionId = (String) created.get("id");
     long total = ((Number) created.get("totalPesewas")).longValue();
     assertThat(PAYSTACK.sendSuccessCallback(webhookUrl(), contributionId, total)).isEqualTo(204);
