@@ -349,8 +349,8 @@ class RefundRequestIT extends ApiIntegrationTest {
             insert into settlements
                 (provider, provider_settlement_reference, settlement_date,
                  gross_amount_minor_units, currency_code, fees_minor_units,
-                 net_amount_minor_units, direction, status, received_at)
-            values ('PAYSTACK', ?, current_date, ?, 'GHS', 0, ?, 'CREDIT', 'SETTLED', now())
+                 net_amount_minor_units, direction, status)
+            values ('PAYSTACK', ?, current_date, ?, 'GHS', 0, ?, 'CREDIT', 'PENDING')
             returning id
             """,
             UUID.class,
@@ -369,6 +369,9 @@ class RefundRequestIT extends ApiIntegrationTest {
         contribution.total(),
         contribution.total(),
         contribution.amount());
+    jdbc.update(
+        "update settlements set status = 'SETTLED', received_at = now() where id = ?",
+        settlementId);
     return new OrganizerUser(userId, "Test Organizer", "Test Organizer", Instant.now());
   }
 
