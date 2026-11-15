@@ -2,6 +2,8 @@ package com.groupcollections.contribution;
 
 import com.groupcollections.ledger.Money;
 import com.groupcollections.security.PhoneCipher;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -175,6 +177,63 @@ public class ContributionRepository {
 
   public record ReconciliationItem(
       UUID id, String providerReference, Money amount, Instant updatedAt) {}
+
+  public record RefundCandidate(
+      UUID id,
+      UUID goalId,
+      ContributionState state,
+      long amountMinorUnits,
+      long platformFeeMinorUnits,
+      long processingFeeMinorUnits,
+      long totalMinorUnits,
+      String currencyCode,
+      boolean requiresReconciliation,
+      String providerReference) {}
+
+  public Optional<RefundCandidate> findRefundCandidate(UUID id) {
+    return jdbc
+        .query(
+            """
+            select id, goal_id, amount_minor_units, platform_fee_minor_units,
+                   processing_fee_minor_units, total_minor_units, currency_code, state,
+                   requires_reconciliation, provider_reference
+            from contributions where id = ?
+            """,
+            this::mapRefundCandidate,
+            id)
+        .stream()
+        .findFirst();
+  }
+
+  public Optional<RefundCandidate> findRefundCandidateForUpdate(UUID id) {
+    return jdbc
+        .query(
+            """
+            select id, goal_id, amount_minor_units, platform_fee_minor_units,
+                   processing_fee_minor_units, total_minor_units, currency_code, state,
+                   requires_reconciliation, provider_reference
+            from contributions where id = ? for update
+            """,
+            this::mapRefundCandidate,
+            id)
+        .stream()
+        .findFirst();
+  }
+
+  private RefundCandidate mapRefundCandidate(ResultSet resultSet, int rowNumber)
+      throws SQLException {
+    return new RefundCandidate(
+        resultSet.getObject("id", UUID.class),
+        resultSet.getObject("goal_id", UUID.class),
+        ContributionState.valueOf(resultSet.getString("state")),
+        resultSet.getLong("amount_minor_units"),
+        resultSet.getLong("platform_fee_minor_units"),
+        resultSet.getLong("processing_fee_minor_units"),
+        resultSet.getLong("total_minor_units"),
+        resultSet.getString("currency_code"),
+        resultSet.getBoolean("requires_reconciliation"),
+        resultSet.getString("provider_reference"));
+  }
 
   public Optional<ContributionStatus> findStatus(UUID id) {
     return jdbc.query(STATUS_COLUMNS + "where id = ?", STATUS_MAPPER, id).stream().findFirst();

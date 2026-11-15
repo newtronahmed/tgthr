@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -51,8 +52,10 @@ public final class FakePaystackServer implements AutoCloseable {
   private final List<String> transferBodies = new CopyOnWriteArrayList<>();
   private final List<String> recipientBodies = new CopyOnWriteArrayList<>();
   private final List<String> resolveQueries = new CopyOnWriteArrayList<>();
+  private final List<String> refundBodies = new CopyOnWriteArrayList<>();
   private volatile String transferScenario = "SUCCESS";
   private volatile String resolveScenario = "SUCCESS";
+  private volatile String refundScenario = "SUCCESS";
   private final Map<String, String> scenarioByReference = new ConcurrentHashMap<>();
   private final Map<String, Long> transferAmountByReference = new ConcurrentHashMap<>();
   private final Map<String, Long> amountByReference = new ConcurrentHashMap<>();
@@ -75,6 +78,7 @@ public final class FakePaystackServer implements AutoCloseable {
     server.createContext("/transferrecipient", this::handleTransferRecipient);
     server.createContext("/transfer/verify/", this::handleTransferVerify);
     server.createContext("/transfer", this::handleTransfer);
+    server.createContext("/refund", this::handleRefund);
     server.start();
   }
 
@@ -93,9 +97,11 @@ public final class FakePaystackServer implements AutoCloseable {
     transferBodies.clear();
     recipientBodies.clear();
     resolveQueries.clear();
+    refundBodies.clear();
     transferAmountByReference.clear();
     transferScenario = "SUCCESS";
     resolveScenario = "SUCCESS";
+    refundScenario = "SUCCESS";
     scenarioByReference.clear();
     amountByReference.clear();
   }
@@ -114,6 +120,15 @@ public final class FakePaystackServer implements AutoCloseable {
 
   public List<String> resolveQueries() {
     return List.copyOf(resolveQueries);
+  }
+
+  public List<String> refundBodies() {
+    return List.copyOf(refundBodies);
+  }
+
+  /** SUCCESS, PENDING, FAILED, REQUEST_REJECTED or SERVER_ERROR. */
+  public void refundScenario(String scenario) {
+    refundScenario = scenario;
   }
 
   /** SUCCESS, NOT_FOUND or UNKNOWN. */
@@ -406,6 +421,57 @@ public final class FakePaystackServer implements AutoCloseable {
                 transferAmountByReference.getOrDefault(reference, 0L),
                 "currency",
                 "GHS")));
+  }
+
+  private void handleRefund(HttpExchange exchange) throws IOException {
+    if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+      handleRefundVerify(exchange);
+      return;
+    }
+    String body = read(exchange.getRequestBody());
+    refundBodies.add(body);
+    long amount = mapper.readTree(body).path("amount").asLong();
+    String reference = "refund-" + UUID.randomUUID();
+    switch (refundScenario) {
+      case "REQUEST_REJECTED" ->
+          respond(exchange, 400, Map.of("status", false, "message", "refund rejected"));
+      case "SERVER_ERROR" ->
+          respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
+      case "PENDING" -> respond(exchange, 200, refundResponse("pending", reference, amount));
+      case "FAILED" -> respond(exchange, 200, refundResponse("failed", reference, amount));
+      default -> respond(exchange, 200, refundResponse("processed", reference, amount));
+    }
+  }
+
+  private void handleRefundVerify(HttpExchange exchange) throws IOException {
+    String path = exchange.getRequestURI().getPath();
+    String query = exchange.getRequestURI().getQuery();
+    String reference;
+    if ("/refund".equals(path) && query != null && query.contains("transaction=")) {
+      String transaction = query.substring(query.indexOf("transaction=") + "transaction=".length());
+      int amp = transaction.indexOf('&');
+      if (amp >= 0) {
+        transaction = transaction.substring(0, amp);
+      }
+      reference = "refund-" + transaction;
+    } else {
+      reference = path.substring("/refund/".length());
+    }
+    switch (refundScenario) {
+      case "SERVER_ERROR" ->
+          respond(exchange, 500, Map.of("status", false, "message", "temporary failure"));
+      case "PENDING" -> respond(exchange, 200, refundResponse("pending", reference, 0));
+      case "FAILED" -> respond(exchange, 200, refundResponse("failed", reference, 0));
+      default -> respond(exchange, 200, refundResponse("processed", reference, 0));
+    }
+  }
+
+  private static Map<String, ?> refundResponse(String status, String reference, long amount) {
+    return Map.of(
+        "status",
+        true,
+        "data",
+        Map.of("id", reference, "status", status, "amount", amount, "currency", "GHS"));
   }
 
   private void respond(HttpExchange exchange, int statusCode, Map<String, ?> payload)

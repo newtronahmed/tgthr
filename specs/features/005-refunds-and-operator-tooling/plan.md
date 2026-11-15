@@ -43,10 +43,10 @@ attributable.
 - New dependencies: none. Password hashing uses JDK PBKDF2-HMAC-SHA256 (600,000 iterations) and TOTP
   uses JDK HMAC-SHA1, as ADR 0017 permits when Argon2 is unavailable. The TOTP secret key comes from
   `OPERATOR_TOTP_ENCRYPTION_KEY`, a required environment variable with no default.
-- Data: V12 operator identity/audit; V13 operator audit truncate guards; V14
-  refunds/reconciliation/refund events; the suspense slice adds the dedicated revenue account named
-  by ADR 0019 (working label `PLATFORM_REVENUE`) in the migration that ADR names. No balances
-  stored.
+- Data: V12 operator identity/audit; V13 operator audit truncate guards; V14 operator
+  administration/enrollment; V15 refunds/refund events and the ledger refund link; the suspense
+  slice adds reconciliation resolutions and the dedicated revenue account named by ADR 0019
+  (working label `PLATFORM_REVENUE`) in the migration that ADR names. No balances stored.
 
 ## Design
 
@@ -155,9 +155,11 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
   operator actions; append-only triggers on audit tables.
 - `V13__operator_audit_truncate_guards.sql`: statement-level `TRUNCATE` guards for the operator
   audit tables; additive and safe for databases that already applied V12.
-- `V14__refunds_and_reconciliation.sql`: refunds, refund events, reconciliation resolutions, one
-  active refund per contribution, queue indexes, provider reference unique.
-- `V15` (working label): the suspense slice adds the dedicated revenue account named by ADR 0019
+- `V14__operator_administration.sql`: one-time enrollment tokens for admin-created accounts.
+- `V15__refund_core.sql`: refunds, refund events, the ledger `refund_id` link, one active refund per
+  contribution, queue indexes, provider reference unique.
+- `V16` (working label): the suspense slice adds reconciliation resolutions and the queue guard.
+- `V17` (working label): the suspense slice adds the dedicated revenue account named by ADR 0019
   (working label `PLATFORM_REVENUE`) to the ledger account check; no data rewrite. The ADR fixes the
   account symbol and migration number before implementation.
 - Backward compatible: yes. No destructive change; existing organizer sessions and money tables are

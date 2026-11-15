@@ -21,6 +21,8 @@ public record Alert(AlertType type, String reference, String detail) {
     PAYOUT_REPORTED,
     PAYOUT_FEE_MISMATCH,
     PAYOUT_EXECUTION_STUCK,
-    PAYOUT_BLOCKED_FROZEN
+    PAYOUT_BLOCKED_FROZEN,
+    REFUND_PROVIDER_PENDING,
+    REFUND_COMPLETION_FAILED
   }
 }

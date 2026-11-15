@@ -322,16 +322,45 @@ public class PayoutRepository {
         id);
   }
 
+  public record PayoutBlock(UUID id, String state) {}
+
+  public Optional<PayoutBlock> findBlockingForGoal(UUID goalId) {
+    return jdbc
+        .query(
+            """
+            select id, state
+            from payouts
+            where goal_id = ?
+              and state in ('REQUESTED', 'APPROVED', 'HOLD', 'READY', 'EXECUTING', 'COMPLETED')
+            order by case when state = 'COMPLETED' then 2 else 1 end, created_at
+            limit 1
+            """,
+            (resultSet, rowNumber) ->
+                new PayoutBlock(
+                    resultSet.getObject("id", UUID.class), resultSet.getString("state")),
+            goalId)
+        .stream()
+        .findFirst();
+  }
+
   public long reservedMinorUnits(UUID goalId) {
     Long reserved =
         jdbc.queryForObject(
             """
-            select coalesce(sum(amount_minor_units), 0)
-            from payouts
-            where goal_id = ?
-              and state in ('REQUESTED', 'APPROVED', 'HOLD', 'READY', 'EXECUTING')
+            select coalesce((
+                       select sum(amount_minor_units)
+                       from payouts
+                       where goal_id = ?
+                         and state in ('REQUESTED', 'APPROVED', 'HOLD', 'READY', 'EXECUTING')
+                   ), 0)
+                 + coalesce((
+                       select sum(amount_minor_units)
+                       from refunds
+                       where goal_id = ? and state in ('PENDING', 'PROVIDER_PENDING')
+                   ), 0)
             """,
             Long.class,
+            goalId,
             goalId);
     return reserved == null ? 0 : reserved;
   }
