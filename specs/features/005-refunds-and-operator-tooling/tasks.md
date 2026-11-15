@@ -127,3 +127,5 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [ ] T500 Send and persist a deterministic client refund reference before the provider call, and
   use it for verification and reconciliation instead of relying only on the provider-generated
   reference and the 409 conflict signal.
+- [ ] T501 Gate new refund requests separately from read/verify/completion so disabling
+  `REFUNDS_ENABLED` does not unregister the verification job or strand pending refunds.
