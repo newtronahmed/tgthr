@@ -58,6 +58,10 @@ public final class RecoveryCodes {
         hash.getBytes(StandardCharsets.US_ASCII));
   }
 
+  static String hash(String code) {
+    return sha256(code.trim().toUpperCase(Locale.ROOT));
+  }
+
   static String sha256(String value) {
     return Base64.getUrlEncoder().withoutPadding().encodeToString(PasswordHasher.sha256(value));
   }

@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -32,6 +33,7 @@ public class OperatorAuthService {
 
   private final OperatorRepository operators;
   private final OperatorMfaRepository challenges;
+  private final OperatorRecoveryCodeRepository recoveryCodes;
   private final PasswordHasher hasher;
   private final OperatorSecretCipher cipher;
   private final OperatorSessionService sessions;
@@ -41,11 +43,13 @@ public class OperatorAuthService {
   private final Duration mfaTtl;
   private final int maxFailedAttempts;
   private final Duration lockout;
+  private final Duration stepUpWindow;
   private final String dummyHash;
 
   public OperatorAuthService(
       OperatorRepository operators,
       OperatorMfaRepository challenges,
+      OperatorRecoveryCodeRepository recoveryCodes,
       PasswordHasher hasher,
       OperatorSecretCipher cipher,
       OperatorSessionService sessions,
@@ -54,9 +58,11 @@ public class OperatorAuthService {
       MeterRegistry meters,
       @Value("${collections.operator.mfa-ttl:PT5M}") Duration mfaTtl,
       @Value("${collections.operator.max-failed-attempts:5}") int maxFailedAttempts,
-      @Value("${collections.operator.lockout:PT15M}") Duration lockout) {
+      @Value("${collections.operator.lockout:PT15M}") Duration lockout,
+      @Value("${collections.operator.step-up-window:PT5M}") Duration stepUpWindow) {
     this.operators = operators;
     this.challenges = challenges;
+    this.recoveryCodes = recoveryCodes;
     this.hasher = hasher;
     this.cipher = cipher;
     this.sessions = sessions;
@@ -66,6 +72,7 @@ public class OperatorAuthService {
     this.mfaTtl = mfaTtl;
     this.maxFailedAttempts = maxFailedAttempts;
     this.lockout = lockout;
+    this.stepUpWindow = stepUpWindow;
     this.dummyHash = hasher.hash("timing-equalisation-password");
   }
 
@@ -151,6 +158,47 @@ public class OperatorAuthService {
     return new Authenticated(principal, session);
   }
 
+  @Transactional(noRollbackFor = OperatorException.class)
+  public Authenticated recover(String username, String password, String recoveryCode) {
+    Instant now = Instant.now(clock);
+    Optional<Operator> found = operators.findByUsername(username);
+    if (found.isEmpty()) {
+      hasher.matches(password, dummyHash);
+      audit(null, "LOGIN_FAILED", "invalid credentials", now);
+      meters.counter("operator.auth.recovery", "result", "invalid").increment();
+      throw OperatorException.invalidCredentials();
+    }
+    Operator operator = found.get();
+    if (operator.status() != OperatorStatus.ACTIVE
+        || (operator.lockedUntil() != null && operator.lockedUntil().isAfter(now))) {
+      hasher.matches(password, operator.passwordHash());
+      audit(operator.id(), "LOGIN_BLOCKED", "inactive or locked", now);
+      meters.counter("operator.auth.recovery", "result", "blocked").increment();
+      throw OperatorException.invalidCredentials();
+    }
+    if (!hasher.matches(password, operator.passwordHash())) {
+      failPassword(operator, now);
+      throw OperatorException.invalidCredentials();
+    }
+    if (recoveryCode == null || recoveryCode.isBlank()) {
+      failRecovery(operator, now);
+      throw OperatorException.invalidCredentials();
+    }
+    Optional<UUID> codeId =
+        recoveryCodes.findUnused(operator.id(), RecoveryCodes.hash(recoveryCode));
+    if (codeId.isEmpty() || recoveryCodes.markUsed(codeId.get(), now) == 0) {
+      failRecovery(operator, now);
+      throw OperatorException.invalidCredentials();
+    }
+    operators.resetFailures(operator.id(), now);
+    OperatorSessionService.IssuedSession session = sessions.issue(operator.id(), now);
+    OperatorPrincipal principal =
+        new OperatorPrincipal(operator.id(), operator.username(), operators.roles(operator.id()));
+    audit(operator.id(), "RECOVERY_SUCCEEDED", null, now);
+    meters.counter("operator.auth.recovery", "result", "success").increment();
+    return new Authenticated(principal, session);
+  }
+
   @Transactional
   public void logout(OperatorPrincipal principal, String token) {
     Instant now = Instant.now(clock);
@@ -160,10 +208,66 @@ public class OperatorAuthService {
     }
   }
 
+  /**
+   * Requires a TOTP step consumed within the step-up window, or a fresh TOTP code, or one unused
+   * recovery code. A recovery step-up does not advance the TOTP step.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = OperatorException.class)
+  public void requireStepUp(OperatorPrincipal principal, String totpCode, String recoveryCode) {
+    Instant now = Instant.now(clock);
+    Operator operator =
+        operators.findById(principal.id()).orElseThrow(OperatorException::unauthorized);
+    if (operator.status() != OperatorStatus.ACTIVE) {
+      throw OperatorException.unauthorized();
+    }
+    if (isFresh(operator.lastTotpStep(), now)) {
+      return;
+    }
+    if (totpCode != null && !totpCode.isBlank()) {
+      byte[] secret = Base32.decode(cipher.decrypt(operator.totpSecretCiphertext()));
+      OptionalLong matched = Totp.verify(secret, totpCode, now, operator.lastTotpStep());
+      if (matched.isPresent()
+          && operators.updateLastTotpStep(operator.id(), matched.getAsLong(), now) > 0) {
+        audit(operator.id(), "STEP_UP_SUCCEEDED", null, now);
+        meters.counter("operator.auth.step_up", "result", "success").increment();
+        return;
+      }
+      audit(operator.id(), "STEP_UP_FAILED", "invalid or replayed code", now);
+      meters.counter("operator.auth.step_up", "result", "failed").increment();
+      throw OperatorException.stepUpRequired();
+    }
+    if (recoveryCode != null && !recoveryCode.isBlank()) {
+      Optional<UUID> codeId =
+          recoveryCodes.findUnused(operator.id(), RecoveryCodes.hash(recoveryCode));
+      if (codeId.isPresent() && recoveryCodes.markUsed(codeId.get(), now) > 0) {
+        audit(operator.id(), "STEP_UP_RECOVERY", null, now);
+        meters.counter("operator.auth.step_up", "result", "recovery").increment();
+        return;
+      }
+    }
+    audit(operator.id(), "STEP_UP_REQUIRED", "no valid code supplied", now);
+    meters.counter("operator.auth.step_up", "result", "required").increment();
+    throw OperatorException.stepUpRequired();
+  }
+
+  private boolean isFresh(long step, Instant now) {
+    if (step < 0) {
+      return false;
+    }
+    Instant consumedAt = Instant.ofEpochSecond(step * Totp.STEP_SECONDS);
+    return consumedAt.plus(stepUpWindow).isAfter(now);
+  }
+
   private void failPassword(Operator operator, Instant now) {
     operators.recordFailedAttempt(operator.id(), now, maxFailedAttempts, now.plus(lockout));
     audit(operator.id(), "LOGIN_FAILED", "invalid credentials", now);
     meters.counter("operator.auth.login", "result", "invalid").increment();
+  }
+
+  private void failRecovery(Operator operator, Instant now) {
+    operators.recordFailedAttempt(operator.id(), now, maxFailedAttempts, now.plus(lockout));
+    audit(operator.id(), "RECOVERY_FAILED", "invalid recovery code", now);
+    meters.counter("operator.auth.recovery", "result", "invalid").increment();
   }
 
   private void failMfa(Operator operator, OperatorMfaRepository.Challenge challenge, Instant now) {

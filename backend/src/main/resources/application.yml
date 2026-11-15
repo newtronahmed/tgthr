@@ -66,6 +66,12 @@ collections:
     mfa-ttl: ${OPERATOR_MFA_TTL:PT5M}
     max-failed-attempts: ${OPERATOR_MAX_FAILED_ATTEMPTS:5}
     lockout: ${OPERATOR_LOCKOUT:PT15M}
+    step-up-window: ${OPERATOR_STEP_UP_WINDOW:PT5M}
+    enrollment-ttl: ${OPERATOR_ENROLLMENT_TTL:PT24H}
+    bootstrap:
+      token: ${OPERATOR_BOOTSTRAP_TOKEN:}
+      username: ${OPERATOR_BOOTSTRAP_USERNAME:}
+      token-file: ${OPERATOR_BOOTSTRAP_TOKEN_FILE:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     per-ip-per-minute: ${RATE_LIMIT_PER_IP_PER_MINUTE:30}

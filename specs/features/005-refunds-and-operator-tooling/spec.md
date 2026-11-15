@@ -191,8 +191,14 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 
 ## API impact
 
-- `POST /operator/auth/login`, `POST /operator/auth/mfa`, `POST /operator/auth/logout` (separate
-  operator session; password + TOTP; no public registration or self-signup)
+- `POST /operator/auth/login`, `POST /operator/auth/mfa`, `POST /operator/auth/recovery`,
+  `POST /operator/auth/logout` (separate operator session; password + TOTP, or one single-use
+  recovery code)
+- `POST /operator/auth/enroll`, `POST /operator/auth/enroll/confirm` (one-time admin-issued
+  enrollment: password, TOTP secret and recovery codes issued once)
+- `POST/GET /operator/operators`, `GET /operator/operators/{id}`,
+  `PUT /operator/operators/{id}/roles`, `POST /operator/operators/{id}/disable|enable` (admin-only;
+  role/status changes require a fresh TOTP or one recovery code)
 - `POST /operator/contributions/{id}/refund` (operator auth, `Idempotency-Key`, reason)
 - `GET /operator/refunds/{id}` and a queue/list
 - `POST /operator/refunds/{id}/verify` (requires `REFUND_OPERATOR` and a reason; can post the
@@ -213,8 +219,9 @@ inflating a goal, and every action is attributable, idempotent and safe against 
   tickets. If evidence requires a phone, access is restricted and audited.
 - Dual control is required for miscellaneous income (P1) and loss allocation (P2); recommended for
   reclassification. Income approval, loss allocation and role changes require a fresh TOTP check
-  within the previous five minutes (`403 STEP_UP_REQUIRED` otherwise). Rate-limit operator and login
-  attempts, lock accounts after repeated failures, and alert on unusual volume.
+  within the previous five minutes (`403 STEP_UP_REQUIRED` otherwise). One unused recovery code may
+  satisfy a single step-up when TOTP is unavailable. Rate-limit operator and login attempts, lock
+  accounts after repeated failures, and alert on unusual volume.
 - A compromised operator session must not be able to create a payout or change a destination.
 
 ## Observability

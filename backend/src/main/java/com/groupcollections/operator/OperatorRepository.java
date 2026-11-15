@@ -41,6 +41,18 @@ public class OperatorRepository {
     return jdbc.query(COLUMNS + " where id = ?", this::map, id).stream().findFirst();
   }
 
+  public List<Operator> findAll() {
+    return jdbc.query(COLUMNS + " order by created_at, username", this::map);
+  }
+
+  public void updatePassword(UUID operatorId, String passwordHash, Instant now) {
+    jdbc.update(
+        "update operators set password_hash = ?, updated_at = ? where id = ?",
+        passwordHash,
+        Timestamp.from(now),
+        operatorId);
+  }
+
   public UUID insert(
       UUID id,
       String username,
@@ -87,6 +99,24 @@ public class OperatorRepository {
         role.name(),
         grantedBy,
         Timestamp.from(now));
+  }
+
+  public void removeRole(UUID operatorId, OperatorRole role) {
+    jdbc.update(
+        "delete from operator_roles where operator_id = ? and role = ?", operatorId, role.name());
+  }
+
+  public long countActiveAdmins() {
+    Long count =
+        jdbc.queryForObject(
+            """
+            select count(*)
+            from operators o
+            join operator_roles r on r.operator_id = o.id
+            where o.status = 'ACTIVE' and r.role = 'OPERATOR_ADMIN'
+            """,
+            Long.class);
+    return count == null ? 0 : count;
   }
 
   public void recordFailedAttempt(
@@ -155,9 +185,45 @@ public class OperatorRepository {
         Timestamp.from(now));
   }
 
+  public void recordAction(
+      UUID operatorId,
+      String action,
+      String subjectType,
+      UUID subjectId,
+      String reason,
+      String beforeState,
+      String afterState,
+      Instant now) {
+    jdbc.update(
+        """
+        insert into operator_actions
+            (operator_id, action, subject_type, subject_id, reason, before_state, after_state,
+             created_at)
+        values (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        operatorId,
+        action,
+        subjectType,
+        subjectId,
+        reason,
+        beforeState,
+        afterState,
+        Timestamp.from(now));
+  }
+
   public long count() {
     Long count = jdbc.queryForObject("select count(*) from operators", Long.class);
     return count == null ? 0 : count;
+  }
+
+  /** Serialises the first-admin bootstrap across application instances. */
+  public void lockBootstrap() {
+    jdbc.execute("select pg_advisory_xact_lock(hashtext('operator-bootstrap'))");
+  }
+
+  /** Serialises the last-admin check with the role/status update that follows it. */
+  public void lockAdminGuard() {
+    jdbc.execute("select pg_advisory_xact_lock(hashtext('operator-admin-guard'))");
   }
 
   private Operator map(ResultSet resultSet, int rowNumber) throws SQLException {
