@@ -111,3 +111,19 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [ ] T495 Write `docs/runbooks/refund-operations.md` and the operator identity/account-recovery
   runbook.
 - [ ] T496 Record the sandbox fee-return sign-off and complete the live provider enablement checklist.
+
+## Review follow-ups (2026-11-15)
+
+- [ ] T497 Add a scheduled `PROVIDER_PENDING` exit: bounded re-verification with backoff, `FAILED`
+  or escalation when attempts are exhausted, and a test proving an unwatched refund cannot reserve
+  the goal pool forever (AC-REFUND-004).
+- [ ] T498 Carry a pending reason (`TIMEOUT`, `CONFLICT`, `RATE_LIMITED`, `UNKNOWN_STATUS`,
+  `AMOUNT_MISMATCH`, `CURRENCY_MISMATCH`) on `RefundResult`, persist it on the refund event, and
+  de-duplicate `REFUND_PROVIDER_PENDING` alerts by state change instead of every verify.
+- [ ] T499 Once T401 records whether Paystack returns the processing fee, gate the `LOSS_ALLOCATION`
+  posting on `fully_deducted`/`deducted_amount` instead of the static
+  `collections.refunds.partner-retains-processing-fee` flag; keep the flag as the default until
+  then.
+- [ ] T500 Send and persist a deterministic client refund reference before the provider call, and
+  use it for verification and reconciliation instead of relying only on the provider-generated
+  reference and the 409 conflict signal.
