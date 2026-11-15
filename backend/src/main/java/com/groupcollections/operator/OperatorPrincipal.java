@@ -18,4 +18,13 @@ public record OperatorPrincipal(UUID id, String username, Set<OperatorRole> role
       throw OperatorException.forbidden();
     }
   }
+
+  public void requireAnyRole(OperatorRole... required) {
+    for (OperatorRole role : required) {
+      if (hasRole(role)) {
+        return;
+      }
+    }
+    throw OperatorException.forbidden();
+  }
 }

@@ -196,7 +196,7 @@ public class RefundService {
     return refunds.findById(refundId).map(RefundView::from).orElseThrow(RefundException::notFound);
   }
 
-  private void callProvider(Refund refund) {
+  void callProvider(Refund refund) {
     RefundProvider.RefundResult result;
     try {
       result = provider.refund(refund);

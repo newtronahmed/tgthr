@@ -22,3 +22,4 @@ One decision per file, numbered, never edited once accepted (supersede instead).
 | [0016](0016-payout-approval-and-fee-policy.md) | Payout approval, fee and execution policy | Accepted |
 | [0017](0017-operator-identity-and-mfa.md) | Operator identity and MFA | Accepted |
 | [0018](0018-refund-shortfall-and-loss-allocation.md) | Refund shortfall and loss-allocation shape | Accepted |
+| [0019](0019-platform-revenue-account.md) | Dedicated platform-revenue account | Accepted |

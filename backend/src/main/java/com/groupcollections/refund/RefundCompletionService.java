@@ -5,9 +5,11 @@ import com.groupcollections.alerts.AlertPublisher;
 import com.groupcollections.contribution.ContributionEvent;
 import com.groupcollections.contribution.ContributionRepository;
 import com.groupcollections.ledger.LedgerRepository;
+import com.groupcollections.ledger.PostingSet;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,7 @@ public class RefundCompletionService {
 
   private final RefundRepository refunds;
   private final ContributionRepository contributions;
+  private final ReconciliationRepository resolutions;
   private final LedgerRepository ledger;
   private final AlertPublisher alerts;
   private final MeterRegistry meters;
@@ -33,6 +36,7 @@ public class RefundCompletionService {
   public RefundCompletionService(
       RefundRepository refunds,
       ContributionRepository contributions,
+      ReconciliationRepository resolutions,
       LedgerRepository ledger,
       AlertPublisher alerts,
       MeterRegistry meters,
@@ -40,6 +44,7 @@ public class RefundCompletionService {
       @Value("${collections.refunds.partner-retains-processing-fee:true}") boolean feeRetained) {
     this.refunds = refunds;
     this.contributions = contributions;
+    this.resolutions = resolutions;
     this.ledger = ledger;
     this.alerts = alerts;
     this.meters = meters;
@@ -89,13 +94,29 @@ public class RefundCompletionService {
       return;
     }
     RefundStateMachine.require(refund.state(), RefundState.SUCCEEDED);
-    ledger.postRefund(refund.id(), refund.contributionId(), RefundPosting.reversal(refund));
+    PostingSet reversal = RefundPosting.reversal(refund);
+    ledger.postRefund(refund.id(), refund.contributionId(), reversal);
     if (feeRetained) {
       RefundPosting.loss(refund)
           .ifPresent(loss -> ledger.postRefund(refund.id(), refund.contributionId(), loss));
     }
     if (contributions.apply(refund.contributionId(), ContributionEvent.REFUND_APPROVED).isEmpty()) {
       throw new IllegalStateException("contribution could not move to REFUNDED");
+    }
+    if ("SUSPENSE".equals(refund.sourceAccount())) {
+      resolutions.insert(
+          UUID.randomUUID(),
+          refund.contributionId(),
+          "REFUND",
+          "APPLIED",
+          refund.operatorId(),
+          null,
+          refund.reason(),
+          refund.idempotencyKey(),
+          null,
+          reversal.id(),
+          now,
+          now);
     }
     if (refunds.markSucceeded(refund.id(), result.providerReference(), now) == 0) {
       throw new IllegalStateException("refund could not move to SUCCEEDED");

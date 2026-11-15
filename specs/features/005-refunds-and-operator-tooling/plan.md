@@ -68,7 +68,9 @@ attributable.
   failure_code. A partial unique index allows one active refund per contribution.
 - `refund_events`: append-only request/provider/state events.
 - `reconciliation_resolutions`: contribution_id unique, resolution (`REFUND`, `RECLASSIFY`,
-  `INCOME`), proposer/approver, reason, posting_set_id, created_at. The queue excludes resolved items.
+  `INCOME`), status (`PROPOSED` for an income proposal, `APPLIED` once posted), proposer/approver,
+  reason, request idempotency key, approval idempotency key, posting_set_id, created_at/approved_at.
+  The queue excludes resolved or proposed items.
 - Active refunds reserve `A` against the goal; `payout.available` subtracts them. A refund request
   takes the goal lock, like a payout request. On success the ledger debit replaces the reservation:
   availability falls once.

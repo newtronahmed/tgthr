@@ -158,17 +158,31 @@ public class ContributionRepository {
         id);
   }
 
+  public void clearRequiresReconciliation(UUID id, Instant now) {
+    jdbc.update(
+        "update contributions set requires_reconciliation = false, updated_at = ? where id = ?",
+        Timestamp.from(now),
+        id);
+  }
+
   public List<ReconciliationItem> findRequiringReconciliation() {
     return jdbc.query(
         """
-        select id, provider_reference, amount_minor_units, currency_code, updated_at
-        from contributions
-        where requires_reconciliation = true and state = 'CONFIRMED'
-        order by updated_at
+        select c.id, c.goal_id, g.title, c.provider_reference, c.amount_minor_units,
+               c.currency_code, c.updated_at
+        from contributions c
+        join goals g on g.id = c.goal_id
+        where c.requires_reconciliation = true and c.state = 'CONFIRMED'
+          and not exists (
+              select 1 from reconciliation_resolutions r where r.contribution_id = c.id
+          )
+        order by c.updated_at, c.id
         """,
         (resultSet, rowNumber) ->
             new ReconciliationItem(
                 resultSet.getObject("id", UUID.class),
+                resultSet.getObject("goal_id", UUID.class),
+                resultSet.getString("title"),
                 resultSet.getString("provider_reference"),
                 Money.of(
                     resultSet.getLong("amount_minor_units"), resultSet.getString("currency_code")),
@@ -176,7 +190,12 @@ public class ContributionRepository {
   }
 
   public record ReconciliationItem(
-      UUID id, String providerReference, Money amount, Instant updatedAt) {}
+      UUID id,
+      UUID goalId,
+      String goalTitle,
+      String providerReference,
+      Money amount,
+      Instant updatedAt) {}
 
   public record RefundCandidate(
       UUID id,
@@ -188,7 +207,8 @@ public class ContributionRepository {
       long totalMinorUnits,
       String currencyCode,
       boolean requiresReconciliation,
-      String providerReference) {}
+      String providerReference,
+      Instant updatedAt) {}
 
   public Optional<RefundCandidate> findRefundCandidate(UUID id) {
     return jdbc
@@ -196,7 +216,7 @@ public class ContributionRepository {
             """
             select id, goal_id, amount_minor_units, platform_fee_minor_units,
                    processing_fee_minor_units, total_minor_units, currency_code, state,
-                   requires_reconciliation, provider_reference
+                   requires_reconciliation, provider_reference, updated_at
             from contributions where id = ?
             """,
             this::mapRefundCandidate,
@@ -211,7 +231,7 @@ public class ContributionRepository {
             """
             select id, goal_id, amount_minor_units, platform_fee_minor_units,
                    processing_fee_minor_units, total_minor_units, currency_code, state,
-                   requires_reconciliation, provider_reference
+                   requires_reconciliation, provider_reference, updated_at
             from contributions where id = ? for update
             """,
             this::mapRefundCandidate,
@@ -232,7 +252,8 @@ public class ContributionRepository {
         resultSet.getLong("total_minor_units"),
         resultSet.getString("currency_code"),
         resultSet.getBoolean("requires_reconciliation"),
-        resultSet.getString("provider_reference"));
+        resultSet.getString("provider_reference"),
+        resultSet.getObject("updated_at", OffsetDateTime.class).toInstant());
   }
 
   public Optional<ContributionStatus> findStatus(UUID id) {

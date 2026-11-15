@@ -21,6 +21,7 @@ The ledger is the only record of money state. Everything a user sees about balan
 | Partner held | The account representing funds held for us by the licensed payment partner. |
 | Suspense | Holding account for payments requiring operator investigation and reclassification (ADR 0013). |
 | Platform loss | Records unrecoverable losses allocated to the platform after failed recovery attempts (ADR 0013). |
+| Platform revenue | Account for miscellaneous income recognised from unclaimed suspense payments (ADR 0019). Separate from the service-fee account `PLATFORM_FEE`. |
 
 ## Entry types
 
@@ -67,13 +68,36 @@ Financial columns use integer `*_minor_units` names as of V8 (ADR 0011); V5 also
 `ledger_entries.currency` to `currency_code`. Both renames are destructive rolling-deploy steps, so
 the MVP deploy needs a maintenance window or an expand/contract replacement before production.
 
+### Suspense resolution mapping (FEAT-005)
+
+Each suspense payment is resolved exactly once. The resolution row is the guard; the ledger set is
+the record.
+
+| Business event | Entry type | Debit | Credit |
+| --- | --- | --- | --- |
+| Reclassify a suspense payment of `A` to its goal | `CONTRIBUTION` | Suspense `A` | Goal pool `A` |
+| Record an aged suspense payment of `A` as miscellaneous income | `ADJUSTMENT` | Suspense `A` | Platform revenue `A` |
+| Refund a suspense payment of `A + P + F` | `REVERSAL` | Suspense `A`; PLATFORM_FEE `P`; FEE `F` | Partner held `A + P + F` |
+
+Reclassification is the only resolution that clears `requires_reconciliation`, because it moves the
+payment into the goal and makes it count in `goalRaised`. Income keeps the flag set so the payment
+never enters goal totals or the public feed. A suspense refund does not touch `GOAL_POOL`; the money
+was never in the pool. When the partner retains `F`, the refund also posts the `LOSS_ALLOCATION` set
+from ADR 0018.
+
+`PLATFORM_REVENUE` is separate from `PLATFORM_FEE` (ADR 0019): service-fee revenue and miscellaneous
+income stay separately auditable, so total platform revenue is the sum of both.
+
 `FEE` and `PAYOUT_FEE` are clearing accounts. They are cleared when the partner retains or deducts the fee; the settlement postings are in ADR 0006. `PLATFORM_FEE` is platform revenue, not a clearing account; see ADR 0007.
 
 ## Derived values
 
 - Goal pool balance = sum of credits to the goal pool minus sum of debits from it.
-- A goal's raised total counts CONTRIBUTION entries only, net of REVERSAL entries.
-- Platform revenue is the sum of PLATFORM_FEE credits minus any reversal of them.
+- A goal's raised total counts CONTRIBUTION entries only, net of REVERSAL entries; a suspense
+  reclassification posts a CONTRIBUTION credit so it counts once the flag is cleared.
+- Platform service-fee revenue is the sum of PLATFORM_FEE credits minus any reversal of them.
+- Miscellaneous income is the sum of PLATFORM_REVENUE credits; it is reported separately from
+  service-fee revenue (ADR 0019).
 - No balance is stored. Views and queries compute them from entries.
 
 ## Invariants

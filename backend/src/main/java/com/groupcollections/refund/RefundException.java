@@ -74,6 +74,50 @@ public final class RefundException extends RuntimeException {
     return new RefundException(422, "INVALID_REFUND", "Invalid refund", detail);
   }
 
+  public static RefundException notSuspense() {
+    return new RefundException(
+        409,
+        "NOT_A_SUSPENSE_ITEM",
+        "Reconciliation not allowed",
+        "This contribution is not waiting for reconciliation");
+  }
+
+  public static RefundException alreadyResolved() {
+    return new RefundException(
+        409,
+        "RECONCILIATION_ALREADY_RESOLVED",
+        "Already resolved",
+        "This suspense item already has a resolution");
+  }
+
+  public static RefundException notProposed() {
+    return new RefundException(
+        409,
+        "RECONCILIATION_NOT_PROPOSED",
+        "No income proposal",
+        "Miscellaneous income must be proposed before it is approved");
+  }
+
+  public static RefundException notAged() {
+    return new RefundException(
+        409,
+        "SUSPENSE_NOT_AGED",
+        "Suspense item is too recent",
+        "Miscellaneous income is allowed only after the configured timeout");
+  }
+
+  public static RefundException dualControlRequired() {
+    return new RefundException(
+        409,
+        "DUAL_CONTROL_REQUIRED",
+        "Dual control required",
+        "A different finance approver must approve this action");
+  }
+
+  public static RefundException invalidReconciliation(String detail) {
+    return new RefundException(422, "INVALID_RECONCILIATION", "Invalid request", detail);
+  }
+
   public int status() {
     return status;
   }
