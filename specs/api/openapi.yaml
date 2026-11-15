@@ -528,7 +528,7 @@ paths:
       tags: [Operator]
       operationId: requestRefund
       summary: Request a full pre-payout refund
-      description: Full A + P + F refund of the original payer. The goal amount is reserved until the provider confirms or fails.
+      description: Full A + P + F refund of the original payer. The goal amount is reserved until the provider confirms or fails. Returns 409 REFUNDS_DISABLED when new refunds are disabled; read and verify remain available.
       security:
         - operatorSession: []
       parameters:

@@ -14,13 +14,11 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Applies one provider result to the refund, ledger and contribution in one transaction. */
 @Service
-@ConditionalOnProperty(name = "collections.refunds.enabled", havingValue = "true")
 public class RefundCompletionService {
 
   private static final Logger log = LoggerFactory.getLogger(RefundCompletionService.class);

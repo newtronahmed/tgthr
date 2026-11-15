@@ -28,6 +28,14 @@ public final class RefundException extends RuntimeException {
         409, "REFUND_NOT_ELIGIBLE", "Refund not allowed", "The contribution is not eligible");
   }
 
+  public static RefundException disabled() {
+    return new RefundException(
+        409,
+        "REFUNDS_DISABLED",
+        "Refunds disabled",
+        "New refund requests are disabled; pending refunds can still be read and verified");
+  }
+
   public static RefundException suspenseRequiresReconciliation() {
     return new RefundException(
         409,

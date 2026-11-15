@@ -172,17 +172,16 @@ Never `update` or `delete` `ledger_entries`, `refund_events`, `operator_actions`
 
 ## 8. Disable and rollback
 
-**Current behavior:** setting `REFUNDS_ENABLED=false` unregisters the refund controller, service,
-completion service and verification job. Do **not** disable while any refund is `PENDING` or
-`PROVIDER_PENDING`: it would strand the reservation and prevent verification.
+Setting `REFUNDS_ENABLED=false` rejects **new refund requests** with `409 REFUNDS_DISABLED`. Read,
+verify, completion and the scheduled verification job stay available, so existing `PENDING` and
+`PROVIDER_PENDING` refunds can still drain. Suspense reconciliation endpoints remain gated by the same
+flag; resolve or leave open suspense items before disabling.
 
 Safe order:
 
-1. Stop new requests at the gateway/WAF if the console must be taken down.
-2. Keep `REFUNDS_ENABLED=true` and `REFUND_PROVIDER=paystack` until every pending refund is terminal.
-3. Drain or verify pending refunds, then disable the flag.
+1. Disable new refunds with `REFUNDS_ENABLED=false` if the console must stop taking requests.
+2. Keep `REFUND_PROVIDER=paystack` and let the verification job drain `PROVIDER_PENDING` refunds.
+3. Verify or escalate any refund that reaches `verification_exhausted_at`.
 4. Never switch `REFUND_PROVIDER` to `none` with pending refunds; `none` returns `PROVIDER_DISABLED`
    as a definitive failure.
-
-T501 tracks separating request gating from read/verify/completion so the flag can be disabled
-safely.
+5. Resolve open suspense items before disabling if the reconciliation surface must be taken down.

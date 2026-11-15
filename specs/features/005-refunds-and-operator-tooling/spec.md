@@ -120,6 +120,9 @@ inflating a goal, and every action is attributable, idempotent and safe against 
    free-text reason that contains a phone number is rejected before anything is written.
 10. **Configuration.** The misc-income timeout, refund provider timeout and operator role source are
     configuration, defaulting conservatively; changing a fee or timeout requires an amendment here.
+    `collections.refunds.enabled=false` rejects new refund requests with `409 REFUNDS_DISABLED` but
+    keeps read, verify, completion and the scheduled verification job available so pending refunds
+    can drain.
 11. **Post-payout requests.** P1 returns `REFUND_AFTER_PAYOUT`; support records the request out of
     band and follows ADR 0013's manual recovery. No ledger or provider refund automation runs until
     the P2 recovery slice.
@@ -163,6 +166,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | Provider refund fails | No ledger; release reservation; alert; retry with a new key | AC-REFUND-003 |
 | Provider timeout/unknown | Hold reservation; `PROVIDER_PENDING`; verify; no blind retry | AC-REFUND-004 |
 | Provider stays unknown after the maximum automatic checks | Mark verification exhausted; one alert; reservation held; manual verify still allowed | AC-REFUND-011 |
+| New refund while refunds are disabled | `409 REFUNDS_DISABLED`; no refund/provider call; read, verify and completion still work | Rule 10 |
 | Provider reports success twice | One ledger set, one `REFUNDED` transition | AC-REFUND-002 |
 | Refund would overdraw `GOAL_POOL` | Refuse; operator reconciles the shortfall; no negative pool | AC-REFUND-007 |
 | Suspense item resolved twice | One winner; second 409; audit unchanged | AC-OPS-006 |

@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /** Operator-authenticated pre-payout refund request and provider verification. */
 @Service
-@ConditionalOnProperty(name = "collections.refunds.enabled", havingValue = "true")
 public class RefundService {
 
   private static final Logger log = LoggerFactory.getLogger(RefundService.class);
@@ -41,6 +40,7 @@ public class RefundService {
   private final AlertPublisher alerts;
   private final MeterRegistry meters;
   private final Clock clock;
+  private final boolean enabled;
 
   public RefundService(
       RefundRepository refunds,
@@ -52,7 +52,8 @@ public class RefundService {
       RefundCompletionService completion,
       AlertPublisher alerts,
       MeterRegistry meters,
-      Clock clock) {
+      Clock clock,
+      @Value("${collections.refunds.enabled:false}") boolean enabled) {
     this.refunds = refunds;
     this.contributions = contributions;
     this.goals = goals;
@@ -63,6 +64,7 @@ public class RefundService {
     this.alerts = alerts;
     this.meters = meters;
     this.clock = clock;
+    this.enabled = enabled;
   }
 
   @Transactional
@@ -76,6 +78,9 @@ public class RefundService {
     Optional<Refund> existing = refunds.findByContributionAndIdempotencyKey(contributionId, key);
     if (existing.isPresent()) {
       return replay(existing.get(), cleanReason);
+    }
+    if (!enabled) {
+      throw RefundException.disabled();
     }
 
     ContributionRepository.RefundCandidate candidate =
