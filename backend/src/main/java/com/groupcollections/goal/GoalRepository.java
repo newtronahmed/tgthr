@@ -66,6 +66,15 @@ public class GoalRepository {
         .findFirst();
   }
 
+  /** Exclusive lock so a refund request serializes with payout requests for the same goal. */
+  public boolean lockById(UUID id) {
+    return !jdbc.query(
+            "select id from goals where id = ? for update",
+            (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class),
+            id)
+        .isEmpty();
+  }
+
   private static Money money(ResultSet resultSet, String column) throws SQLException {
     long minorUnits = resultSet.getLong(column);
     return resultSet.wasNull() ? null : Money.of(minorUnits, resultSet.getString("currency_code"));

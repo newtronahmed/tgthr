@@ -16,55 +16,6 @@ class RefundCriteriaTest {
 
   @Test
   @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-001")
-  void refundEligibilityReservesBeforeProvider() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-002")
-  void refundSuccessPostsOneReversal() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-003")
-  void refundProviderFailureReleasesReservation() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-004")
-  void refundProviderUnknownStaysPending() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-005")
-  void refundBlockedByActiveOrCompletedPayout() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-006")
-  void concurrentRefundRequestsHaveOneWinner() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-007")
-  void fullRefundBalancesLedgerWithOrWithoutReturnedFee() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
   @Criterion("AC-REFUND-008")
   void nonOperatorAndPhoneAreRejected() {
     fail("not implemented");
@@ -109,13 +60,6 @@ class RefundCriteriaTest {
   @Disabled("pending: FEAT-005 plan")
   @Criterion("AC-OPS-004")
   void miscIncomeAfterTimeout() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-005")
-  void operatorActionRequiresRoleReasonAndKey() {
     fail("not implemented");
   }
 

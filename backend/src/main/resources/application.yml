@@ -72,6 +72,10 @@ collections:
       token: ${OPERATOR_BOOTSTRAP_TOKEN:}
       username: ${OPERATOR_BOOTSTRAP_USERNAME:}
       token-file: ${OPERATOR_BOOTSTRAP_TOKEN_FILE:}
+  refunds:
+    enabled: ${REFUNDS_ENABLED:false}
+    provider: ${REFUND_PROVIDER:none}
+    partner-retains-processing-fee: ${REFUND_PARTNER_RETAINS_PROCESSING_FEE:true}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     per-ip-per-minute: ${RATE_LIMIT_PER_IP_PER_MINUTE:30}

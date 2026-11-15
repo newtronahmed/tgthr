@@ -523,6 +523,143 @@ paths:
           $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
+  /operator/contributions/{id}/refund:
+    post:
+      tags: [Operator]
+      operationId: requestRefund
+      summary: Request a full pre-payout refund
+      description: Full A + P + F refund of the original payer. The goal amount is reserved until the provider confirms or fails.
+      security:
+        - operatorSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Unique per contribution; the same key and reason returns the original refund.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '201':
+          description: Refund requested and reserved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/refunds/{id}:
+    get:
+      tags: [Operator]
+      operationId: getRefund
+      summary: Read a refund
+      security:
+        - operatorSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Refund
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /operator/refunds:
+    get:
+      tags: [Operator]
+      operationId: listRefunds
+      summary: List recent refunds
+      security:
+        - operatorSession: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, PROVIDER_PENDING, SUCCEEDED, FAILED]
+      responses:
+        '200':
+          description: Recent refunds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RefundView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/refunds/{id}/verify:
+    post:
+      tags: [Operator]
+      operationId: verifyRefund
+      summary: Ask the provider for a provider-pending refund's result
+      security:
+        - operatorSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundVerifyRequest'
+      responses:
+        '200':
+          description: Refund after verification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
   /public/goals/{slug}/payouts/{payoutId}/report:
     post:
       tags: [Public]
@@ -1674,6 +1811,78 @@ components:
           items:
             type: string
           description: Ten single-use recovery codes; returned once.
+    RefundRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    RefundVerifyRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    RefundView:
+      type: object
+      required: [id, contributionId, goalId, sourceAccount, amountMinorUnits, platformFeeMinorUnits, processingFeeMinorUnits, totalMinorUnits, currencyCode, state, operatorId, reason, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        contributionId:
+          type: string
+          format: uuid
+        goalId:
+          type: string
+          format: uuid
+        sourceAccount:
+          type: string
+          enum: [GOAL_POOL, SUSPENSE]
+        amountMinorUnits:
+          type: integer
+          format: int64
+        platformFeeMinorUnits:
+          type: integer
+          format: int64
+        processingFeeMinorUnits:
+          type: integer
+          format: int64
+        totalMinorUnits:
+          type: integer
+          format: int64
+        currencyCode:
+          type: string
+          enum: [GHS]
+        state:
+          type: string
+          enum: [PENDING, PROVIDER_PENDING, SUCCEEDED, FAILED]
+        providerReference:
+          type: string
+          nullable: true
+        operatorId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        failureCode:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        succeededAt:
+          type: string
+          format: date-time
+          nullable: true
+        failedAt:
+          type: string
+          format: date-time
+          nullable: true
     Problem:
       type: object
       required: [type, title, status, code]

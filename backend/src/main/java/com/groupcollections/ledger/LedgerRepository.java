@@ -54,4 +54,25 @@ public class LedgerRepository {
           entry.amount().currencyCode());
     }
   }
+
+  @Transactional
+  public void postRefund(UUID refundId, UUID contributionId, PostingSet postingSet) {
+    for (LedgerEntry entry : postingSet.entries()) {
+      jdbc.update(
+          """
+          insert into ledger_entries
+              (posting_set_id, contribution_id, refund_id, account, entry_type, direction,
+               amount_minor_units, currency_code)
+          values (?, ?, ?, ?, ?, ?, ?, ?)
+          """,
+          postingSet.id(),
+          contributionId,
+          refundId,
+          entry.account().name(),
+          entry.type().name(),
+          entry.direction().name(),
+          entry.amount().minorUnits(),
+          entry.amount().currencyCode());
+    }
+  }
 }
