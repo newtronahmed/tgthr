@@ -239,7 +239,11 @@ public class RefundService {
     if (reason == null || reason.isBlank()) {
       throw RefundException.invalid("A reason is required");
     }
-    return reason.trim();
+    String cleaned = reason.trim();
+    if (RefundReasons.containsPhone(cleaned)) {
+      throw RefundException.invalid("A reason must not contain a phone number");
+    }
+    return cleaned;
   }
 
   private void afterCommit(Runnable action) {

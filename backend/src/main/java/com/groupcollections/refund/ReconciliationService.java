@@ -399,7 +399,11 @@ public class ReconciliationService {
     if (reason == null || reason.isBlank()) {
       throw RefundException.invalidReconciliation("A reason is required");
     }
-    return reason.trim();
+    String cleaned = reason.trim();
+    if (RefundReasons.containsPhone(cleaned)) {
+      throw RefundException.invalidReconciliation("A reason must not contain a phone number");
+    }
+    return cleaned;
   }
 
   private static RefundView replayRefund(Refund existing, String reason) {

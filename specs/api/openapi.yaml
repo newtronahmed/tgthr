@@ -1992,6 +1992,7 @@ components:
           type: string
           minLength: 1
           maxLength: 500
+          description: Must not contain a phone number.
     RefundVerifyRequest:
       type: object
       required: [reason]
@@ -2000,6 +2001,7 @@ components:
           type: string
           minLength: 1
           maxLength: 500
+          description: Must not contain a phone number.
     RefundView:
       type: object
       required: [id, contributionId, goalId, sourceAccount, amountMinorUnits, platformFeeMinorUnits, processingFeeMinorUnits, totalMinorUnits, currencyCode, state, operatorId, reason, createdAt]
@@ -2092,6 +2094,7 @@ components:
           type: string
           minLength: 1
           maxLength: 500
+          description: Must not contain a phone number.
     ReconciliationResolutionView:
       type: object
       required: [contributionId, resolution, status, resolvedAt]
