@@ -186,8 +186,9 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
 - Required secret: `OPERATOR_TOTP_ENCRYPTION_KEY`, no default; startup fails when operator auth is
   enabled without it. The first `OPERATOR_ADMIN` is provisioned at deploy time from a one-time token;
   no migration contains a password, TOTP secret or token.
-- Disabling `refunds.enabled` blocks new requests but keeps read, verify and completion paths open so
-  no `PENDING`/`PROVIDER_PENDING` refund is stranded.
+- Disabling `refunds.enabled` currently gates the whole refund module, including read, verify and
+  completion. Drains pending refunds before disabling; T501 separates request gating so a future
+  disable keeps read/verify/completion open and no `PENDING`/`PROVIDER_PENDING` refund is stranded.
 - Enable `provider=paystack` only after T401 records the sandbox fee-return result and the live key is
   configured. Tests use the fake only.
 - Observability: operator auth failures/lockouts, refund requested/succeeded/failed/pending (with a
