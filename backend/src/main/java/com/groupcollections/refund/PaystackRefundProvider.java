@@ -45,11 +45,12 @@ public class PaystackRefundProvider implements RefundProvider {
               .body(JsonNode.class);
       return map(response, refund, false);
     } catch (RestClientResponseException failure) {
-      return retryable(failure)
-          ? RefundResult.pending(null)
-          : RefundResult.failed("PROVIDER_REJECTED");
+      RefundResult.PendingReason reason = retryReason(failure);
+      return reason == null
+          ? RefundResult.failed("PROVIDER_REJECTED")
+          : RefundResult.pending(null, reason);
     } catch (RestClientException failure) {
-      return RefundResult.pending(null);
+      return RefundResult.pending(null, RefundResult.PendingReason.TIMEOUT);
     }
   }
 
@@ -73,11 +74,13 @@ public class PaystackRefundProvider implements RefundProvider {
                 .retrieve()
                 .body(JsonNode.class);
       } else {
-        return RefundResult.pending(null);
+        return RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS);
       }
       return map(response, refund, true);
+    } catch (RestClientResponseException failure) {
+      return RefundResult.pending(refund.providerReference(), verifyReason(failure));
     } catch (RestClientException failure) {
-      return RefundResult.pending(refund.providerReference());
+      return RefundResult.pending(refund.providerReference(), RefundResult.PendingReason.TIMEOUT);
     }
   }
 
@@ -86,27 +89,49 @@ public class PaystackRefundProvider implements RefundProvider {
    * already exists, so both are treated like a timeout rather than a rejection. 429 and 5xx are
    * retryable for the same reason: the refund may have landed.
    */
-  private static boolean retryable(RestClientResponseException failure) {
+  private static RefundResult.PendingReason retryReason(RestClientResponseException failure) {
     HttpStatusCode status = failure.getStatusCode();
-    return status.value() == 408
-        || status.value() == 409
-        || status.value() == 429
-        || status.is5xxServerError();
+    if (status.value() == 408) {
+      return RefundResult.PendingReason.TIMEOUT;
+    }
+    if (status.value() == 409) {
+      return RefundResult.PendingReason.CONFLICT;
+    }
+    if (status.value() == 429) {
+      return RefundResult.PendingReason.RATE_LIMITED;
+    }
+    return status.is5xxServerError() ? RefundResult.PendingReason.UNKNOWN_STATUS : null;
+  }
+
+  private static RefundResult.PendingReason verifyReason(RestClientResponseException failure) {
+    HttpStatusCode status = failure.getStatusCode();
+    if (status.value() == 408) {
+      return RefundResult.PendingReason.TIMEOUT;
+    }
+    if (status.value() == 409) {
+      return RefundResult.PendingReason.CONFLICT;
+    }
+    if (status.value() == 429) {
+      return RefundResult.PendingReason.RATE_LIMITED;
+    }
+    return RefundResult.PendingReason.UNKNOWN_STATUS;
   }
 
   private static RefundResult map(JsonNode response, Refund refund, boolean verification) {
     if (response == null || !response.isObject()) {
-      return RefundResult.pending(null);
+      return RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS);
     }
     if (!response.path("status").asBoolean(false)) {
-      return verification ? RefundResult.pending(null) : RefundResult.failed("PROVIDER_REJECTED");
+      return verification
+          ? RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS)
+          : RefundResult.failed("PROVIDER_REJECTED");
     }
     JsonNode data = response.path("data");
     if (data.isArray()) {
       return mapRefundList(data, refund);
     }
     if (!data.isObject()) {
-      return RefundResult.pending(null);
+      return RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS);
     }
     return mapRefund(data, refund);
   }
@@ -118,11 +143,18 @@ public class PaystackRefundProvider implements RefundProvider {
   private static RefundResult mapRefundList(JsonNode data, Refund refund) {
     JsonNode selected = null;
     String selectedAt = "";
+    boolean amountMismatch = false;
+    boolean currencyMismatch = false;
     for (JsonNode entry : data) {
-      if (!entry.isObject()
-          || !amountMatches(entry, refund)
-          || !currencyMatches(entry, refund)
-          || !transactionMatches(entry, refund)) {
+      if (!entry.isObject() || !transactionMatches(entry, refund)) {
+        continue;
+      }
+      if (!amountMatches(entry, refund)) {
+        amountMismatch = true;
+        continue;
+      }
+      if (!currencyMatches(entry, refund)) {
+        currencyMismatch = true;
         continue;
       }
       String createdAt = entry.path("created_at").asText("");
@@ -131,7 +163,16 @@ public class PaystackRefundProvider implements RefundProvider {
         selectedAt = createdAt;
       }
     }
-    return selected == null ? RefundResult.pending(null) : mapRefund(selected, refund);
+    if (selected != null) {
+      return mapRefund(selected, refund);
+    }
+    if (amountMismatch) {
+      return RefundResult.pending(null, RefundResult.PendingReason.AMOUNT_MISMATCH);
+    }
+    if (currencyMismatch) {
+      return RefundResult.pending(null, RefundResult.PendingReason.CURRENCY_MISMATCH);
+    }
+    return RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   private static boolean transactionMatches(JsonNode entry, Refund refund) {
@@ -144,14 +185,17 @@ public class PaystackRefundProvider implements RefundProvider {
         data.hasNonNull("id")
             ? data.get("id").asText()
             : data.hasNonNull("reference") ? data.get("reference").asText() : null;
-    if (!amountMatches(data, refund) || !currencyMatches(data, refund)) {
-      return RefundResult.pending(reference);
+    if (!amountMatches(data, refund)) {
+      return RefundResult.pending(reference, RefundResult.PendingReason.AMOUNT_MISMATCH);
+    }
+    if (!currencyMatches(data, refund)) {
+      return RefundResult.pending(reference, RefundResult.PendingReason.CURRENCY_MISMATCH);
     }
     String status = data.path("status").asText("");
     return switch (status) {
       case "processed", "success" -> RefundResult.success(reference);
       case "failed", "reversed" -> RefundResult.failed("PROVIDER_REFUND_FAILED");
-      default -> RefundResult.pending(reference);
+      default -> RefundResult.pending(reference, RefundResult.PendingReason.UNKNOWN_STATUS);
     };
   }
 

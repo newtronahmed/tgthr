@@ -180,9 +180,9 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
   no `PENDING`/`PROVIDER_PENDING` refund is stranded.
 - Enable `provider=paystack` only after T401 records the sandbox fee-return result and the live key is
   configured. Tests use the fake only.
-- Observability: operator auth failures/lockouts, refund requested/succeeded/failed/pending, refund
-  amount, queue depth/age, dual-control rejections, provider latency; alerts for pending refunds,
-  provider failures, aging suspense and repeated auth failures.
+- Observability: operator auth failures/lockouts, refund requested/succeeded/failed/pending (with a
+  pending reason), refund amount, queue depth/age, dual-control rejections, provider latency; alerts
+  for pending refunds, provider failures, aging suspense and repeated auth failures.
 - Rollback: disable the flags; no destructive migration. Verify/complete remains available.
 
 ## Risks

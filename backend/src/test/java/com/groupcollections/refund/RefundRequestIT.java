@@ -3,6 +3,7 @@ package com.groupcollections.refund;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.groupcollections.alerts.Alert;
 import com.groupcollections.contribution.ContributionRepository;
 import com.groupcollections.identity.OrganizerUser;
 import com.groupcollections.operator.Base32;
@@ -18,6 +19,7 @@ import com.groupcollections.payout.PayoutService;
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
 import com.groupcollections.support.FakePayoutFeeProvider;
+import com.groupcollections.support.RecordingAlertPublisher;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
@@ -263,6 +265,37 @@ class RefundRequestIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-REFUND-004")
+  void pendingReasonsArePersistedAndAlertsAreDeduplicated() {
+    PAYSTACK.refundScenario("REQUEST_TIMEOUT");
+    Contribution contribution = confirmedContribution();
+    String token = signIn(operator("refund.pending.reason", OperatorRole.REFUND_OPERATOR));
+
+    ResponseEntity<Map<String, Object>> response =
+        request(contribution.id(), "refund-key-eleven", "duplicate charge", token);
+
+    UUID refundId = UUID.fromString((String) response.getBody().get("id"));
+    assertThat(refundRow(refundId).get("state")).isEqualTo("PROVIDER_PENDING");
+    assertThat(alertCount(Alert.AlertType.REFUND_PROVIDER_PENDING)).isEqualTo(1);
+    assertThat(lastPendingDetail(refundId)).contains("TIMEOUT");
+
+    PAYSTACK.refundScenario("SERVER_ERROR");
+    ResponseEntity<Map<String, Object>> stillPending =
+        verify(refundId, "provider verification", token);
+
+    assertThat(stillPending.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(refundRow(refundId).get("state")).isEqualTo("PROVIDER_PENDING");
+    assertThat(alertCount(Alert.AlertType.REFUND_PROVIDER_PENDING)).isEqualTo(1);
+    assertThat(lastPendingDetail(refundId)).contains("UNKNOWN_STATUS");
+
+    PAYSTACK.refundScenario("SUCCESS");
+    assertThat(verify(refundId, "provider verification", token).getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+    assertThat(refundRow(refundId).get("state")).isEqualTo("SUCCEEDED");
+    assertThat(alertCount(Alert.AlertType.REFUND_PROVIDER_PENDING)).isEqualTo(1);
+  }
+
+  @Test
   @Criterion("AC-REFUND-006")
   void concurrentRequestsHaveOneWinner() throws Exception {
     PAYSTACK.refundScenario("PENDING");
@@ -497,6 +530,21 @@ class RefundRequestIT extends ApiIntegrationTest {
   private long count(String sql, Object... args) {
     Long value = jdbc.queryForObject(sql, Long.class, args);
     return value == null ? 0 : value;
+  }
+
+  private long alertCount(Alert.AlertType type) {
+    return RecordingAlertPublisher.alerts().stream().filter(alert -> alert.type() == type).count();
+  }
+
+  private String lastPendingDetail(UUID refundId) {
+    return jdbc.queryForObject(
+        """
+        select detail from refund_events
+        where refund_id = ? and event = 'PROVIDER_PENDING'
+        order by id desc limit 1
+        """,
+        String.class,
+        refundId);
   }
 
   private record TestOperator(UUID id, String username, String secretBase32) {}

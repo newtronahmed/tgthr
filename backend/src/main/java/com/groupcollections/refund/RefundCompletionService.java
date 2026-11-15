@@ -156,23 +156,30 @@ public class RefundCompletionService {
   }
 
   private void pending(Refund refund, RefundProvider.RefundResult result, Instant now) {
+    String reason =
+        result.pendingReason() == null
+            ? RefundProvider.RefundResult.PendingReason.UNKNOWN_STATUS.name()
+            : result.pendingReason().name();
     refunds.markProviderPending(refund.id(), result.providerReference(), now);
     refunds.appendEvent(
         refund.id(),
         "PROVIDER_PENDING",
         refund.state().name(),
         RefundState.PROVIDER_PENDING.name(),
-        result.providerReference(),
+        "reason=" + reason,
         now);
-    meters.counter("refunds.provider_pending").increment();
-    alerts.publish(
-        new Alert(
-            Alert.AlertType.REFUND_PROVIDER_PENDING,
-            refund.id().toString(),
-            "provider result pending"));
+    meters.counter("refunds.provider_pending", "reason", reason).increment();
+    if (refund.state() != RefundState.PROVIDER_PENDING) {
+      alerts.publish(
+          new Alert(
+              Alert.AlertType.REFUND_PROVIDER_PENDING,
+              refund.id().toString(),
+              "provider result pending: " + reason));
+    }
     log.warn(
-        "event=refund_provider_pending refundId={} contributionId={}",
+        "event=refund_provider_pending refundId={} contributionId={} reason={}",
         refund.id(),
-        refund.contributionId());
+        refund.contributionId(),
+        reason);
   }
 }

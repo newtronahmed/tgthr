@@ -62,16 +62,20 @@ class PaystackRefundProviderTest {
   void requestTimeoutIsPending() {
     fake.refundScenario("REQUEST_TIMEOUT");
 
-    assertThat(provider.refund(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.TIMEOUT);
   }
 
   @Test
   void alreadyExistingRefundIsPendingRatherThanRejected() {
     fake.refundScenario("ALREADY_EXISTS");
 
-    assertThat(provider.refund(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.CONFLICT);
   }
 
   @Test
@@ -82,6 +86,7 @@ class PaystackRefundProviderTest {
 
     assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(result.failureCode()).isNull();
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.RATE_LIMITED);
   }
 
   @Test
@@ -98,8 +103,10 @@ class PaystackRefundProviderTest {
   void serverErrorIsPending() {
     fake.refundScenario("SERVER_ERROR");
 
-    assertThat(provider.refund(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   @Test
@@ -116,24 +123,30 @@ class PaystackRefundProviderTest {
   void amountMismatchIsPending() {
     fake.refundScenario("AMOUNT_MISMATCH");
 
-    assertThat(provider.refund(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.AMOUNT_MISMATCH);
   }
 
   @Test
   void currencyMismatchIsPending() {
     fake.refundScenario("CURRENCY_MISMATCH");
 
-    assertThat(provider.refund(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.CURRENCY_MISMATCH);
   }
 
   @Test
   void missingRefundedAmountIsPending() {
     fake.refundScenario("MISSING_AMOUNT");
 
-    assertThat(provider.refund(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.AMOUNT_MISMATCH);
   }
 
   @Test
@@ -190,6 +203,7 @@ class PaystackRefundProviderTest {
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.providerReference()).isNull();
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   @Test
@@ -197,8 +211,10 @@ class PaystackRefundProviderTest {
     provider.refund(refund("txn-123", null));
     fake.refundScenario("VERIFY_NO_MATCH");
 
-    assertThat(provider.verify(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult verified = provider.verify(refund("txn-123", null));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.AMOUNT_MISMATCH);
   }
 
   @Test
@@ -206,8 +222,10 @@ class PaystackRefundProviderTest {
     provider.refund(refund("txn-123", null));
     fake.refundScenario("VERIFY_WRONG_TRANSACTION");
 
-    assertThat(provider.verify(refund("txn-123", null)).status())
-        .isEqualTo(RefundResult.Status.PENDING);
+    RefundResult verified = provider.verify(refund("txn-123", null));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   @Test
@@ -219,6 +237,7 @@ class PaystackRefundProviderTest {
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   @Test
@@ -230,6 +249,7 @@ class PaystackRefundProviderTest {
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.providerReference()).isNull();
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   @Test
@@ -241,6 +261,7 @@ class PaystackRefundProviderTest {
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
   }
 
   @Test
@@ -252,6 +273,7 @@ class PaystackRefundProviderTest {
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.AMOUNT_MISMATCH);
   }
 
   @Test
@@ -262,6 +284,7 @@ class PaystackRefundProviderTest {
     RefundResult verified = provider.verify(refund("txn-123", requested.providerReference()));
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.CURRENCY_MISMATCH);
   }
 
   @Test
@@ -273,6 +296,18 @@ class PaystackRefundProviderTest {
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.UNKNOWN_STATUS);
+  }
+
+  @Test
+  void verifyTimeoutStaysPending() {
+    RefundResult requested = provider.refund(refund("txn-123", null));
+    fake.refundScenario("REQUEST_TIMEOUT");
+
+    RefundResult verified = provider.verify(refund("txn-123", requested.providerReference()));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.TIMEOUT);
   }
 
   private static Refund refund(String transactionReference, String providerReference) {
