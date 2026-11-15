@@ -357,6 +357,7 @@ public class PayoutRepository {
                        select sum(amount_minor_units)
                        from refunds
                        where goal_id = ? and state in ('PENDING', 'PROVIDER_PENDING')
+                         and source_account = 'GOAL_POOL'
                    ), 0)
             """,
             Long.class,

@@ -76,6 +76,7 @@ collections:
     enabled: ${REFUNDS_ENABLED:false}
     provider: ${REFUND_PROVIDER:none}
     partner-retains-processing-fee: ${REFUND_PARTNER_RETAINS_PROCESSING_FEE:true}
+    suspense-income-after: ${REFUND_SUSPENSE_INCOME_AFTER:P30D}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     per-ip-per-minute: ${RATE_LIMIT_PER_IP_PER_MINUTE:30}

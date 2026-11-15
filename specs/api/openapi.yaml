@@ -660,6 +660,162 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /operator/reconciliation/pending:
+    get:
+      tags: [Operator]
+      operationId: listReconciliationQueue
+      summary: List unresolved suspense items
+      description: Oldest first. Never contains payer phone numbers.
+      security:
+        - operatorSession: []
+      responses:
+        '200':
+          description: Pending reconciliation items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReconciliationItemView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /operator/reconciliation/{contributionId}/reclassify:
+    post:
+      tags: [Operator]
+      operationId: reclassifySuspense
+      summary: Move a suspense amount into the goal pool
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/ReconciliationContributionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationResolutionRequest'
+      responses:
+        '200':
+          description: Reclassification applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResolutionView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/reconciliation/{contributionId}/refund:
+    post:
+      tags: [Operator]
+      operationId: refundSuspense
+      summary: Refund a suspense item to the original payer
+      description: Posts the same full A + P + F reversal as a normal refund, but debits SUSPENSE instead of GOAL_POOL.
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/ReconciliationContributionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationResolutionRequest'
+      responses:
+        '201':
+          description: Suspense refund requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/reconciliation/{contributionId}/income:
+    post:
+      tags: [Operator]
+      operationId: proposeSuspenseIncome
+      summary: Propose miscellaneous income for an aged suspense item
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/ReconciliationContributionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationResolutionRequest'
+      responses:
+        '202':
+          description: Income proposed and waiting for a finance approver
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResolutionView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /operator/reconciliation/{contributionId}/income/approve:
+    post:
+      tags: [Operator]
+      operationId: approveSuspenseIncome
+      summary: Approve and post a proposed miscellaneous income
+      security:
+        - operatorSession: []
+      parameters:
+        - $ref: '#/components/parameters/ReconciliationContributionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/OperatorTotpHeader'
+        - $ref: '#/components/parameters/OperatorRecoveryHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationResolutionRequest'
+      responses:
+        '200':
+          description: Income applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResolutionView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
   /public/goals/{slug}/payouts/{payoutId}/report:
     post:
       tags: [Public]
@@ -1099,6 +1255,23 @@ components:
       description: One unused recovery code when TOTP is unavailable; consumed by the action.
       schema:
         type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique per action and contribution; a retry with the same key and reason is idempotent.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 64
+    ReconciliationContributionId:
+      name: contributionId
+      in: path
+      required: true
+      description: Contribution parked in suspense.
+      schema:
+        type: string
+        format: uuid
   responses:
     Problem:
       description: Error in RFC 9457 problem format
@@ -1883,6 +2056,62 @@ components:
           type: string
           format: date-time
           nullable: true
+    ReconciliationItemView:
+      type: object
+      required: [contributionId, goalId, goalTitle, amountMinorUnits, currencyCode, providerReference, suspendedAt, ageSeconds]
+      description: Never contains payer name, phone number or ciphertext.
+      properties:
+        contributionId:
+          type: string
+          format: uuid
+        goalId:
+          type: string
+          format: uuid
+        goalTitle:
+          type: string
+        amountMinorUnits:
+          type: integer
+          format: int64
+        currencyCode:
+          type: string
+          enum: [GHS]
+        providerReference:
+          type: string
+        suspendedAt:
+          type: string
+          format: date-time
+        ageSeconds:
+          type: integer
+          format: int64
+          minimum: 0
+    ReconciliationResolutionRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    ReconciliationResolutionView:
+      type: object
+      required: [contributionId, resolution, status, resolvedAt]
+      properties:
+        contributionId:
+          type: string
+          format: uuid
+        resolution:
+          type: string
+          enum: [REFUND, RECLASSIFY, INCOME]
+        status:
+          type: string
+          enum: [PROPOSED, APPLIED]
+        postingSetId:
+          type: string
+          format: uuid
+          nullable: true
+        resolvedAt:
+          type: string
+          format: date-time
     Problem:
       type: object
       required: [type, title, status, code]
