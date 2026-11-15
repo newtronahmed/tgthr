@@ -144,7 +144,7 @@ attributable.
 | AC-OPS-007 | P2 | `SettlementUploadIT` | Deferred to the P2 slice. |
 | AC-OPS-008 | P2 | `PayoutReviewIT` | Deferred to the P2 slice. |
 | AC-OPS-009 | Integration | `SuspenseIncomeIT` | Same operator cannot propose and approve. |
-| AC-OPS-010 | Integration | `OperatorStepUpIT` | Income/loss/role change needs a TOTP within five minutes. |
+| AC-OPS-010 | Integration | `SuspenseIncomeIT`, `OperatorAdminIT` | Income approval and role change need a TOTP within five minutes; loss allocation is P2. |
 | INV-LEDGER-001/003/004/007 | Integration | `RefundPostingIT` | Balance, non-negative pool, idempotency, GHS. |
 | INV-STATE-001/002/003 | Integration | `RefundPostingIT` | History append-only and legal transitions. |
 

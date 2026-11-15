@@ -178,6 +178,49 @@ class SuspenseIncomeIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-OPS-010")
+  void incomeApprovalRequiresAFreshTotp() {
+    SuspenseItem item = suspenseItem("income-stepup", 7_000, "0240000015", 2 * 60 * 60);
+    String proposerToken = signIn(operator("income.stepup.proposer", OperatorRole.RECONCILER));
+    TestOperator approver = operator("income.stepup.approver", OperatorRole.FINANCE_APPROVER);
+    String approverToken = signIn(approver);
+    assertThat(
+            proposeIncome(item.id(), "income-stepup-propose", "aged suspense", proposerToken)
+                .getStatusCode())
+        .isEqualTo(HttpStatus.ACCEPTED);
+
+    jdbc.update("update operators set last_totp_step = -1 where id = ?", approver.id());
+    ResponseEntity<Map<String, Object>> stale =
+        approveIncome(item.id(), "income-stepup-approve", "approve income", approverToken, null);
+
+    assertThat(stale.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(stale.getBody()).containsEntry("code", "STEP_UP_REQUIRED");
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where contribution_id = ? and entry_type = 'ADJUSTMENT'",
+                item.id()))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "select status from reconciliation_resolutions where contribution_id = ?",
+                String.class,
+                item.id()))
+        .isEqualTo("PROPOSED");
+
+    ResponseEntity<Map<String, Object>> stepped =
+        approveIncome(
+            item.id(), "income-stepup-approve", "approve income", approverToken, code(approver));
+
+    assertThat(stepped.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(stepped.getBody()).containsEntry("status", "APPLIED");
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where contribution_id = ? and entry_type = 'ADJUSTMENT'",
+                item.id()))
+        .isEqualTo(2);
+  }
+
+  @Test
   @Criterion("AC-OPS-009")
   void aProposerWithoutTheFinanceRoleCannotApprove() {
     SuspenseItem item = suspenseItem("income-role", 3_000, "0240000014", 2 * 60 * 60);
@@ -342,6 +385,10 @@ class SuspenseIncomeIT extends ApiIntegrationTest {
     int start = setCookie.indexOf(prefix);
     int end = setCookie.indexOf(';', start);
     return setCookie.substring(start + prefix.length(), end < 0 ? setCookie.length() : end);
+  }
+
+  private static String code(TestOperator operator) {
+    return Totp.code(Base32.decode(operator.secretBase32()), Instant.now());
   }
 
   private static HttpHeaders jsonHeaders(String token) {

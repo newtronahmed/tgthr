@@ -3,6 +3,7 @@ package com.groupcollections.operator;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.groupcollections.support.ApiIntegrationTest;
+import com.groupcollections.support.Criterion;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
@@ -176,6 +177,7 @@ class OperatorAdminIT extends ApiIntegrationTest {
   }
 
   @Test
+  @Criterion("AC-OPS-010")
   void roleChangeRequiresFreshTotpWhenTheLoginIsStale() {
     TestOperator admin = createActiveOperator("admin.stepup", OperatorRole.OPERATOR_ADMIN);
     TestOperator target = createActiveOperator("refund.stepup", OperatorRole.REFUND_OPERATOR);
