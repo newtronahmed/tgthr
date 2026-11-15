@@ -65,6 +65,11 @@ class OperatorAdminIT extends ApiIntegrationTest {
                 "select count(*) from operator_roles where operator_id = ? and role = 'REFUND_OPERATOR'",
                 operatorId))
         .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select password_hash like 'pbkdf2-sha256$600000$%' from operators where id = ?",
+                Boolean.class, operatorId))
+        .isTrue();
 
     ResponseEntity<Map<String, Object>> enrolled =
         post(
@@ -235,6 +240,44 @@ class OperatorAdminIT extends ApiIntegrationTest {
   }
 
   @Test
+  void recoveryCodeAuthorizesExactlyOneStepUp() {
+    TestOperator admin = createActiveOperator("admin.recovery", OperatorRole.OPERATOR_ADMIN);
+    TestOperator target = createActiveOperator("refund.recovery", OperatorRole.REFUND_OPERATOR);
+    String token = signIn(admin);
+    String recoveryCode = "stepup-recovery-code";
+    jdbc.update(
+        "insert into operator_recovery_codes (operator_id, code_hash) values (?, ?)",
+        admin.id(),
+        RecoveryCodes.hash(recoveryCode));
+    jdbc.update("update operators set last_totp_step = -1 where id = ?", admin.id());
+
+    ResponseEntity<Map<String, Object>> first =
+        put(
+            "/operator/operators/" + target.id() + "/roles",
+            Map.of("roles", List.of("RECONCILER")),
+            token,
+            null,
+            recoveryCode);
+    assertThat(first.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    ResponseEntity<Map<String, Object>> second =
+        put(
+            "/operator/operators/" + target.id() + "/roles",
+            Map.of("roles", List.of("REFUND_OPERATOR")),
+            token,
+            null,
+            recoveryCode);
+    assertThat(second.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(second.getBody()).containsEntry("code", "STEP_UP_REQUIRED");
+    assertThat(
+            jdbc.queryForObject(
+                "select used_at is not null from operator_recovery_codes where operator_id = ?",
+                Boolean.class,
+                admin.id()))
+        .isTrue();
+  }
+
+  @Test
   void bootstrapLockRunsOnPostgres() {
     operators.lockBootstrap();
   }
@@ -318,9 +361,17 @@ class OperatorAdminIT extends ApiIntegrationTest {
 
   private ResponseEntity<Map<String, Object>> put(
       String path, Map<String, Object> body, String token, String totpCode) {
+    return put(path, body, token, totpCode, null);
+  }
+
+  private ResponseEntity<Map<String, Object>> put(
+      String path, Map<String, Object> body, String token, String totpCode, String recoveryCode) {
     HttpHeaders headers = jsonHeaders(token);
     if (totpCode != null) {
       headers.add("X-Operator-TOTP", totpCode);
+    }
+    if (recoveryCode != null) {
+      headers.add("X-Operator-Recovery-Code", recoveryCode);
     }
     return rest.exchange(
         path,

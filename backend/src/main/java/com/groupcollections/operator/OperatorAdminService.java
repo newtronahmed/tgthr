@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
@@ -29,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @ConditionalOnProperty(name = "collections.operator.enabled", havingValue = "true")
 public class OperatorAdminService {
 
-  private static final String PENDING_PASSWORD = "PENDING_ENROLLMENT";
   private static final String USERNAME_PATTERN = "[A-Za-z0-9._-]{3,64}";
 
   private final OperatorRepository operators;
@@ -71,9 +71,12 @@ public class OperatorAdminService {
 
   @Transactional
   public OperatorCreated create(
-      OperatorPrincipal actor, CreateOperatorRequest request, String totpCode) {
+      OperatorPrincipal actor,
+      CreateOperatorRequest request,
+      String totpCode,
+      String recoveryCode) {
     actor.requireRole(OperatorRole.OPERATOR_ADMIN);
-    auth.requireFreshTotp(actor, totpCode);
+    auth.requireStepUp(actor, totpCode, recoveryCode);
     Instant now = Instant.now(clock);
     String username = username(request.username());
     if (operators.findByUsername(username).isPresent()) {
@@ -100,7 +103,8 @@ public class OperatorAdminService {
 
   /** Deploy-time first admin. Returns empty when any operator already exists. */
   @Transactional
-  public Optional<OperatorCreated> bootstrapFirstAdmin(String username) {
+  public Optional<OperatorCreated> bootstrapFirstAdmin(
+      String username, Consumer<OperatorCreated> beforeCommit) {
     operators.lockBootstrap();
     if (operators.count() > 0) {
       return Optional.empty();
@@ -108,9 +112,11 @@ public class OperatorAdminService {
     Instant now = Instant.now(clock);
     Provisioned provisioned =
         provision(username(username), Set.of(OperatorRole.OPERATOR_ADMIN), null, now);
+    OperatorCreated created = provisioned.created();
     operators.audit(provisioned.id(), "BOOTSTRAP_CREATED", null, now);
+    beforeCommit.accept(created);
     meters.counter("operator.bootstrap.created").increment();
-    return Optional.of(provisioned.created());
+    return Optional.of(created);
   }
 
   @Transactional
@@ -177,9 +183,14 @@ public class OperatorAdminService {
 
   @Transactional
   public OperatorAdminView changeRoles(
-      OperatorPrincipal actor, UUID targetId, ChangeRolesRequest request, String totpCode) {
+      OperatorPrincipal actor,
+      UUID targetId,
+      ChangeRolesRequest request,
+      String totpCode,
+      String recoveryCode) {
     actor.requireRole(OperatorRole.OPERATOR_ADMIN);
-    auth.requireFreshTotp(actor, totpCode);
+    auth.requireStepUp(actor, totpCode, recoveryCode);
+    operators.lockAdminGuard();
     Instant now = Instant.now(clock);
     Operator target = operators.findById(targetId).orElseThrow(OperatorException::notFound);
     Set<OperatorRole> requested = roles(request.roles());
@@ -213,12 +224,14 @@ public class OperatorAdminService {
   }
 
   @Transactional
-  public OperatorAdminView disable(OperatorPrincipal actor, UUID targetId, String totpCode) {
+  public OperatorAdminView disable(
+      OperatorPrincipal actor, UUID targetId, String totpCode, String recoveryCode) {
     actor.requireRole(OperatorRole.OPERATOR_ADMIN);
-    auth.requireFreshTotp(actor, totpCode);
+    auth.requireStepUp(actor, totpCode, recoveryCode);
     if (actor.id().equals(targetId)) {
       throw OperatorException.conflict("SELF_DISABLE", "An operator cannot disable themselves");
     }
+    operators.lockAdminGuard();
     Instant now = Instant.now(clock);
     Operator target = operators.findById(targetId).orElseThrow(OperatorException::notFound);
     Set<OperatorRole> roles = operators.roles(targetId);
@@ -244,11 +257,15 @@ public class OperatorAdminService {
   }
 
   @Transactional
-  public OperatorAdminView enable(OperatorPrincipal actor, UUID targetId, String totpCode) {
+  public OperatorAdminView enable(
+      OperatorPrincipal actor, UUID targetId, String totpCode, String recoveryCode) {
     actor.requireRole(OperatorRole.OPERATOR_ADMIN);
-    auth.requireFreshTotp(actor, totpCode);
+    auth.requireStepUp(actor, totpCode, recoveryCode);
     Instant now = Instant.now(clock);
     Operator target = operators.findById(targetId).orElseThrow(OperatorException::notFound);
+    if (target.status() != OperatorStatus.DISABLED) {
+      throw OperatorException.conflict("INVALID_STATUS", "Only a disabled operator can be enabled");
+    }
     operators.setStatus(targetId, OperatorStatus.ACTIVE, now);
     operators.recordAction(
         actor.id(),
@@ -292,7 +309,7 @@ public class OperatorAdminService {
     operators.insert(
         id,
         username,
-        PENDING_PASSWORD,
+        hasher.hash(randomToken()),
         cipher.encrypt(encodedSecret),
         OperatorStatus.PENDING_ENROLLMENT,
         now);

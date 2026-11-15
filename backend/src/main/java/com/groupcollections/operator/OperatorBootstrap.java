@@ -55,13 +55,14 @@ public class OperatorBootstrap implements ApplicationRunner {
           "OPERATOR_BOOTSTRAP_TOKEN_FILE is required when bootstrap is enabled");
     }
     admin
-        .bootstrapFirstAdmin(username)
+        .bootstrapFirstAdmin(username, this::writeToken)
         .ifPresentOrElse(
-            created -> writeToken(created.enrollmentToken()),
+            created ->
+                log.info("operator bootstrap created the first admin; enrollment token written"),
             () -> log.info("operator bootstrap skipped because an operator already exists"));
   }
 
-  private void writeToken(String enrollmentToken) {
+  private void writeToken(OperatorCreated created) {
     Path path = Path.of(tokenFile);
     try {
       Path parent = path.toAbsolutePath().getParent();
@@ -70,7 +71,9 @@ public class OperatorBootstrap implements ApplicationRunner {
       }
       Files.writeString(
           path,
-          "OPERATOR_BOOTSTRAP_ENROLLMENT_TOKEN=" + enrollmentToken + System.lineSeparator(),
+          "OPERATOR_BOOTSTRAP_ENROLLMENT_TOKEN="
+              + created.enrollmentToken()
+              + System.lineSeparator(),
           StandardCharsets.UTF_8,
           StandardOpenOption.CREATE,
           StandardOpenOption.TRUNCATE_EXISTING,
@@ -80,7 +83,6 @@ public class OperatorBootstrap implements ApplicationRunner {
       } catch (UnsupportedOperationException ignored) {
         // Non-POSIX filesystems fall back to the deployment's file permissions.
       }
-      log.info("operator bootstrap created the first admin; enrollment token written to file");
     } catch (IOException failure) {
       throw new IllegalStateException("could not write the bootstrap enrollment token", failure);
     }

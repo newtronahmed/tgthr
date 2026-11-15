@@ -221,6 +221,11 @@ public class OperatorRepository {
     jdbc.execute("select pg_advisory_xact_lock(hashtext('operator-bootstrap'))");
   }
 
+  /** Serialises the last-admin check with the role/status update that follows it. */
+  public void lockAdminGuard() {
+    jdbc.execute("select pg_advisory_xact_lock(hashtext('operator-admin-guard'))");
+  }
+
   private Operator map(ResultSet resultSet, int rowNumber) throws SQLException {
     OffsetDateTime lockedUntil = resultSet.getObject("locked_until", OffsetDateTime.class);
     return new Operator(

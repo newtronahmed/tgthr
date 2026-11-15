@@ -31,10 +31,11 @@ public class OperatorAdminController {
   public ResponseEntity<OperatorCreated> create(
       @Valid @RequestBody CreateOperatorRequest request,
       @RequestHeader(value = "X-Operator-TOTP", required = false) String totpCode,
+      @RequestHeader(value = "X-Operator-Recovery-Code", required = false) String recoveryCode,
       HttpServletRequest servletRequest) {
     return ResponseEntity.ok()
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
-        .body(admin.create(principal(servletRequest), request, totpCode));
+        .body(admin.create(principal(servletRequest), request, totpCode, recoveryCode));
   }
 
   @GetMapping
@@ -52,24 +53,27 @@ public class OperatorAdminController {
       @PathVariable UUID id,
       @Valid @RequestBody ChangeRolesRequest request,
       @RequestHeader(value = "X-Operator-TOTP", required = false) String totpCode,
+      @RequestHeader(value = "X-Operator-Recovery-Code", required = false) String recoveryCode,
       HttpServletRequest servletRequest) {
-    return admin.changeRoles(principal(servletRequest), id, request, totpCode);
+    return admin.changeRoles(principal(servletRequest), id, request, totpCode, recoveryCode);
   }
 
   @PostMapping("/{id}/disable")
   public OperatorAdminView disable(
       @PathVariable UUID id,
       @RequestHeader(value = "X-Operator-TOTP", required = false) String totpCode,
+      @RequestHeader(value = "X-Operator-Recovery-Code", required = false) String recoveryCode,
       HttpServletRequest request) {
-    return admin.disable(principal(request), id, totpCode);
+    return admin.disable(principal(request), id, totpCode, recoveryCode);
   }
 
   @PostMapping("/{id}/enable")
   public OperatorAdminView enable(
       @PathVariable UUID id,
       @RequestHeader(value = "X-Operator-TOTP", required = false) String totpCode,
+      @RequestHeader(value = "X-Operator-Recovery-Code", required = false) String recoveryCode,
       HttpServletRequest request) {
-    return admin.enable(principal(request), id, totpCode);
+    return admin.enable(principal(request), id, totpCode, recoveryCode);
   }
 
   private static OperatorPrincipal principal(HttpServletRequest request) {

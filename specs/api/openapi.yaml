@@ -376,6 +376,7 @@ paths:
         - operatorSession: []
       parameters:
         - $ref: '#/components/parameters/OperatorTotpHeader'
+        - $ref: '#/components/parameters/OperatorRecoveryHeader'
       requestBody:
         required: true
         content:
@@ -448,6 +449,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/OperatorId'
         - $ref: '#/components/parameters/OperatorTotpHeader'
+        - $ref: '#/components/parameters/OperatorRecoveryHeader'
       requestBody:
         required: true
         content:
@@ -481,6 +483,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/OperatorId'
         - $ref: '#/components/parameters/OperatorTotpHeader'
+        - $ref: '#/components/parameters/OperatorRecoveryHeader'
       responses:
         '200':
           description: Updated operator account
@@ -506,6 +509,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/OperatorId'
         - $ref: '#/components/parameters/OperatorTotpHeader'
+        - $ref: '#/components/parameters/OperatorRecoveryHeader'
       responses:
         '200':
           description: Updated operator account
@@ -951,6 +955,13 @@ components:
       schema:
         type: string
         pattern: '^[0-9]{6}$'
+    OperatorRecoveryHeader:
+      name: X-Operator-Recovery-Code
+      in: header
+      required: false
+      description: One unused recovery code when TOTP is unavailable; consumed by the action.
+      schema:
+        type: string
   responses:
     Problem:
       description: Error in RFC 9457 problem format

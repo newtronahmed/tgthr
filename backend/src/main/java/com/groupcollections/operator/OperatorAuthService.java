@@ -208,9 +208,12 @@ public class OperatorAuthService {
     }
   }
 
-  /** Requires a TOTP step consumed within the step-up window, or a fresh code to consume now. */
+  /**
+   * Requires a TOTP step consumed within the step-up window, or a fresh TOTP code, or one unused
+   * recovery code. A recovery step-up does not advance the TOTP step.
+   */
   @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = OperatorException.class)
-  public void requireFreshTotp(OperatorPrincipal principal, String code) {
+  public void requireStepUp(OperatorPrincipal principal, String totpCode, String recoveryCode) {
     Instant now = Instant.now(clock);
     Operator operator =
         operators.findById(principal.id()).orElseThrow(OperatorException::unauthorized);
@@ -220,21 +223,31 @@ public class OperatorAuthService {
     if (isFresh(operator.lastTotpStep(), now)) {
       return;
     }
-    if (code == null || code.isBlank()) {
-      audit(operator.id(), "STEP_UP_REQUIRED", "no code supplied", now);
-      meters.counter("operator.auth.step_up", "result", "required").increment();
-      throw OperatorException.stepUpRequired();
-    }
-    byte[] secret = Base32.decode(cipher.decrypt(operator.totpSecretCiphertext()));
-    OptionalLong matched = Totp.verify(secret, code, now, operator.lastTotpStep());
-    if (matched.isEmpty()
-        || operators.updateLastTotpStep(operator.id(), matched.getAsLong(), now) == 0) {
+    if (totpCode != null && !totpCode.isBlank()) {
+      byte[] secret = Base32.decode(cipher.decrypt(operator.totpSecretCiphertext()));
+      OptionalLong matched = Totp.verify(secret, totpCode, now, operator.lastTotpStep());
+      if (matched.isPresent()
+          && operators.updateLastTotpStep(operator.id(), matched.getAsLong(), now) > 0) {
+        audit(operator.id(), "STEP_UP_SUCCEEDED", null, now);
+        meters.counter("operator.auth.step_up", "result", "success").increment();
+        return;
+      }
       audit(operator.id(), "STEP_UP_FAILED", "invalid or replayed code", now);
       meters.counter("operator.auth.step_up", "result", "failed").increment();
       throw OperatorException.stepUpRequired();
     }
-    audit(operator.id(), "STEP_UP_SUCCEEDED", null, now);
-    meters.counter("operator.auth.step_up", "result", "success").increment();
+    if (recoveryCode != null && !recoveryCode.isBlank()) {
+      Optional<UUID> codeId =
+          recoveryCodes.findUnused(operator.id(), RecoveryCodes.hash(recoveryCode));
+      if (codeId.isPresent() && recoveryCodes.markUsed(codeId.get(), now) > 0) {
+        audit(operator.id(), "STEP_UP_RECOVERY", null, now);
+        meters.counter("operator.auth.step_up", "result", "recovery").increment();
+        return;
+      }
+    }
+    audit(operator.id(), "STEP_UP_REQUIRED", "no valid code supplied", now);
+    meters.counter("operator.auth.step_up", "result", "required").increment();
+    throw OperatorException.stepUpRequired();
   }
 
   private boolean isFresh(long step, Instant now) {

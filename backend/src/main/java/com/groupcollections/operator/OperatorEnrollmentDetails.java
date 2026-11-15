@@ -8,4 +8,11 @@ public record OperatorEnrollmentDetails(
   public OperatorEnrollmentDetails {
     recoveryCodes = List.copyOf(recoveryCodes);
   }
+
+  @Override
+  public String toString() {
+    return "OperatorEnrollmentDetails[totpSecret=[REDACTED], otpauthUri=[REDACTED], recoveryCodes=[REDACTED], recoveryCodeCount="
+        + recoveryCodes.size()
+        + "]";
+  }
 }

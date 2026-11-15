@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -52,7 +53,9 @@ class OperatorAdminServiceTest {
 
   @BeforeEach
   void freshTotpByDefault() {
-    org.mockito.Mockito.doNothing().when(auth).requireFreshTotp(any(), any());
+    org.mockito.Mockito.doNothing().when(auth).requireStepUp(any(), any(), any());
+    when(hasher.hash(any())).thenReturn("hashed-pending-password");
+    when(cipher.encrypt(any())).thenReturn(new byte[32]);
   }
 
   @Test
@@ -65,9 +68,14 @@ class OperatorAdminServiceTest {
     assertThatThrownBy(
             () ->
                 service.changeRoles(
-                    admin, targetId, new ChangeRolesRequest(List.of("REFUND_OPERATOR")), null))
+                    admin,
+                    targetId,
+                    new ChangeRolesRequest(List.of("REFUND_OPERATOR")),
+                    null,
+                    null))
         .isInstanceOfSatisfying(
             OperatorException.class, failure -> assertThat(failure.code()).isEqualTo("LAST_ADMIN"));
+    verify(operators).lockAdminGuard();
   }
 
   @Test
@@ -77,14 +85,37 @@ class OperatorAdminServiceTest {
     when(operators.roles(targetId)).thenReturn(Set.of(OperatorRole.OPERATOR_ADMIN));
     when(operators.countActiveAdmins()).thenReturn(1L);
 
-    assertThatThrownBy(() -> service.disable(admin, targetId, null))
+    assertThatThrownBy(() -> service.disable(admin, targetId, null, null))
         .isInstanceOfSatisfying(
             OperatorException.class, failure -> assertThat(failure.code()).isEqualTo("LAST_ADMIN"));
+    verify(operators).lockAdminGuard();
+  }
+
+  @Test
+  void enableRejectsAnAccountThatIsNotDisabled() {
+    UUID targetId = UUID.randomUUID();
+    when(operators.findById(targetId))
+        .thenReturn(
+            Optional.of(
+                new Operator(
+                    targetId,
+                    "target.one",
+                    "hash",
+                    new byte[0],
+                    OperatorStatus.PENDING_ENROLLMENT,
+                    0,
+                    null,
+                    -1)));
+
+    assertThatThrownBy(() -> service.enable(admin, targetId, null, null))
+        .isInstanceOfSatisfying(
+            OperatorException.class,
+            failure -> assertThat(failure.code()).isEqualTo("INVALID_STATUS"));
   }
 
   @Test
   void operatorCannotDisableThemselves() {
-    assertThatThrownBy(() -> service.disable(admin, admin.id(), null))
+    assertThatThrownBy(() -> service.disable(admin, admin.id(), null, null))
         .isInstanceOfSatisfying(
             OperatorException.class,
             failure -> assertThat(failure.code()).isEqualTo("SELF_DISABLE"));
@@ -94,18 +125,19 @@ class OperatorAdminServiceTest {
   void bootstrapSkipsWhenAnOperatorAlreadyExists() {
     when(operators.count()).thenReturn(1L);
 
-    assertThat(service.bootstrapFirstAdmin("admin.one")).isEmpty();
+    assertThat(service.bootstrapFirstAdmin("admin.one", created -> {})).isEmpty();
     verify(operators).lockBootstrap();
     verify(operators).count();
   }
 
   @Test
-  void bootstrapCreatesTheFirstAdminWhenTheTableIsEmpty() {
+  void bootstrapHandsTheTokenToTheWriterBeforeReturning() {
     when(operators.count()).thenReturn(0L);
-    when(cipher.encrypt(any())).thenReturn(new byte[32]);
+    AtomicReference<OperatorCreated> written = new AtomicReference<>();
 
-    OperatorCreated created = service.bootstrapFirstAdmin("admin.one").orElseThrow();
+    OperatorCreated created = service.bootstrapFirstAdmin("admin.one", written::set).orElseThrow();
 
+    assertThat(written.get()).isSameAs(created);
     assertThat(created.username()).isEqualTo("admin.one");
     assertThat(created.enrollmentToken()).isNotBlank();
     verify(operators).lockBootstrap();

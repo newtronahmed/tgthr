@@ -2,6 +2,8 @@ package com.groupcollections.operator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -14,6 +16,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,23 +29,27 @@ class OperatorBootstrapTest {
   @Test
   void writesTheEnrollmentTokenToTheConfiguredFile() throws IOException {
     Path tokenFile = directory.resolve("bootstrap-token");
-    when(admin.bootstrapFirstAdmin("admin.one"))
-        .thenReturn(
-            Optional.of(
-                new OperatorCreated(
-                    UUID.randomUUID(), "admin.one", "one-time-token", Instant.now())));
+    OperatorCreated created =
+        new OperatorCreated(UUID.randomUUID(), "admin.one", "one-time-token", Instant.now());
+    when(admin.bootstrapFirstAdmin(eq("admin.one"), any()))
+        .thenAnswer(
+            invocation -> {
+              Consumer<OperatorCreated> beforeCommit = invocation.getArgument(1);
+              beforeCommit.accept(created);
+              return Optional.of(created);
+            });
 
     new OperatorBootstrap(admin, "bootstrap-token", "admin.one", tokenFile.toString()).run(null);
 
     assertThat(Files.readString(tokenFile, StandardCharsets.UTF_8))
         .isEqualTo("OPERATOR_BOOTSTRAP_ENROLLMENT_TOKEN=one-time-token" + System.lineSeparator());
-    verify(admin).bootstrapFirstAdmin("admin.one");
+    verify(admin).bootstrapFirstAdmin(eq("admin.one"), any());
   }
 
   @Test
   void writesNoTokenWhenAnOperatorAlreadyExists() throws IOException {
     Path tokenFile = directory.resolve("bootstrap-token");
-    when(admin.bootstrapFirstAdmin("admin.one")).thenReturn(Optional.empty());
+    when(admin.bootstrapFirstAdmin(eq("admin.one"), any())).thenReturn(Optional.empty());
 
     new OperatorBootstrap(admin, "bootstrap-token", "admin.one", tokenFile.toString()).run(null);
 
