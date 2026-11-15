@@ -7,19 +7,13 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
- * Acceptance criteria for FEAT-005, specs/features/005-refunds-and-operator-tooling/spec.md.
+ * P2 acceptance-criteria placeholders for FEAT-005,
+ * specs/features/005-refunds-and-operator-tooling/spec.md.
  *
- * <p>Each test is pending: the FEAT-005 plan and its implementation slices remove @Disabled, watch
- * the test fail, then implement it. P1 decisions are recorded in the spec and ADR 0017.
+ * <p>Every P1 criterion now has an active integration test; the remaining placeholders are removed
+ * when the P2 slice lands.
  */
 class RefundCriteriaTest {
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-REFUND-008")
-  void nonOperatorAndPhoneAreRejected() {
-    fail("not implemented");
-  }
 
   @Test
   @Disabled("pending: FEAT-005 P2")
@@ -36,41 +30,6 @@ class RefundCriteriaTest {
   }
 
   @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-001")
-  void reconciliationQueueListsSuspenseWithoutPhones() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-002")
-  void reclassifySuspenseToGoalPool() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-003")
-  void refundSuspenseOnce() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-004")
-  void miscIncomeAfterTimeout() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-006")
-  void concurrentReconciliationHasOneWinner() {
-    fail("not implemented");
-  }
-
-  @Test
   @Disabled("pending: FEAT-005 P2")
   @Criterion("AC-OPS-007")
   void settlementUploadIsIdempotent() {
@@ -81,20 +40,6 @@ class RefundCriteriaTest {
   @Disabled("pending: FEAT-005 P2")
   @Criterion("AC-OPS-008")
   void payoutAndNotificationReviewDoesNotReexecute() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-009")
-  void miscIncomeRequiresTwoDistinctOperators() {
-    fail("not implemented");
-  }
-
-  @Test
-  @Disabled("pending: FEAT-005 plan")
-  @Criterion("AC-OPS-010")
-  void sensitiveActionsRequireFreshTotp() {
     fail("not implemented");
   }
 }
