@@ -269,7 +269,7 @@ public class ContributionRepository {
                    end), 0)
             from ledger_entries le
             join contributions c on c.id = le.contribution_id
-            where c.goal_id = ?
+            where c.goal_id = ? and le.account = 'GOAL_POOL'
             """,
             Long.class,
             goalId);
