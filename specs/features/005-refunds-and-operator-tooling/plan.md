@@ -135,7 +135,7 @@ attributable.
 | AC-REFUND-005 | Integration | `RefundRequestIT` | Active blocks with id/state; completed blocks every contribution; failed/cancelled allow. |
 | AC-REFUND-006 | Integration | `RefundRequestIT` | Concurrent requests, one winner, idempotency conflict. |
 | AC-REFUND-007 | Integration | `RefundPostingIT` | Full `A + P + F`; retained fee loss set; balanced; no account negative except the allowed `PARTNER_HELD` F obligation. |
-| AC-REFUND-008 | Integration | `RefundAuthorizationIT` | Non-operator, foreign contribution, no phone. |
+| AC-REFUND-008 | Integration | `RefundRequestIT`, `OperatorPrivacyIT`, `OperatorAuthorizationIT` | Non-operator, foreign contribution, phone in a reason, and phone-free responses/events/alerts/metrics. |
 | AC-REFUND-009 | P2 | `PostPayoutRecoveryIT` | Deferred to the P2 slice. |
 | AC-REFUND-010 | P2 | `PostPayoutRecoveryIT` | Deferred to the P2 slice. |
 | AC-OPS-001 | Integration | `ReconciliationQueueIT` | No phone fields; age and reference. |

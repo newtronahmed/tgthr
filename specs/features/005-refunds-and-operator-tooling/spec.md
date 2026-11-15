@@ -116,7 +116,8 @@ inflating a goal, and every action is attributable, idempotent and safe against 
    both require an operator reason and audit. A refund from suspense debits `SUSPENSE` (not
    `GOAL_POOL`) and does not post the goal amount a second time.
 9. **Audit.** Every request, provider result, state transition, reason and resolution is appended to
-   an immutable audit/event table. Operator responses and logs never contain phone numbers.
+   an immutable audit/event table. Operator responses and logs never contain phone numbers, and a
+   free-text reason that contains a phone number is rejected before anything is written.
 10. **Configuration.** The misc-income timeout, refund provider timeout and operator role source are
     configuration, defaulting conservatively; changing a fee or timeout requires an amendment here.
 11. **Post-payout requests.** P1 returns `REFUND_AFTER_PAYOUT`; support records the request out of
