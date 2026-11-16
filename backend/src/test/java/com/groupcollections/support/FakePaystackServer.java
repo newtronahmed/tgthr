@@ -142,6 +142,15 @@ public final class FakePaystackServer implements AutoCloseable {
     refundScenario = scenario;
   }
 
+  /** Primes a refund record without a POST, for tests that seed a pending refund directly. */
+  public void seedRefund(String transaction, String reference, long amount, String currency) {
+    refundReferenceByTransaction.put(transaction, reference);
+    refundAmountByTransaction.put(transaction, amount);
+    refundCurrencyByTransaction.put(transaction, currency);
+    refundAmountByReference.put(reference, amount);
+    refundCurrencyByReference.put(reference, currency);
+  }
+
   /** SUCCESS, NOT_FOUND or UNKNOWN. */
   public void resolveScenario(String scenario) {
     resolveScenario = scenario;

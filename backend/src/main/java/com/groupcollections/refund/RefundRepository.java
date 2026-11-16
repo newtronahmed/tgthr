@@ -138,6 +138,18 @@ public class RefundRepository {
         COLUMNS + "where state = ? order by created_at desc limit ?", MAPPER, state.name(), limit);
   }
 
+  public int markProviderRequested(UUID id, Instant now) {
+    return jdbc.update(
+        """
+        update refunds
+        set provider_requested_at = coalesce(provider_requested_at, ?), updated_at = ?
+        where id = ? and state = 'PENDING'
+        """,
+        Timestamp.from(now),
+        Timestamp.from(now),
+        id);
+  }
+
   public int markProviderPending(
       UUID id, String providerReference, Instant nextVerificationAt, Instant now) {
     return jdbc.update(

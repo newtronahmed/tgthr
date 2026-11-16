@@ -115,8 +115,10 @@ attributable.
    alert.
 4. A `REFUND_OPERATOR` uses `POST /operator/refunds/{id}/verify` with a reason to ask Paystack for
    the result; verification follows the same success/failure transitions, is audited, and never
-   posts twice. A scheduled job re-checks due `PROVIDER_PENDING` refunds with bounded exponential
-   backoff; exhaustion raises one alert and keeps the reservation because the outcome is unknown.
+   posts twice. The same action recovers a `PENDING` row left by a process stop: it submits when no
+   provider attempt was recorded and verifies when one was. A scheduled job re-checks due
+   `PROVIDER_PENDING` refunds with bounded exponential backoff; exhaustion raises one alert and
+   keeps the reservation because the outcome is unknown.
 5. Suspense resolution: the queue lists unresolved contributions without phones. Reclassification and
    refund use the same posting/guard rules; income is a two-step propose/approve flow with distinct
    operators.
@@ -186,9 +188,10 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
 - Required secret: `OPERATOR_TOTP_ENCRYPTION_KEY`, no default; startup fails when operator auth is
   enabled without it. The first `OPERATOR_ADMIN` is provisioned at deploy time from a one-time token;
   no migration contains a password, TOTP secret or token.
-- Disabling `refunds.enabled` currently gates the whole refund module, including read, verify and
-  completion. Drains pending refunds before disabling; T501 separates request gating so a future
-  disable keeps read/verify/completion open and no `PENDING`/`PROVIDER_PENDING` refund is stranded.
+- Disabling `refunds.enabled` rejects new refund requests with `409 REFUNDS_DISABLED` while read,
+  verify, completion and the scheduled verification job stay available, so no `PENDING` or
+  `PROVIDER_PENDING` refund is stranded. Reconciliation actions remain gated by the same flag; drain
+  open suspense items before disabling.
 - Enable `provider=paystack` only after T401 records the sandbox fee-return result and the live key is
   configured. Tests use the fake only.
 - Observability: operator auth failures/lockouts, refund requested/succeeded/failed/pending (with a
