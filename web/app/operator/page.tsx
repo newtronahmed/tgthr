@@ -189,8 +189,7 @@ function Banner({ error, ok }: { error?: string; ok?: string }) {
 }
 
 function RefundCard({ refund, canVerify }: { refund: RefundView; canVerify: boolean }) {
-  const verifiable =
-    canVerify && (refund.state === "PENDING" || refund.state === "PROVIDER_PENDING");
+  const verifiable = canVerify && refund.state === "PROVIDER_PENDING";
   return (
     <article className="rounded-3xl border border-slate-100 bg-white p-4 shadow-soft-card">
       <div className="flex items-start justify-between gap-3">

@@ -101,8 +101,9 @@ attributable.
 
 ### Operator console (slice 4)
 
-- `/operator/signin` and `/operator/enroll/[token]` handle password + TOTP, one-time enrollment,
-  recovery-code sign-in and logout.
+- `/operator/signin` and `/operator/enroll` handle password + TOTP or recovery-code sign-in,
+  one-time enrollment and logout. The enrollment token stays in a short-lived `HttpOnly` cookie, not
+  the URL.
 - `/operator` lists refunds, requests a refund by contribution ID and verifies a pending refund.
 - `/operator/reconciliation` lists the queue, resolves an item by reclassify/refund/income and
   approves a proposed income with an optional fresh TOTP.

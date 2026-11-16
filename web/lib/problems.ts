@@ -13,6 +13,8 @@ export function operatorProblemMessage(problem: Problem): string {
       return "That authenticator code is invalid or was already used.";
     case "MFA_CHALLENGE_EXPIRED":
       return "The sign-in challenge expired. Start again.";
+    case "RATE_LIMITED":
+      return "Too many attempts. Wait a few minutes and try again.";
     case "STEP_UP_REQUIRED":
       return "Enter a current authenticator code to continue.";
     case "FORBIDDEN":

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { selectEnrollmentToken } from "../auth-actions";
+import { cookies } from "next/headers";
+import { OperatorEnroll } from "@/components/operator-enroll";
+import { clearEnrollmentToken, selectEnrollmentToken } from "../auth-actions";
 
 export const metadata: Metadata = {
   title: "Operator enrollment",
@@ -16,6 +18,25 @@ export default async function EnrollmentPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
+  const jar = await cookies();
+  const token = jar.get("tgthr_operator_enrollment")?.value;
+
+  if (token) {
+    return (
+      <>
+        <OperatorEnroll token={token} />
+        <form action={clearEnrollmentToken} className="mx-auto w-full max-w-lg px-5 pb-8 text-center">
+          <button
+            type="submit"
+            className="text-[11px] font-bold text-slate-500 transition hover:text-forest-700"
+          >
+            Use a different enrollment token
+          </button>
+        </form>
+      </>
+    );
+  }
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 py-8">
       <header className="flex items-center gap-2.5">

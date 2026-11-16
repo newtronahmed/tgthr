@@ -327,6 +327,18 @@ function ApproveIncomeForm() {
             placeholder="123456"
           />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            Recovery code (if TOTP is unavailable)
+          </span>
+          <input
+            type="text"
+            name="recoveryCode"
+            autoComplete="off"
+            spellCheck={false}
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </label>
       </div>
       <button
         type="submit"

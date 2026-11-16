@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { login, mfa, resetChallenge } from "../auth-actions";
+import { login, mfa, recover, resetChallenge } from "../auth-actions";
 import { ArrowRight, Shield } from "@/components/icons";
 import { operatorProblemMessage } from "@/lib/problems";
 
@@ -16,13 +16,14 @@ const inputClass =
 export default async function OperatorSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ step?: string; error?: string }>;
+  searchParams: Promise<{ step?: string; mode?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const jar = await cookies();
   const challenge = jar.get("tgthr_operator_challenge")?.value;
   const username = jar.get("tgthr_operator_username")?.value ?? "";
-  const step = params.step === "mfa" && challenge ? "mfa" : "password";
+  const recovery = params.mode === "recovery";
+  const step = !recovery && params.step === "mfa" && challenge ? "mfa" : "password";
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 py-8">
@@ -66,7 +67,76 @@ export default async function OperatorSignInPage({
           </p>
         ) : null}
 
-        {step === "password" ? (
+        {recovery ? (
+          <form action={recover} className="space-y-4">
+            <div>
+              <label
+                htmlFor="recovery-username"
+                className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500"
+              >
+                Username
+              </label>
+              <input
+                id="recovery-username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="recovery-password"
+                className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500"
+              >
+                Password
+              </label>
+              <input
+                id="recovery-password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="recovery-code"
+                className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500"
+              >
+                Recovery code
+              </label>
+              <input
+                id="recovery-code"
+                name="recoveryCode"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                className={`${inputClass} font-mono text-xs`}
+                required
+              />
+            </div>
+            <p className="text-[11px] leading-relaxed text-slate-500">
+              One unused code signs you in once. The code is consumed even if a later step fails.
+            </p>
+            <button
+              type="submit"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-forest-600 px-5 py-3 text-sm font-extrabold text-white shadow-floating-btn transition hover:bg-forest-700"
+            >
+              Sign in with a recovery code
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <Link
+              href="/operator/signin"
+              className="block text-center text-[11px] font-bold text-forest-700 hover:text-forest-800"
+            >
+              Back to password sign in
+            </Link>
+          </form>
+        ) : step === "password" ? (
           <form action={login} className="space-y-4">
             <div>
               <label
@@ -153,6 +223,18 @@ export default async function OperatorSignInPage({
           </form>
         )}
       </section>
+
+      {!recovery && step === "password" ? (
+        <p className="mt-4 text-center text-[11px] text-slate-500">
+          Lost your authenticator?{" "}
+          <Link
+            href="/operator/signin?mode=recovery"
+            className="font-bold text-forest-700 hover:text-forest-800"
+          >
+            Use a recovery code
+          </Link>
+        </p>
+      ) : null}
 
       <p className="mt-5 text-center text-[11px] text-slate-500">
         Have a one-time enrollment token?{" "}

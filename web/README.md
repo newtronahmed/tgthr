@@ -31,8 +31,8 @@ npm run start   # serve the production build
 - `/c/[id]` — live status and receipt; polls while pending.
 - `/signin` — organizer phone OTP sign-in.
 - `/organizer`, `/organizer/goals/new`, `/organizer/goals/[id]` — dashboard, goal wizard and close.
-- `/operator/signin`, `/operator/enroll/[token]` — operator password + TOTP sign-in and one-time
-  enrollment.
+- `/operator/signin`, `/operator/enroll` — operator password + TOTP or recovery-code sign-in, and
+  one-time enrollment. The enrollment token is held in a short-lived `HttpOnly` cookie, never the URL.
 - `/operator` — refund queue, request form and provider verification.
 - `/operator/reconciliation` — suspense queue, reclassify/refund/income actions and income approval.
 - `/operator/api/[...path]` — operator BFF used by enrollment; refund and reconciliation money

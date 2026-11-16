@@ -14,6 +14,7 @@ async function post(
   body: Record<string, unknown>,
   idempotencyKey: string,
   totp?: string,
+  recoveryCode?: string,
 ): Promise<Result> {
   const store = await cookies();
   const token = store.get(COOKIE)?.value;
@@ -29,6 +30,9 @@ async function post(
   }
   if (totp) {
     headers["X-Operator-TOTP"] = totp;
+  }
+  if (recoveryCode) {
+    headers["X-Operator-Recovery-Code"] = recoveryCode;
   }
   try {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -122,6 +126,7 @@ export async function approveIncome(formData: FormData) {
   const reason = value(formData, "reason");
   const key = value(formData, "idempotencyKey");
   const totp = value(formData, "totp");
+  const recoveryCode = value(formData, "recoveryCode");
   if (!contributionId || !reason || !key) {
     redirect("/operator/reconciliation?error=INVALID_REQUEST");
   }
@@ -130,6 +135,7 @@ export async function approveIncome(formData: FormData) {
     { reason },
     key,
     totp || undefined,
+    recoveryCode || undefined,
   );
   finish(result, "/operator/reconciliation", "income-approved");
 }

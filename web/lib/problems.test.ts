@@ -51,6 +51,10 @@ test("maps operator auth and money-action problems", () => {
     "Enter a current authenticator code to continue.",
   );
   assert.equal(
+    operatorProblemMessage({ code: "RATE_LIMITED" }),
+    "Too many attempts. Wait a few minutes and try again.",
+  );
+  assert.equal(
     operatorProblemMessage({ code: "RECONCILIATION_ALREADY_RESOLVED" }),
     "Another operator already resolved this item.",
   );

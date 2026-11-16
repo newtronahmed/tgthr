@@ -7,6 +7,7 @@ const API_BASE = (process.env.API_BASE_URL ?? "http://localhost:8080/v1").replac
 const CHALLENGE = "tgthr_operator_challenge";
 const USERNAME = "tgthr_operator_username";
 const SESSION = "tgthr_operator_session";
+const ENROLLMENT = "tgthr_operator_enrollment";
 
 function secureCookies(): boolean {
   if (process.env.COOKIE_SECURE === "false") {
@@ -86,12 +87,44 @@ export async function mfa(formData: FormData) {
     }
     redirect(`/operator/signin?step=mfa&error=${encodeURIComponent(failure)}`);
   }
+  await storeSession(response, "/operator/signin?step=mfa&error=UNAVAILABLE");
+}
+
+export async function recover(formData: FormData) {
+  const username = String(formData.get("username") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const recoveryCode = String(formData.get("recoveryCode") ?? "").trim();
+  if (!username || !password || !recoveryCode) {
+    redirect("/operator/signin?mode=recovery&error=INVALID_REQUEST");
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/operator/auth/recovery`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username, password, recoveryCode }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    redirect("/operator/signin?mode=recovery&error=UNAVAILABLE");
+  }
+  if (!response.ok) {
+    redirect(
+      `/operator/signin?mode=recovery&error=${encodeURIComponent(await problemCode(response))}`,
+    );
+  }
+  await storeSession(response, "/operator/signin?mode=recovery&error=UNAVAILABLE");
+}
+
+async function storeSession(response: Response, failurePath: string): Promise<never> {
   const setCookie = response.headers.get("set-cookie") ?? "";
   const token = /tgthr_operator_session=([^;]+)/.exec(setCookie)?.[1];
   if (!token) {
-    redirect("/operator/signin?step=mfa&error=UNAVAILABLE");
+    redirect(failurePath);
   }
   const maxAge = Number(/Max-Age=(\d+)/i.exec(setCookie)?.[1] ?? 8 * 60 * 60);
+  const jar = await cookies();
   jar.set(SESSION, decodeURIComponent(token), {
     httpOnly: true,
     sameSite: "strict",
@@ -116,7 +149,21 @@ export async function selectEnrollmentToken(formData: FormData) {
   if (!token) {
     redirect("/operator/enroll?error=INVALID_REQUEST");
   }
-  redirect(`/operator/enroll/${encodeURIComponent(token)}`);
+  const jar = await cookies();
+  jar.set(ENROLLMENT, token, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: secureCookies(),
+    path: "/operator",
+    maxAge: 900,
+  });
+  redirect("/operator/enroll");
+}
+
+export async function clearEnrollmentToken() {
+  const jar = await cookies();
+  jar.delete({ name: ENROLLMENT, path: "/operator" });
+  redirect("/operator/enroll");
 }
 
 export async function logout() {
@@ -135,5 +182,8 @@ export async function logout() {
     }
   }
   jar.delete({ name: SESSION, path: "/operator" });
+  jar.delete({ name: CHALLENGE, path: "/operator" });
+  jar.delete({ name: USERNAME, path: "/operator" });
+  jar.delete({ name: ENROLLMENT, path: "/operator" });
   redirect("/operator/signin");
 }
