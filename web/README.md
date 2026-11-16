@@ -10,6 +10,8 @@ in `design/tgthr_figma_design_prototype.html`.
   `http://localhost:8080/v1`.
 - `NEXT_PUBLIC_SITE_URL` — canonical site URL for Open Graph metadata. Default
   `http://localhost:3000`.
+- `COOKIE_SECURE` — set `false` only for local HTTP builds; defaults to secure in production. The
+  operator session cookie is `HttpOnly`, `SameSite=Strict` and scoped to `/operator`.
 
 No secrets belong here. The browser never calls the backend directly; route handlers under
 `app/api` proxy it, which keeps the API base server-side and avoids CORS.
@@ -29,7 +31,17 @@ npm run start   # serve the production build
 - `/c/[id]` — live status and receipt; polls while pending.
 - `/signin` — organizer phone OTP sign-in.
 - `/organizer`, `/organizer/goals/new`, `/organizer/goals/[id]` — dashboard, goal wizard and close.
+- `/operator/signin`, `/operator/enroll/[token]` — operator password + TOTP sign-in and one-time
+  enrollment.
+- `/operator` — refund queue, request form and provider verification.
+- `/operator/reconciliation` — suspense queue, reclassify/refund/income actions and income approval.
+- `/operator/api/[...path]` — operator BFF used by enrollment; refund and reconciliation money
+  actions run as server actions.
 - `/api/...` — server-side proxies to the Spring API, including `/api/auth/*` and `/api/organizer/*`.
+
+The operator console needs `OPERATOR_ENABLED=true` (with `OPERATOR_TOTP_ENCRYPTION_KEY`) and
+`REFUNDS_ENABLED=true` on the backend. The first admin is provisioned from the deploy-time bootstrap
+token; see `docs/runbooks/operator-access.md`.
 
 Fees are never computed here: the checkout requests `/public/goals/{slug}/contribution-quote`
 from the API and displays the returned breakdown.

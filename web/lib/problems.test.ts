@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { criterion } from "./criterion.ts";
-import { problemMessage } from "./problems.ts";
+import { operatorProblemMessage, problemMessage } from "./problems.ts";
 
 criterion("AC-CONTRIB-022", "AC-CONTRIB-012", "AC-CONTRIB-019", "AC-CONTRIB-015");
 
@@ -34,5 +34,32 @@ test("falls back to the problem detail", () => {
   assert.equal(
     problemMessage({ code: "UNKNOWN", detail: "Server exploded" }, { minimumAmountPesewas: 1_000 }),
     "Server exploded",
+  );
+});
+
+test("maps operator auth and money-action problems", () => {
+  assert.equal(
+    operatorProblemMessage({ code: "INVALID_CREDENTIALS" }),
+    "That username or password is not correct.",
+  );
+  assert.equal(
+    operatorProblemMessage({ code: "INVALID_CODE" }),
+    "That authenticator code is invalid or was already used.",
+  );
+  assert.equal(
+    operatorProblemMessage({ code: "STEP_UP_REQUIRED" }),
+    "Enter a current authenticator code to continue.",
+  );
+  assert.equal(
+    operatorProblemMessage({ code: "RECONCILIATION_ALREADY_RESOLVED" }),
+    "Another operator already resolved this item.",
+  );
+  assert.equal(
+    operatorProblemMessage({ code: "DUAL_CONTROL_REQUIRED" }),
+    "A different finance approver must approve this income.",
+  );
+  assert.equal(
+    operatorProblemMessage({ code: "REFUNDS_DISABLED" }),
+    "New refunds are disabled. Existing refunds can still be verified.",
   );
 });
