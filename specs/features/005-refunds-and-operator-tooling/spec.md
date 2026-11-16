@@ -90,7 +90,9 @@ inflating a goal, and every action is attributable, idempotent and safe against 
    the contribution `CONFIRMED → REFUNDED`. A pending/unknown provider result leaves the refund
    `PROVIDER_PENDING` with the reservation held and raises an alert; it is never posted twice.
    `POST /operator/refunds/{id}/verify` is a `REFUND_OPERATOR` action: it requires a reason, is
-   audited and idempotent, and enters the same confirmation path because it can post the ledger.
+   audited and idempotent, and enters the same confirmation path because it can post the ledger. It
+   also recovers a refund left `PENDING` by a process stop: if no provider attempt was recorded it
+   submits the refund, otherwise it verifies the attempted call instead of resubmitting.
    A scheduled job also re-checks due `PROVIDER_PENDING` refunds with bounded exponential backoff.
    Exhaustion is an escalation, not a failure: an unknown outcome does not prove the provider did
    not refund, so the reservation stays held and automatic attempts stop until an operator verifies.
@@ -165,6 +167,7 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 | Failed or cancelled payout for the goal | Refund allowed; no block | AC-REFUND-005 |
 | Provider refund fails | No ledger; release reservation; alert; retry with a new key | AC-REFUND-003 |
 | Provider timeout/unknown | Hold reservation; `PROVIDER_PENDING`; verify; no blind retry | AC-REFUND-004 |
+| Process stops after the refund row commits but before the provider call | `PENDING`; verify submits if no attempt was recorded, otherwise verifies, never resubmits blindly | AC-REFUND-004 |
 | Provider stays unknown after the maximum automatic checks | Mark verification exhausted; one alert; reservation held; manual verify still allowed | AC-REFUND-011 |
 | New refund while refunds are disabled | `409 REFUNDS_DISABLED`; no refund/provider call; read, verify and completion still work | Rule 10 |
 | Provider reports success twice | One ledger set, one `REFUNDED` transition | AC-REFUND-002 |

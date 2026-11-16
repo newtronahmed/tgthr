@@ -115,8 +115,10 @@ attributable.
    alert.
 4. A `REFUND_OPERATOR` uses `POST /operator/refunds/{id}/verify` with a reason to ask Paystack for
    the result; verification follows the same success/failure transitions, is audited, and never
-   posts twice. A scheduled job re-checks due `PROVIDER_PENDING` refunds with bounded exponential
-   backoff; exhaustion raises one alert and keeps the reservation because the outcome is unknown.
+   posts twice. The same action recovers a `PENDING` row left by a process stop: it submits when no
+   provider attempt was recorded and verifies when one was. A scheduled job re-checks due
+   `PROVIDER_PENDING` refunds with bounded exponential backoff; exhaustion raises one alert and
+   keeps the reservation because the outcome is unknown.
 5. Suspense resolution: the queue lists unresolved contributions without phones. Reclassification and
    refund use the same posting/guard rules; income is a two-step propose/approve flow with distinct
    operators.

@@ -33,6 +33,7 @@ import org.springframework.test.context.TestPropertySource;
       "collections.operator.enabled=true",
       "collections.operator.totp-secret-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       "collections.operator.session-ttl=PT1H",
+      "collections.refunds.enabled=false",
       "collections.refunds.provider=paystack",
       "collections.refunds.partner-retains-processing-fee=false"
     })
@@ -61,14 +62,22 @@ class RefundDisableIT extends ApiIntegrationTest {
     assertThat(list.getStatusCode()).isEqualTo(HttpStatus.OK);
 
     ResponseEntity<Map<String, Object>> blocked =
-        request(contribution.id(), "disabled-refund-one", token);
+        request(contribution.id(), "disabled-refund-one", "duplicate charge", token);
     assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(blocked.getBody()).containsEntry("code", "REFUNDS_DISABLED");
     assertThat(count("select count(*) from refunds where contribution_id = ?", contribution.id()))
         .isZero();
     assertThat(PAYSTACK.refundBodies()).isEmpty();
 
-    UUID refundId = seedPendingRefund(contribution, operator.id(), null);
+    UUID refundId =
+        seedPendingRefund(
+            contribution,
+            operator.id(),
+            "PROVIDER_PENDING",
+            "seeded-verify",
+            "seeded pending",
+            Instant.now(),
+            null);
     PAYSTACK.seedRefund(
         contribution.id().toString(), "refund-seeded-verify", contribution.total(), "GHS");
     PAYSTACK.refundScenario("SUCCESS");
@@ -100,7 +109,15 @@ class RefundDisableIT extends ApiIntegrationTest {
   void disablingNewRequestsKeepsTheVerificationJobRunning() {
     Contribution contribution = confirmedContribution("0240000002");
     TestOperator operator = operator("disabled.job", OperatorRole.REFUND_OPERATOR);
-    UUID refundId = seedPendingRefund(contribution, operator.id(), Instant.now());
+    UUID refundId =
+        seedPendingRefund(
+            contribution,
+            operator.id(),
+            "PROVIDER_PENDING",
+            "seeded-job",
+            "seeded pending",
+            Instant.now(),
+            Instant.now());
     PAYSTACK.seedRefund(
         contribution.id().toString(), "refund-seeded-job", contribution.total(), "GHS");
     PAYSTACK.refundScenario("SUCCESS");
@@ -116,7 +133,118 @@ class RefundDisableIT extends ApiIntegrationTest {
         .isEqualTo(4);
   }
 
-  private UUID seedPendingRefund(Contribution contribution, UUID operatorId, Instant nextCheck) {
+  @Test
+  @Criterion("AC-REFUND-006")
+  void aReplayWhileDisabledReturnsTheOriginalWithoutCallingTheProvider() {
+    Contribution contribution = confirmedContribution("0240000003");
+    TestOperator operator = operator("disabled.replay", OperatorRole.REFUND_OPERATOR);
+    UUID refundId =
+        seedPendingRefund(
+            contribution,
+            operator.id(),
+            "PENDING",
+            "disabled-replay-key",
+            "duplicate charge",
+            null,
+            null);
+    String token = signIn(operator);
+
+    ResponseEntity<Map<String, Object>> replay =
+        request(contribution.id(), "disabled-replay-key", "duplicate charge", token);
+
+    assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(replay.getBody()).containsEntry("id", refundId.toString());
+    assertThat(refundState(refundId)).isEqualTo("PENDING");
+    assertThat(PAYSTACK.refundBodies()).isEmpty();
+
+    ResponseEntity<Map<String, Object>> conflict =
+        request(contribution.id(), "disabled-replay-key", "different reason", token);
+    assertThat(conflict.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(conflict.getBody()).containsEntry("code", "IDEMPOTENCY_CONFLICT");
+    assertThat(PAYSTACK.refundBodies()).isEmpty();
+  }
+
+  @Test
+  @Criterion("AC-REFUND-004")
+  void verifySubmitsAPendingRefundThatWasNeverSent() {
+    Contribution contribution = confirmedContribution("0240000004");
+    TestOperator operator = operator("disabled.pending.submit", OperatorRole.REFUND_OPERATOR);
+    UUID refundId =
+        seedPendingRefund(
+            contribution,
+            operator.id(),
+            "PENDING",
+            "disabled-pending-submit",
+            "seeded pending",
+            null,
+            null);
+    PAYSTACK.refundScenario("SUCCESS");
+    String token = signIn(operator);
+
+    ResponseEntity<Map<String, Object>> verified = verify(refundId, token);
+
+    assertThat(verified.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(refundState(refundId)).isEqualTo("SUCCEEDED");
+    assertThat(PAYSTACK.refundBodies()).hasSize(1);
+    assertThat(PAYSTACK.refundBodies().getFirst())
+        .contains(contribution.id().toString(), String.valueOf(contribution.total()));
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where refund_id = ? and entry_type = 'REVERSAL'",
+                refundId))
+        .isEqualTo(4);
+    assertThat(
+            count(
+                "select count(*) from operator_actions where subject_id = ? and action = 'REFUND_SUBMITTED'",
+                refundId))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "select provider_requested_at from refunds where id = ?",
+                java.sql.Timestamp.class,
+                refundId))
+        .isNotNull();
+  }
+
+  @Test
+  @Criterion("AC-REFUND-004")
+  void verifyChecksRatherThanResubmitsWhenAnAttemptWasRecorded() {
+    Contribution contribution = confirmedContribution("0240000005");
+    TestOperator operator = operator("disabled.pending.started", OperatorRole.REFUND_OPERATOR);
+    UUID refundId =
+        seedPendingRefund(
+            contribution,
+            operator.id(),
+            "PENDING",
+            "disabled-pending-started",
+            "seeded pending",
+            Instant.now(),
+            null);
+    PAYSTACK.seedRefund(
+        contribution.id().toString(), "refund-seeded-started", contribution.total(), "GHS");
+    PAYSTACK.refundScenario("SUCCESS");
+    String token = signIn(operator);
+
+    ResponseEntity<Map<String, Object>> verified = verify(refundId, token);
+
+    assertThat(verified.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(refundState(refundId)).isEqualTo("SUCCEEDED");
+    assertThat(PAYSTACK.refundBodies()).isEmpty();
+    assertThat(
+            count(
+                "select count(*) from ledger_entries where refund_id = ? and entry_type = 'REVERSAL'",
+                refundId))
+        .isEqualTo(4);
+  }
+
+  private UUID seedPendingRefund(
+      Contribution contribution,
+      UUID operatorId,
+      String state,
+      String idempotencyKey,
+      String reason,
+      Instant providerRequestedAt,
+      Instant nextCheck) {
     Map<String, Object> row =
         jdbc.queryForMap(
             """
@@ -132,10 +260,9 @@ class RefundDisableIT extends ApiIntegrationTest {
             (id, contribution_id, goal_id, source_account, amount_minor_units,
              platform_fee_minor_units, processing_fee_minor_units, total_minor_units,
              currency_code, state, idempotency_key, provider_transaction_reference,
-             operator_id, reason, created_at, updated_at, verification_attempts,
-             next_verification_at)
-        values (?, ?, ?, 'GOAL_POOL', ?, ?, ?, ?, ?, 'PROVIDER_PENDING', ?, ?, ?, 'seeded pending',
-                now(), now(), 0, ?)
+             operator_id, reason, provider_requested_at, created_at, updated_at,
+             verification_attempts, next_verification_at)
+        values (?, ?, ?, 'GOAL_POOL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now(), 0, ?)
         """,
         refundId,
         contribution.id(),
@@ -145,21 +272,24 @@ class RefundDisableIT extends ApiIntegrationTest {
         row.get("processing_fee_minor_units"),
         row.get("total_minor_units"),
         row.get("currency_code"),
-        "seeded-" + refundId,
+        state,
+        idempotencyKey,
         contribution.id().toString(),
         operatorId,
+        reason,
+        providerRequestedAt == null ? null : Timestamp.from(providerRequestedAt),
         nextCheck == null ? null : Timestamp.from(nextCheck));
     return refundId;
   }
 
   private ResponseEntity<Map<String, Object>> request(
-      UUID contributionId, String key, String token) {
+      UUID contributionId, String key, String reason, String token) {
     HttpHeaders headers = jsonHeaders(token);
     headers.set("Idempotency-Key", key);
     return rest.exchange(
         "/operator/contributions/{id}/refund",
         HttpMethod.POST,
-        new HttpEntity<>(Map.of("reason", "duplicate charge"), headers),
+        new HttpEntity<>(Map.of("reason", reason), headers),
         new ParameterizedTypeReference<>() {},
         contributionId);
   }

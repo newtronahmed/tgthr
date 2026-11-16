@@ -183,18 +183,34 @@ public class RefundService {
     actor.requireRole(OperatorRole.REFUND_OPERATOR);
     String cleanReason = requireReason(reason);
     Refund refund = refunds.findById(refundId).orElseThrow(RefundException::notFound);
-    if (refund.state() != RefundState.PROVIDER_PENDING) {
+    RefundProvider.RefundResult result;
+    String action;
+    if (refund.state() == RefundState.PROVIDER_PENDING) {
+      result = verifySafely(refund);
+      action = "REFUND_VERIFIED";
+    } else if (refund.state() == RefundState.PENDING) {
+      if (refund.providerRequestedAt() == null) {
+        if (refunds.markProviderRequested(refund.id(), Instant.now(clock)) == 0) {
+          throw RefundException.notPending();
+        }
+        result = submitSafely(refund);
+        action = "REFUND_SUBMITTED";
+        meters.counter("refunds.recovered_submission").increment();
+      } else {
+        result = verifySafely(refund);
+        action = "REFUND_VERIFIED";
+      }
+    } else {
       throw RefundException.notPending();
     }
-    RefundProvider.RefundResult result = provider.verify(refund);
     completion.process(refundId, result);
     operators.recordAction(
         actor.id(),
-        "REFUND_VERIFIED",
+        action,
         "REFUND",
         refundId,
         cleanReason,
-        RefundState.PROVIDER_PENDING.name(),
+        refund.state().name(),
         result.status().name(),
         Instant.now(clock));
     meters.counter("refunds.verified").increment();
@@ -202,14 +218,10 @@ public class RefundService {
   }
 
   void callProvider(Refund refund) {
-    RefundProvider.RefundResult result;
-    try {
-      result = provider.refund(refund);
-    } catch (RuntimeException failure) {
-      result =
-          RefundProvider.RefundResult.pending(
-              null, RefundProvider.RefundResult.PendingReason.UNKNOWN_STATUS);
+    if (refunds.markProviderRequested(refund.id(), Instant.now(clock)) == 0) {
+      return;
     }
+    RefundProvider.RefundResult result = submitSafely(refund);
     try {
       completion.process(refund.id(), result);
     } catch (RuntimeException failure) {
@@ -223,6 +235,24 @@ public class RefundService {
               Alert.AlertType.REFUND_COMPLETION_FAILED,
               refund.id().toString(),
               "provider result could not be applied"));
+    }
+  }
+
+  private RefundProvider.RefundResult submitSafely(Refund refund) {
+    try {
+      return provider.refund(refund);
+    } catch (RuntimeException failure) {
+      return RefundProvider.RefundResult.pending(
+          null, RefundProvider.RefundResult.PendingReason.UNKNOWN_STATUS);
+    }
+  }
+
+  private RefundProvider.RefundResult verifySafely(Refund refund) {
+    try {
+      return provider.verify(refund);
+    } catch (RuntimeException failure) {
+      return RefundProvider.RefundResult.pending(
+          null, RefundProvider.RefundResult.PendingReason.UNKNOWN_STATUS);
     }
   }
 

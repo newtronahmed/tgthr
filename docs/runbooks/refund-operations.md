@@ -81,11 +81,14 @@ refunds with backoff. A `REFUND_OPERATOR` can also verify manually:
 
 ```http
 POST /operator/refunds/{refundId}/verify
-Idempotency-Key: not required
 Content-Type: application/json
 
 {"reason": "provider verification"}
 ```
+
+`provider_requested_at` records when a provider call started. If a refund is still `PENDING` with
+`provider_requested_at` null (for example the process stopped after the insert), verify submits the
+refund. If an attempt was recorded, verify checks the provider instead of resubmitting.
 
 | Result | State | Action |
 | --- | --- | --- |
