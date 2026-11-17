@@ -40,7 +40,7 @@ async function post(
       headers,
       body: JSON.stringify(body),
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(30_000),
     });
     if (response.ok) {
       return { ok: true };

@@ -123,12 +123,22 @@ jobs:
           curl -sf http://127.0.0.1:8090/v1/actuator/health >/dev/null || (tail -100 /tmp/backend.log && exit 1)
       - name: Seed the E2E goal
         run: |
+          count=0
           for i in $(seq 1 60); do
             count=$(PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -tA -c "select count(*) from operators" 2>/dev/null || echo 0)
             [ "$count" -ge 1 ] && break
             sleep 1
           done
+          if [ "$count" -lt 1 ]; then
+            echo "operator bootstrap did not create e2e.admin"
+            exit 1
+          fi
           PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -f web/e2e/seed.sql
+          roles=$(PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -tA -c "select count(*) from operator_roles r join operators o on o.id = r.operator_id where o.username = 'e2e.admin' and r.role in ('REFUND_OPERATOR', 'RECONCILER', 'FINANCE_APPROVER')")
+          if [ "$roles" -ne 3 ]; then
+            echo "operator roles were not seeded: $roles"
+            exit 1
+          fi
       - name: Install and build web
         working-directory: web
         run: |
