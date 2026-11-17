@@ -34,11 +34,15 @@ export async function readBody(request: Request, maxBytes = 32_768): Promise<str
   return body.length > maxBytes ? null : body;
 }
 
-export async function proxy(path: string, init?: RequestInit): Promise<Response> {
+export async function proxy(
+  path: string,
+  init?: RequestInit,
+  timeoutMs = 10_000,
+): Promise<Response> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const body = await response.text();
   const headers = new Headers({

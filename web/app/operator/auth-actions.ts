@@ -37,7 +37,7 @@ export async function login(formData: FormData) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ username, password }),
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(30_000),
     });
   } catch {
     redirect("/operator/signin?error=UNAVAILABLE");
@@ -73,7 +73,7 @@ export async function mfa(formData: FormData) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ challengeToken: challenge, code }),
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(30_000),
     });
   } catch {
     redirect("/operator/signin?step=mfa&error=UNAVAILABLE");
@@ -104,7 +104,7 @@ export async function recover(formData: FormData) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ username, password, recoveryCode }),
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(30_000),
     });
   } catch {
     redirect("/operator/signin?mode=recovery&error=UNAVAILABLE");

@@ -54,6 +54,13 @@ the web server, with the E2E goal seeded. The organizer test also needs the back
 WEB_ORIGIN=http://127.0.0.1:3200` so it can read the test code from `/v1/dev/otp/last`. Never use
 these flags in production.
 
+The operator E2E also needs `OPERATOR_ENABLED=true`, `OPERATOR_TOTP_ENCRYPTION_KEY`,
+`OPERATOR_BOOTSTRAP_TOKEN`, `OPERATOR_BOOTSTRAP_USERNAME=e2e.admin`,
+`OPERATOR_BOOTSTRAP_TOKEN_FILE=/tmp/operator-token`, `REFUNDS_ENABLED=true` and
+`REFUND_PROVIDER=paystack`. `e2e/seed.sql` grants the three operator roles and creates the refundable
+and suspense contributions; `operator.spec.ts` reads the bootstrap token, stores the test TOTP
+secret under `/tmp` and runs once on the chromium project.
+
 ```
 # terminal 1: fake provider
 PAYSTACK_SECRET_KEY=test-secret WEBHOOK_URL=http://127.0.0.1:8090/v1/webhooks/momo \

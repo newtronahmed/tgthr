@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.PORT ?? 9099);
@@ -6,6 +6,8 @@ const SECRET = process.env.PAYSTACK_SECRET_KEY ?? "test-secret";
 const WEBHOOK_URL = process.env.WEBHOOK_URL ?? "http://127.0.0.1:8090/v1/webhooks/momo";
 
 const charges = new Map();
+const refunds = new Map();
+const refundsByTransaction = new Map();
 
 function read(request) {
   return new Promise((resolve) => {
@@ -43,6 +45,45 @@ const server = createServer(async (request, response) => {
       status: true,
       data: { reference, status, amount: charge.amount, currency: "GHS" },
     });
+  }
+
+  if (request.method === "POST" && request.url === "/refund") {
+    const body = JSON.parse((await read(request)) || "{}");
+    const transaction = String(body.transaction ?? "");
+    const amount = Number(body.amount ?? 0);
+    const currency = body.currency ?? "GHS";
+    const existing = refundsByTransaction.get(transaction);
+    if (existing) {
+      return json(response, 200, { status: true, data: refunds.get(existing) });
+    }
+    const reference = `refund-${randomUUID()}`;
+    const refund = {
+      id: reference,
+      status: "processed",
+      amount,
+      currency,
+      transaction: { reference: transaction },
+      created_at: new Date().toISOString(),
+    };
+    refunds.set(reference, refund);
+    refundsByTransaction.set(transaction, reference);
+    return json(response, 200, { status: true, data: refund });
+  }
+
+  if (request.method === "GET" && request.url.startsWith("/refund")) {
+    const url = new URL(request.url, "http://127.0.0.1");
+    if (url.pathname === "/refund") {
+      const transaction = url.searchParams.get("transaction") ?? "";
+      const reference = refundsByTransaction.get(transaction);
+      const refund = reference ? refunds.get(reference) : null;
+      return json(response, 200, { status: true, data: refund ? [refund] : [] });
+    }
+    const reference = decodeURIComponent(url.pathname.split("/").pop() ?? "");
+    const refund = refunds.get(reference);
+    if (!refund) {
+      return json(response, 404, { status: false, message: "Refund not found" });
+    }
+    return json(response, 200, { status: true, data: refund });
   }
 
   if (request.method === "POST" && request.url === "/simulate") {

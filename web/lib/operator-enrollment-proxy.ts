@@ -11,9 +11,13 @@ export async function enrollmentProxy(request: Request, path: string): Promise<R
   if (body === null) {
     return new Response(null, { status: 413 });
   }
-  return proxy(path, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-  });
+  return proxy(
+    path,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    },
+    30_000,
+  );
 }
