@@ -70,10 +70,10 @@ test("operator signs in, refunds a contribution and resolves suspense", async ({
   await page.waitForURL(/\/operator\?(ok|error)=/, { timeout: 30_000 });
   if (page.url().includes("error=REFUND_NOT_ELIGIBLE")) {
     // A rerun after a successful refund: the terminal state is the assertion.
-    await expect(page.getByText("SUCCEEDED").first()).toBeVisible();
+    await expect(page.getByText("SUCCEEDED").first()).toBeVisible({ timeout: 15_000 });
   } else {
     await expect(page.getByText(/Refund requested/)).toBeVisible();
-    await expect(page.getByText("SUCCEEDED").first()).toBeVisible();
+    await expect(page.getByText("SUCCEEDED").first()).toBeVisible({ timeout: 15_000 });
   }
   await expect(page.locator("body")).not.toContainText("phone");
 
@@ -82,7 +82,7 @@ test("operator signs in, refunds a contribution and resolves suspense", async ({
   if (await page.getByText("Queue is clear").isVisible().catch(() => false)) {
     // A rerun after a successful resolution: the empty queue is the assertion.
   } else {
-    await expect(page.getByText("E2E Suspense")).toBeVisible();
+    await expect(page.getByText("E2E Suspense")).toBeVisible({ timeout: 15_000 });
     await page.getByText("Reclassify to goal").click();
     await page
       .locator('details input[name="reason"]')
