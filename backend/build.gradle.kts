@@ -20,6 +20,8 @@ repositories {
 }
 
 extra["springModulithVersion"] = "1.4.3"
+// Spring Boot 3.5.7 manages 1.21.3, which requests Docker API 1.32 and cannot talk to Docker 29.
+extra["testcontainers.version"] = "1.21.4"
 
 dependencyManagement {
     imports {
