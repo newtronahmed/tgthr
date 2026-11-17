@@ -197,7 +197,10 @@ export function OperatorEnroll({ token }: { token: string }) {
                     </span>
                     <CopyButton value={details.totpSecret} label="Copy secret" />
                   </div>
-                  <p className="break-all font-mono text-xs font-bold text-slate-900">
+                  <p
+                    data-testid="operator-totp-secret"
+                    className="break-all font-mono text-xs font-bold text-slate-900"
+                  >
                     {details.totpSecret}
                   </p>
                 </div>

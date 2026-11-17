@@ -114,7 +114,7 @@ jobs:
       - name: Start backend
         run: |
           cd backend
-          nohup env             DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/collections             DATABASE_USER=collections             DATABASE_PASSWORD=collections             SERVER_PORT=8090             PAYSTACK_BASE_URL=http://127.0.0.1:9099             PAYSTACK_SECRET_KEY=test-secret             PAYER_PHONE_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=             SPRING_PROFILES_ACTIVE=e2e             SMS_PROVIDER=dev             ACCOUNT_RESOLVER=dev             COOKIE_SECURE=false             WEB_ORIGIN=http://127.0.0.1:3200             COLLECTIONS_PAYOUT_ENABLED=true             COLLECTIONS_PAYOUT_FEE_PROVIDER=configured             COLLECTIONS_PAYOUT_TRANSFER_FEE_MINOR_UNITS=100             ./gradlew bootRun > /tmp/backend.log 2>&1 &
+          nohup env             DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/collections             DATABASE_USER=collections             DATABASE_PASSWORD=collections             SERVER_PORT=8090             PAYSTACK_BASE_URL=http://127.0.0.1:9099             PAYSTACK_SECRET_KEY=test-secret             PAYER_PHONE_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=             SPRING_PROFILES_ACTIVE=e2e             SMS_PROVIDER=dev             ACCOUNT_RESOLVER=dev             COOKIE_SECURE=false             WEB_ORIGIN=http://127.0.0.1:3200             COLLECTIONS_PAYOUT_ENABLED=true             COLLECTIONS_PAYOUT_FEE_PROVIDER=configured             COLLECTIONS_PAYOUT_TRANSFER_FEE_MINOR_UNITS=100             OPERATOR_ENABLED=true             OPERATOR_TOTP_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=             OPERATOR_BOOTSTRAP_TOKEN=e2e-bootstrap-token             OPERATOR_BOOTSTRAP_USERNAME=e2e.admin             OPERATOR_BOOTSTRAP_TOKEN_FILE=/tmp/operator-token             REFUNDS_ENABLED=true             REFUND_PROVIDER=paystack             REFUND_PARTNER_RETAINS_PROCESSING_FEE=true             REFUND_VERIFICATION_SCAN_MS=3600000             ./gradlew bootRun > /tmp/backend.log 2>&1 &
           echo $! > /tmp/backend.pid
           for i in $(seq 1 120); do
             curl -sf http://127.0.0.1:8090/v1/actuator/health >/dev/null && break
@@ -122,7 +122,23 @@ jobs:
           done
           curl -sf http://127.0.0.1:8090/v1/actuator/health >/dev/null || (tail -100 /tmp/backend.log && exit 1)
       - name: Seed the E2E goal
-        run: PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -f web/e2e/seed.sql
+        run: |
+          count=0
+          for i in $(seq 1 60); do
+            count=$(PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -tA -c "select count(*) from operators" 2>/dev/null || echo 0)
+            [ "$count" -ge 1 ] && break
+            sleep 1
+          done
+          if [ "$count" -lt 1 ]; then
+            echo "operator bootstrap did not create e2e.admin"
+            exit 1
+          fi
+          PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -f web/e2e/seed.sql
+          roles=$(PGPASSWORD=collections psql -h 127.0.0.1 -U collections -d collections -tA -c "select count(*) from operator_roles r join operators o on o.id = r.operator_id where o.username = 'e2e.admin' and r.role in ('REFUND_OPERATOR', 'RECONCILER', 'FINANCE_APPROVER')")
+          if [ "$roles" -ne 3 ]; then
+            echo "operator roles were not seeded: $roles"
+            exit 1
+          fi
       - name: Install and build web
         working-directory: web
         run: |
@@ -131,7 +147,7 @@ jobs:
       - name: Start web
         working-directory: web
         run: |
-          API_BASE_URL=http://127.0.0.1:8090/v1 nohup npm run start -- --port 3200 > /tmp/web.log 2>&1 &
+          API_BASE_URL=http://127.0.0.1:8090/v1 COOKIE_SECURE=false nohup npm run start -- --port 3200 > /tmp/web.log 2>&1 &
           echo $! > /tmp/web.pid
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:3200/ >/dev/null && break
@@ -151,4 +167,5 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:3200
           PAYSTACK_FAKE_URL: http://127.0.0.1:9099
           BACKEND_URL: http://127.0.0.1:8090/v1
+          OPERATOR_BOOTSTRAP_TOKEN_FILE: /tmp/operator-token
         run: npm run e2e
