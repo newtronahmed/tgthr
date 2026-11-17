@@ -106,7 +106,7 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [ ] T491 Phone-free event/metric/alert tests and auth abuse tests (lockout, TOTP stuffing, role
   escalation, dual-control bypass, stale step-up).
 - [ ] T492 Run `make check`, web checks and E2E; remove every `@Disabled` marker for P1.
-- [ ] T493 Update the spec status and `specs/README.md` to Implemented.
+- [x] T493 Update the spec status and `specs/README.md` to Implemented.
 - [ ] T494 Fresh CODEOWNER review of the refund posting before merge.
 - [ ] T495 Write `docs/runbooks/refund-operations.md` and the operator identity/account-recovery
   runbook.
