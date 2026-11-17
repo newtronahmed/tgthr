@@ -99,6 +99,19 @@ attributable.
 - New `operatorSession` cookie security scheme and schemas in `specs/api/openapi.yaml`. No public or
   organizer refund endpoint. OpenAPI changes land with the implementation PR.
 
+### Operator console (slice 4)
+
+- `/operator/signin` and `/operator/enroll` handle password + TOTP or recovery-code sign-in,
+  one-time enrollment and logout. The enrollment token stays in a short-lived `HttpOnly` cookie, not
+  the URL.
+- `/operator` lists refunds, requests a refund by contribution ID and verifies a pending refund.
+- `/operator/reconciliation` lists the queue, resolves an item by reclassify/refund/income and
+  approves a proposed income with an optional fresh TOTP.
+- The BFF lives under `/operator/api/**` so the operator session cookie path `/operator` covers it;
+  money actions use server actions, and no page renders a payer phone number.
+- `FINANCE_APPROVER` may reach the approval form without queue visibility; pass the contribution ID
+  out of band.
+
 ### Sequence for the main path
 
 1. `operator` verifies username/password, then a TOTP step, and issues a short-lived session with the
