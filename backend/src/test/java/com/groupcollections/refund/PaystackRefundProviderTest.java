@@ -98,6 +98,68 @@ class PaystackRefundProviderTest {
     assertThat(result.providerReference()).startsWith("refund-");
   }
 
+  /**
+   * Several existing refunds cannot be told apart without an amount or currency, and picking one
+   * could reconcile against someone else's refund. Carry nothing; the deterministic client
+   * reference still resolves the right one.
+   */
+  @Test
+  void ambiguousDuplicateKeepsNoReferenceAndVerifiesThroughTheClientReference() {
+    Refund submitted = refund("txn-123", null);
+    fake.refundScenario("ALREADY_EXISTS_LIVE_AMBIGUOUS");
+
+    RefundResult duplicate = provider.refund(submitted);
+
+    assertThat(duplicate.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(duplicate.pendingReason()).isEqualTo(RefundResult.PendingReason.CONFLICT);
+    assertThat(duplicate.providerReference()).isNull();
+
+    fake.refundScenario("SUCCESS");
+    RefundResult verified = provider.verify(submitted);
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
+    assertThat(verified.providerReference()).startsWith("refund-");
+  }
+
+  @Test
+  void successfulDuplicateVerifiesWithTheKeptReference() {
+    Refund submitted = refund("txn-123", null);
+    fake.refundScenario("ALREADY_EXISTS_LIVE");
+    RefundResult duplicate = provider.refund(submitted);
+
+    fake.refundScenario("SUCCESS");
+    RefundResult verified = provider.verify(refund("txn-123", duplicate.providerReference()));
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
+    assertThat(verified.providerReference()).isEqualTo(duplicate.providerReference());
+  }
+
+  /**
+   * T500: a deterministic client reference is sent with the request so that a refund whose outcome
+   * is unknown (timeout, 5xx) can still be found. Live Paystack honours it verbatim, and {@code GET
+   * /refund?reference=} resolves it, whereas {@code ?transaction=} needs a numeric id the app never
+   * stores.
+   */
+  @Test
+  void refundSendsTheDeterministicClientReference() throws Exception {
+    provider.refund(refund("txn-123", null));
+
+    JsonNode body = mapper.readTree(fake.refundBodies().get(0));
+    assertThat(body.path("reference").asText()).startsWith("tgthr-refund-");
+  }
+
+  @Test
+  void verifyFallsBackToTheClientReferenceWhenNoProviderReferenceIsKnown() {
+    Refund requested = refund("txn-123", null);
+    fake.refundScenario("SERVER_ERROR");
+    assertThat(provider.refund(requested).status()).isEqualTo(RefundResult.Status.PENDING);
+
+    fake.refundScenario("SUCCESS");
+    RefundResult verified = provider.verify(requested);
+
+    assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
+  }
+
   @Test
   void rateLimitedRefundIsPending() {
     fake.refundScenario("RATE_LIMITED");
@@ -181,23 +243,25 @@ class PaystackRefundProviderTest {
 
   @Test
   void verifyByTransactionWorksWhenTheRequestOutcomeWasUnknown() {
+    Refund submitted = refund("txn-123", null);
     fake.refundScenario("SERVER_ERROR");
-    RefundResult requested = provider.refund(refund("txn-123", null));
+    RefundResult requested = provider.refund(submitted);
     assertThat(requested.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(requested.providerReference()).isNull();
 
     fake.refundScenario("SUCCESS");
-    RefundResult verified = provider.verify(refund("txn-123", null));
+    RefundResult verified = provider.verify(submitted);
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
   }
 
   @Test
   void verifySelectsTheMatchingEntryFromTheRefundList() {
-    RefundResult requested = provider.refund(refund("txn-123", null));
+    Refund submitted = refund("txn-123", null);
+    RefundResult requested = provider.refund(submitted);
     fake.refundScenario("VERIFY_MULTIPLE");
 
-    RefundResult verified = provider.verify(refund("txn-123", null));
+    RefundResult verified = provider.verify(submitted);
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
     assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
@@ -205,10 +269,11 @@ class PaystackRefundProviderTest {
 
   @Test
   void verifyUsesTheLatestMatchingEntry() {
-    RefundResult requested = provider.refund(refund("txn-123", null));
+    Refund submitted = refund("txn-123", null);
+    RefundResult requested = provider.refund(submitted);
     fake.refundScenario("VERIFY_MULTIPLE_MATCHING");
 
-    RefundResult verified = provider.verify(refund("txn-123", null));
+    RefundResult verified = provider.verify(submitted);
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.SUCCESS);
     assertThat(verified.providerReference()).isEqualTo(requested.providerReference());
@@ -228,10 +293,11 @@ class PaystackRefundProviderTest {
 
   @Test
   void verifyWithoutAMatchingAmountStaysPending() {
-    provider.refund(refund("txn-123", null));
+    Refund submitted = refund("txn-123", null);
+    provider.refund(submitted);
     fake.refundScenario("VERIFY_NO_MATCH");
 
-    RefundResult verified = provider.verify(refund("txn-123", null));
+    RefundResult verified = provider.verify(submitted);
 
     assertThat(verified.status()).isEqualTo(RefundResult.Status.PENDING);
     assertThat(verified.pendingReason()).isEqualTo(RefundResult.PendingReason.AMOUNT_MISMATCH);

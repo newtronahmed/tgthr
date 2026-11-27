@@ -528,7 +528,14 @@ public final class FakePaystackServer implements AutoCloseable {
     String path = exchange.getRequestURI().getPath();
     String query = exchange.getRequestURI().getQuery();
     if ("/refund".equals(path) && query != null && query.contains("transaction=")) {
-      handleRefundList(exchange, transactionParameter(query));
+      // Live Paystack needs the *numeric* transaction id here; the charge reference the
+      // application stores matches nothing and returns an empty array.
+      String transaction = transactionParameter(query);
+      if (!transaction.chars().allMatch(Character::isDigit)) {
+        respond(exchange, 200, Map.of("status", true, "data", List.of()));
+        return;
+      }
+      handleRefundList(exchange, transaction);
       return;
     }
     handleRefundObject(exchange, path.substring("/refund/".length()));
