@@ -80,6 +80,11 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 - [x] T166 Block updates to `goals.destination_*` once the create path lands (trigger or constraint), proving destination immutability
 - [x] T167 Decide whether a display name is required at first verification; amend the spec and OpenAPI together, then enforce in the service
 - [x] T168 Forward `Origin`, `Cookie` and `X-Forwarded-For` in the BFF auth/organizer routes and cover the relay in the web E2E
+- [ ] T505 Move `FakeSmsSender` into the shared `ApiIntegrationTest` configuration. Every integration
+  test that needs an SMS currently declares its own `@Primary` bean, so two such classes in one cached
+  Spring context are ambiguous (`NoUniqueBeanDefinitionException`) or hand a class the wrong instance.
+  This blocked adding OTP-expiry coverage to `IdentityClockSeamIT` (see T169) and is latent for any
+  two ITs that both declare it.
 - [x] T169 Add a deterministic `Clock` test seam for OTP/session expiry and assert the 60-second and
   30-day production defaults. **Done: one shared `support/MutableClock` replaces three private copies;
   `IdentityDefaultsTest` asserts the shipped `application.yml` values (OTP `PT5M`, 5 attempts,
