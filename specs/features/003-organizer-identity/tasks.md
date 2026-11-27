@@ -80,11 +80,18 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 - [x] T166 Block updates to `goals.destination_*` once the create path lands (trigger or constraint), proving destination immutability
 - [x] T167 Decide whether a display name is required at first verification; amend the spec and OpenAPI together, then enforce in the service
 - [x] T168 Forward `Origin`, `Cookie` and `X-Forwarded-For` in the BFF auth/organizer routes and cover the relay in the web E2E
-- [ ] T505 Move `FakeSmsSender` into the shared `ApiIntegrationTest` configuration. Every integration
-  test that needs an SMS currently declares its own `@Primary` bean, so two such classes in one cached
-  Spring context are ambiguous (`NoUniqueBeanDefinitionException`) or hand a class the wrong instance.
-  This blocked adding OTP-expiry coverage to `IdentityClockSeamIT` (see T169) and is latent for any
-  two ITs that both declare it.
+- [x] T505 Corrected 2026-11-27: the premise was wrong. Thirteen `ApiIntegrationTest` subclasses
+  declare their own `@Primary` `FakeSmsSender`, but each also declares a distinct nested
+  `@TestConfiguration`, so each gets a **different** Spring context and two such beans never meet.
+  `main` is green with all thirteen. No change is needed, and an attempt to move the bean into the
+  shared harness made things worse: it broke `OrganizerRateLimitIT` (which builds its own context and
+  does not extend the harness) and destabilised `IdentityClockSeamIT` itself.
+- [ ] T506 If OTP-expiry-via-clock coverage is wanted, give `IdentityClockSeamIT` its own context
+  cleanly rather than by sharing. The blocker is the mutable `@Primary` `Clock` in a shared cached
+  context, not the SMS bean: any test class that needs wall time to pass (for example
+  `OrganizerAuthIT`, which sleeps past the resend window) fails when it inherits the frozen clock.
+  Options: an isolated context via a distinct `@SpringBootTest(properties=…)` on the clock IT that
+  no other class matches, or move the mutable clock out of the bean graph entirely.
 - [x] T169 Add a deterministic `Clock` test seam for OTP/session expiry and assert the 60-second and
   30-day production defaults. **Done: one shared `support/MutableClock` replaces three private copies;
   `IdentityDefaultsTest` asserts the shipped `application.yml` values (OTP `PT5M`, 5 attempts,
