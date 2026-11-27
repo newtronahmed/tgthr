@@ -5,12 +5,13 @@ Provider tests use the fake only; the sandbox is a manual spike.
 
 ## Setup
 
-- [ ] T401 Spike Paystack refunds in the sandbox: request/response for a full `A + P + F` refund,
+- [x] T401 Spike Paystack refunds in the sandbox: request/response for a full `A + P + F` refund,
   whether the processing fee is returned, refund statuses and the reference format; record it in
   `docs/runbooks/refund-operations.md`. Do not refund a real contributor. **Done 2026-11-26
-  (test-mode): the partner retains `F`; see runbook section 9. Tick on merge.**
+  (test-mode): the partner retains `F`; see runbook section 9.**
 - [x] T402 Add operator/refund config and `RefundConfigIT` (`enabled`, provider `none|fake|paystack`,
-  timeouts, suspense income age, session TTL/idle, lockout).
+  timeouts, suspense income age, session TTL/idle, lockout). **The config half is done; `RefundConfigIT`
+  does not exist — the gap is tracked as T503.**
 - [x] T403 Add V12/V15 migrations and the operator/refund/reconciliation schemas and paths to
   `specs/api/openapi.yaml`; no behavior yet.
 - [x] T404 Add the fake Paystack refund server, fixed TOTP clock and refund test builders.
@@ -112,7 +113,8 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [x] T495 Write `docs/runbooks/refund-operations.md` and the operator identity/account-recovery
   runbook.
 - [ ] T496 Record the sandbox fee-return sign-off and complete the live provider enablement checklist.
-  **Fee-return sign-off recorded 2026-11-26 (runbook section 9); T494 still gates enablement.**
+  **Fee-return sign-off recorded 2026-11-26 (runbook section 9). Remaining: T494, which is the only
+  hard gate on setting `REFUND_PROVIDER=paystack`; steps 5–6 of the checklist must then be walked.**
 
 ## Review follow-ups (2026-11-15)
 
@@ -122,12 +124,19 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [x] T498 Carry a pending reason (`TIMEOUT`, `CONFLICT`, `RATE_LIMITED`, `UNKNOWN_STATUS`,
   `AMOUNT_MISMATCH`, `CURRENCY_MISMATCH`) on `RefundResult`, persist it on the refund event, and
   de-duplicate `REFUND_PROVIDER_PENDING` alerts by state change instead of every verify.
-- [ ] T499 Once T401 records whether Paystack returns the processing fee, gate the `LOSS_ALLOCATION`
+- [x] T499 Once T401 records whether Paystack returns the processing fee, gate the `LOSS_ALLOCATION`
   posting on `fully_deducted`/`deducted_amount` instead of the static
   `collections.refunds.partner-retains-processing-fee` flag; keep the flag as the default until
-  then. **T401 answered (2026-11-26, runbook section 9): the partner retains `F`, so the flag is
-  correct — but `fully_deducted`/`deducted_amount` describe the payout deduction, not the fee, and
-  must not gate the loss set. Rewrite this task before implementing it.**
+  then. **Closed 2026-11-27, superseded by T502. T401 answered (runbook section 9): the partner
+  retains `F`, so the static flag is correct, and `fully_deducted`/`deducted_amount` describe the
+  payout deduction, not the fee — gating on them would gate nothing.**
+- [ ] T502 Replace the static `collections.refunds.partner-retains-processing-fee` flag with a
+  provider-reported fee outcome once Paystack exposes one. **Blocked: no such field exists.** The
+  T401 spike (runbook section 9) recorded that `fully_deducted`/`deducted_amount` report the payout
+  deduction and the create response carries no fee-return field, so today the static flag is the
+  only way to select the `LOSS_ALLOCATION` branch and it happens to be correct for this provider.
+  Do not implement T499 as written; revisit only if Paystack adds the field or a second provider
+  has different semantics.
 - [x] T500 Send and persist a deterministic client refund reference before the provider call, and
   use it for verification and reconciliation instead of relying only on the provider-generated
   reference and the 409 conflict signal. Adapter sends `tgthr-refund-<refund id>` and verifies via
@@ -135,3 +144,14 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
   Duplicate submit is `400 transaction_reversed`, not 409.
 - [x] T501 Gate new refund requests separately from read/verify/completion so disabling
   `REFUNDS_ENABLED` does not unregister the verification job or strand pending refunds.
+
+## Close-out (2026-11-27)
+
+- [ ] T503 Add the missing `RefundConfigIT` claimed by T402. Assert the shipped defaults for
+  `collections.refunds.enabled`, `provider`, `partner-retains-processing-fee`,
+  `suspense-income-after` and the verification timings, and that `provider=none` selects
+  `DisabledRefundProvider`. **Verified absent 2026-11-27 while closing out the feature; T402 was
+  ticked without it.**
+- [x] T504 Amend spec rule 10 and record ADR 0020 so the automatic verification window outlasts the
+  provider's refund settlement window (`PT15M`/`PT12H`/24 attempts, 9.17 days against the 11-day
+  observation). Exhaustion keeps the reservation and re-arms on a pending operator verify.
