@@ -98,6 +98,10 @@ class RefundRequestIT extends ApiIntegrationTest {
     assertThat(PAYSTACK.refundBodies()).hasSize(1);
     assertThat(PAYSTACK.refundBodies().getFirst())
         .contains(contribution.id().toString(), String.valueOf(contribution.total()));
+    assertThat(row.get("client_reference")).isEqualTo("tgthr-refund-" + refundId);
+    assertThat(response.getBody().get("clientReference")).isEqualTo("tgthr-refund-" + refundId);
+    assertThat(PAYSTACK.refundBodies().getFirst())
+        .contains("\"reference\":\"" + row.get("client_reference") + "\"");
   }
 
   @Test

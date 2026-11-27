@@ -79,7 +79,11 @@ class RefundDisableIT extends ApiIntegrationTest {
             Instant.now(),
             null);
     PAYSTACK.seedRefund(
-        contribution.id().toString(), "refund-seeded-verify", contribution.total(), "GHS");
+        refundId,
+        contribution.id().toString(),
+        "refund-seeded-verify",
+        contribution.total(),
+        "GHS");
     PAYSTACK.refundScenario("SUCCESS");
     assertThat(payouts.reservedMinorUnits(contribution.goalId())).isEqualTo(contribution.amount());
 
@@ -119,7 +123,7 @@ class RefundDisableIT extends ApiIntegrationTest {
             Instant.now(),
             Instant.now());
     PAYSTACK.seedRefund(
-        contribution.id().toString(), "refund-seeded-job", contribution.total(), "GHS");
+        refundId, contribution.id().toString(), "refund-seeded-job", contribution.total(), "GHS");
     PAYSTACK.refundScenario("SUCCESS");
 
     job.run();
@@ -221,7 +225,11 @@ class RefundDisableIT extends ApiIntegrationTest {
             Instant.now(),
             null);
     PAYSTACK.seedRefund(
-        contribution.id().toString(), "refund-seeded-started", contribution.total(), "GHS");
+        refundId,
+        contribution.id().toString(),
+        "refund-seeded-started",
+        contribution.total(),
+        "GHS");
     PAYSTACK.refundScenario("SUCCESS");
     String token = signIn(operator);
 
@@ -260,9 +268,9 @@ class RefundDisableIT extends ApiIntegrationTest {
             (id, contribution_id, goal_id, source_account, amount_minor_units,
              platform_fee_minor_units, processing_fee_minor_units, total_minor_units,
              currency_code, state, idempotency_key, provider_transaction_reference,
-             operator_id, reason, provider_requested_at, created_at, updated_at,
-             verification_attempts, next_verification_at)
-        values (?, ?, ?, 'GOAL_POOL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now(), 0, ?)
+             client_reference, operator_id, reason, provider_requested_at, created_at,
+             updated_at, verification_attempts, next_verification_at)
+        values (?, ?, ?, 'GOAL_POOL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now(), 0, ?)
         """,
         refundId,
         contribution.id(),
@@ -275,6 +283,7 @@ class RefundDisableIT extends ApiIntegrationTest {
         state,
         idempotencyKey,
         contribution.id().toString(),
+        RefundReferences.clientReference(refundId),
         operatorId,
         reason,
         providerRequestedAt == null ? null : Timestamp.from(providerRequestedAt),

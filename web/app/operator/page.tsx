@@ -223,7 +223,12 @@ function RefundCard({ refund, canVerify }: { refund: RefundView; canVerify: bool
             <dt className="font-bold uppercase tracking-[0.1em] text-slate-400">Provider ref</dt>
             <dd className="break-all font-mono text-slate-700">{refund.providerReference}</dd>
           </div>
-        ) : null}
+        ) : (
+          <div>
+            <dt className="font-bold uppercase tracking-[0.1em] text-slate-400">Client ref</dt>
+            <dd className="break-all font-mono text-slate-700">{refund.clientReference}</dd>
+          </div>
+        )}
         {refund.failureCode ? (
           <div>
             <dt className="font-bold uppercase tracking-[0.1em] text-slate-400">Failure</dt>

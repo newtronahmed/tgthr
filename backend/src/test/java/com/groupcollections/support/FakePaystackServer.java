@@ -64,6 +64,7 @@ public final class FakePaystackServer implements AutoCloseable {
   private final Map<String, Long> refundAmountByTransaction = new ConcurrentHashMap<>();
   private final Map<String, String> refundCurrencyByTransaction = new ConcurrentHashMap<>();
   private final Map<String, String> refundReferenceByTransaction = new ConcurrentHashMap<>();
+  private final Map<String, String> clientReferenceByTransaction = new ConcurrentHashMap<>();
   private final Map<String, Long> amountByReference = new ConcurrentHashMap<>();
   private final HttpServer server;
 
@@ -110,6 +111,7 @@ public final class FakePaystackServer implements AutoCloseable {
     refundAmountByTransaction.clear();
     refundCurrencyByTransaction.clear();
     refundReferenceByTransaction.clear();
+    clientReferenceByTransaction.clear();
     transferScenario = "SUCCESS";
     resolveScenario = "SUCCESS";
     refundScenario = "SUCCESS";
@@ -137,7 +139,7 @@ public final class FakePaystackServer implements AutoCloseable {
     return List.copyOf(refundBodies);
   }
 
-  /** SUCCESS, PENDING, FAILED, REQUEST_REJECTED or SERVER_ERROR. */
+  /** SUCCESS, PENDING, FAILED, REQUEST_REJECTED, SERVER_ERROR, or a duplicate scenario. */
   public void refundScenario(String scenario) {
     refundScenario = scenario;
   }
@@ -149,6 +151,16 @@ public final class FakePaystackServer implements AutoCloseable {
     refundCurrencyByTransaction.put(transaction, currency);
     refundAmountByReference.put(reference, amount);
     refundCurrencyByReference.put(reference, currency);
+  }
+
+  /**
+   * Primes a refund record and registers the deterministic client reference the adapter sends, so a
+   * verify for a seeded refund resolves the same way it does against live Paystack.
+   */
+  public void seedRefund(
+      java.util.UUID refundId, String transaction, String reference, long amount, String currency) {
+    seedRefund(transaction, reference, amount, currency);
+    clientReferenceByTransaction.put("tgthr-refund-" + refundId, transaction);
   }
 
   /** SUCCESS, NOT_FOUND or UNKNOWN. */
@@ -454,7 +466,13 @@ public final class FakePaystackServer implements AutoCloseable {
     long amount = request.path("amount").asLong();
     String currency = request.path("currency").asText("GHS");
     String transaction = request.path("transaction").asText("");
+    // Live Paystack generates its own refund id and echoes the caller-supplied reference
+    // separately.
     String reference = "refund-" + UUID.randomUUID();
+    String supplied = request.path("reference").asText("");
+    if (!supplied.isBlank()) {
+      clientReferenceByTransaction.put(supplied, transaction);
+    }
     if (!transaction.isBlank()) {
       refundReferenceByTransaction.put(transaction, reference);
       refundAmountByTransaction.put(transaction, amount);
@@ -469,6 +487,48 @@ public final class FakePaystackServer implements AutoCloseable {
           respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
       case "ALREADY_EXISTS" ->
           respond(exchange, 409, Map.of("status", false, "message", "Refund already exists"));
+      // Live Paystack answers a duplicate refund with 400 + code=transaction_reversed and the
+      // existing refunds in data.existing_refunds, not the 409 the adapter used to assume. The
+      // captured entries carry only id, reference and status — no amount and no currency — and the
+      // reference is the one Paystack generated, not necessarily the caller's.
+      case "ALREADY_EXISTS_LIVE" ->
+          respond(
+              exchange,
+              400,
+              Map.of(
+                  "status",
+                  false,
+                  "message",
+                  "A refund already exist for this transaction",
+                  "type",
+                  "api_error",
+                  "code",
+                  "transaction_reversed",
+                  "data",
+                  Map.of("existing_refunds", List.of(duplicateRefundEntry(reference)))));
+      case "ALREADY_EXISTS_LIVE_AMBIGUOUS" ->
+          respond(
+              exchange,
+              400,
+              Map.of(
+                  "status",
+                  false,
+                  "message",
+                  "A refund already exist for this transaction",
+                  "type",
+                  "api_error",
+                  "code",
+                  "transaction_reversed",
+                  "data",
+                  Map.of(
+                      "existing_refunds",
+                      List.of(
+                          duplicateRefundEntry("refund-duplicate-one"),
+                          duplicateRefundEntry("refund-duplicate-two")))));
+      // A proxy or load balancer can answer 400 with HTML. That is not evidence of a duplicate, so
+      // the adapter must not classify it as one.
+      case "BAD_REQUEST_UNPARSABLE" ->
+          respondRaw(exchange, 400, "<html><body>Bad Request</body></html>");
       case "RATE_LIMITED" ->
           respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
       case "SERVER_ERROR" ->
@@ -490,11 +550,36 @@ public final class FakePaystackServer implements AutoCloseable {
   private void handleRefundVerify(HttpExchange exchange) throws IOException {
     String path = exchange.getRequestURI().getPath();
     String query = exchange.getRequestURI().getQuery();
+    if ("/refund".equals(path) && query != null && query.contains("reference=")) {
+      // Live resolves a caller-supplied refund reference here; it is the only lookup available when
+      // no provider reference was captured.
+      String reference = transactionParameter(query.replace("reference=", "transaction="));
+      String transaction = referenceToTransaction(reference);
+      if (transaction.isEmpty()) {
+        respond(exchange, 200, Map.of("status", true, "data", List.of()));
+        return;
+      }
+      handleRefundList(exchange, transaction);
+      return;
+    }
     if ("/refund".equals(path) && query != null && query.contains("transaction=")) {
       handleRefundList(exchange, transactionParameter(query));
       return;
     }
     handleRefundObject(exchange, path.substring("/refund/".length()));
+  }
+
+  private String referenceToTransaction(String reference) {
+    String byClient = clientReferenceByTransaction.get(reference);
+    if (byClient != null) {
+      return byClient;
+    }
+    for (Map.Entry<String, String> entry : refundReferenceByTransaction.entrySet()) {
+      if (entry.getValue().equals(reference)) {
+        return entry.getKey();
+      }
+    }
+    return "";
   }
 
   /**
@@ -742,6 +827,11 @@ public final class FakePaystackServer implements AutoCloseable {
     return amp >= 0 ? transaction.substring(0, amp) : transaction;
   }
 
+  /** The shape live Paystack uses inside {@code data.existing_refunds}: id, reference, status. */
+  private static Map<String, Object> duplicateRefundEntry(String id) {
+    return Map.of("id", id, "reference", UUID.randomUUID().toString(), "status", "processing");
+  }
+
   private static Map<String, Object> refundEntry(
       String status,
       String reference,
@@ -794,6 +884,15 @@ public final class FakePaystackServer implements AutoCloseable {
       throws IOException {
     byte[] bytes = mapper.writeValueAsBytes(payload);
     exchange.getResponseHeaders().set("Content-Type", "application/json");
+    exchange.sendResponseHeaders(statusCode, bytes.length);
+    try (OutputStream output = exchange.getResponseBody()) {
+      output.write(bytes);
+    }
+  }
+
+  private void respondRaw(HttpExchange exchange, int statusCode, String body) throws IOException {
+    byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().set("Content-Type", "text/html");
     exchange.sendResponseHeaders(statusCode, bytes.length);
     try (OutputStream output = exchange.getResponseBody()) {
       output.write(bytes);

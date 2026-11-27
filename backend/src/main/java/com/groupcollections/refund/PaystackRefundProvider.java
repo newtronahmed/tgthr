@@ -1,7 +1,10 @@
 package com.groupcollections.refund;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -14,10 +17,24 @@ import org.springframework.web.client.RestClientResponseException;
 @ConditionalOnProperty(name = "collections.refunds.provider", havingValue = "paystack")
 public class PaystackRefundProvider implements RefundProvider {
 
+  private static final Logger log = LoggerFactory.getLogger(PaystackRefundProvider.class);
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
   private final RestClient restClient;
 
   public PaystackRefundProvider(RestClient restClient) {
     this.restClient = restClient;
+  }
+
+  /**
+   * The persisted reference, falling back to the identical derivation. Returns a non-null value: a
+   * row written before V19 was backfilled with the same derivation, so callers never check for
+   * null.
+   */
+  private static String clientReference(Refund refund) {
+    return refund.clientReference() == null || refund.clientReference().isBlank()
+        ? RefundReferences.clientReference(refund.id())
+        : refund.clientReference();
   }
 
   @Override
@@ -39,12 +56,20 @@ public class PaystackRefundProvider implements RefundProvider {
                       refund.totalMinorUnits(),
                       "currency",
                       refund.currencyCode(),
+                      "reference",
+                      clientReference(refund),
                       "merchant_note",
                       "Refund " + refund.id()))
               .retrieve()
               .body(JsonNode.class);
       return map(response, refund, false);
     } catch (RestClientResponseException failure) {
+      if (failure.getStatusCode().value() == 400) {
+        RefundResult duplicate = existingRefund(failure, refund);
+        if (duplicate != null) {
+          return duplicate;
+        }
+      }
       RefundResult.PendingReason reason = retryReason(failure);
       return reason == null
           ? RefundResult.failed("PROVIDER_REJECTED")
@@ -52,6 +77,69 @@ public class PaystackRefundProvider implements RefundProvider {
     } catch (RestClientException failure) {
       return RefundResult.pending(null, RefundResult.PendingReason.TIMEOUT);
     }
+  }
+
+  /**
+   * Live Paystack rejects a second refund for the same transaction with {@code 400} and {@code
+   * code=transaction_reversed}, carrying the existing refund in {@code data.existing_refunds}. The
+   * refund already exists, so this is an unresolved outcome, not a rejection: releasing the
+   * reservation here would fail a refund Paystack is actually processing. The existing reference is
+   * returned so verification can use it directly.
+   *
+   * <p>Those entries carry only {@code id}, {@code reference} and {@code status} — no amount and no
+   * currency — so they cannot be matched by value. The numeric id is the only part {@code GET
+   * /refund/{id}} accepts, which is why it is carried as the provider reference.
+   */
+  private RefundResult existingRefund(RestClientResponseException failure, Refund refund) {
+    JsonNode body;
+    try {
+      body = MAPPER.readTree(failure.getResponseBodyAsString());
+    } catch (java.io.IOException notJson) {
+      // A 400 without the duplicate envelope is not evidence that a refund exists, but it is not
+      // proof that none does either: a truncated duplicate body looks the same. Stay pending —
+      // never
+      // release on ambiguity — and log a distinct event so this is not mistaken for a real
+      // duplicate.
+      log.warn(
+          "event=refund_duplicate_unparsable status={} refundId={} contributionId={}",
+          failure.getStatusCode().value(),
+          refund.id(),
+          refund.contributionId(),
+          notJson);
+      return RefundResult.pending(null, RefundResult.PendingReason.CONFLICT);
+    }
+    if (!"transaction_reversed".equals(body.path("code").asText(""))) {
+      return null;
+    }
+    return RefundResult.pending(
+        existingRefundReference(body.path("data").path("existing_refunds"), refund),
+        RefundResult.PendingReason.CONFLICT);
+  }
+
+  /**
+   * Prefer the entry that echoes our client reference. Otherwise accept a sole entry; when several
+   * are ambiguous, carry nothing and let verification resolve this refund through {@code GET
+   * /refund?reference=}, which cannot pick someone else's refund.
+   */
+  private static String existingRefundReference(JsonNode entries, Refund refund) {
+    if (!entries.isArray()) {
+      return null;
+    }
+    String wanted = clientReference(refund);
+    String soleReference = null;
+    int count = 0;
+    for (JsonNode entry : entries) {
+      if (!entry.isObject()) {
+        continue;
+      }
+      count++;
+      String reference = entry.hasNonNull("id") ? entry.get("id").asText() : null;
+      if (wanted.equals(entry.path("reference").asText(""))) {
+        return reference;
+      }
+      soleReference = reference;
+    }
+    return count == 1 ? soleReference : null;
   }
 
   @Override
@@ -65,16 +153,16 @@ public class PaystackRefundProvider implements RefundProvider {
                 .uri("/refund/{reference}", refund.providerReference())
                 .retrieve()
                 .body(JsonNode.class);
-      } else if (refund.providerTransactionReference() != null
-          && !refund.providerTransactionReference().isBlank()) {
+      } else {
+        // A submitted refund with an unknown outcome has no provider reference yet. The client
+        // reference is deterministic, so it resolves the same refund; ?transaction= would need the
+        // numeric transaction id and silently match nothing.
         response =
             restClient
                 .get()
-                .uri("/refund?transaction={transaction}", refund.providerTransactionReference())
+                .uri("/refund?reference={reference}", clientReference(refund))
                 .retrieve()
                 .body(JsonNode.class);
-      } else {
-        return RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS);
       }
       return map(response, refund, true);
     } catch (RestClientResponseException failure) {
@@ -87,7 +175,8 @@ public class PaystackRefundProvider implements RefundProvider {
   /**
    * Paystack returns 408 for a request it may still have accepted and 409 when an earlier attempt
    * already exists, so both are treated like a timeout rather than a rejection. 429 and 5xx are
-   * retryable for the same reason: the refund may have landed.
+   * retryable for the same reason: the refund may have landed. A 409 from a proxy does not prove
+   * the refund exists, so verification still resolves through the client reference.
    */
   private static RefundResult.PendingReason retryReason(RestClientResponseException failure) {
     HttpStatusCode status = failure.getStatusCode();

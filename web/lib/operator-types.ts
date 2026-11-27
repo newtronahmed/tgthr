@@ -24,6 +24,7 @@ export type RefundView = {
   currencyCode: "GHS";
   state: RefundState;
   providerReference?: string | null;
+  clientReference: string;
   operatorId: string;
   reason: string;
   failureCode?: string | null;
