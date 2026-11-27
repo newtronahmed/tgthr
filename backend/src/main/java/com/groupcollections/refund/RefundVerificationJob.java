@@ -123,10 +123,25 @@ public class RefundVerificationJob {
     }
   }
 
-  private Duration backoff(int attempt) {
+  Duration backoff(int attempt) {
     int exponent = Math.min(Math.max(attempt - 1, 0), 20);
     Duration delay = initialDelay.multipliedBy(1L << exponent);
     return delay.compareTo(maxDelay) > 0 ? maxDelay : delay;
+  }
+
+  /**
+   * Visible for {@code RefundVerificationWindowTest}: the schedule this job was configured with.
+   */
+  Duration initialDelay() {
+    return initialDelay;
+  }
+
+  Duration maxDelay() {
+    return maxDelay;
+  }
+
+  int maxAttempts() {
+    return maxAttempts;
   }
 
   private static String outcome(RefundProvider.RefundResult result) {

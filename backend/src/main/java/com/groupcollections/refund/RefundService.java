@@ -187,9 +187,12 @@ public class RefundService {
   public RefundView verify(OperatorPrincipal actor, UUID refundId, String reason) {
     actor.requireRole(OperatorRole.REFUND_OPERATOR);
     String cleanReason = requireReason(reason);
-    // The row lock serializes this operator check against the scheduled job claiming the same
-    // refund.
-    Refund refund = refunds.findByIdForUpdate(refundId).orElseThrow(RefundException::notFound);
+    // No row lock here on purpose: this method is not transactional, so `for update` would be
+    // released as soon as the SELECT returned and would guarantee nothing. Correctness against the
+    // scheduled job rests on the CAS guards on every write (claimVerification, markSucceeded,
+    // markFailed, rearmVerification), which is where it belongs. Wrapping this method in a
+    // transaction would be worse: the provider call below must not run inside a row lock.
+    Refund refund = refunds.findById(refundId).orElseThrow(RefundException::notFound);
     RefundProvider.RefundResult result;
     String action;
     if (refund.state() == RefundState.PROVIDER_PENDING) {
@@ -238,11 +241,15 @@ public class RefundService {
     if (refunds.rearmVerification(refundId, now.plus(verificationInitialDelay), now) == 0) {
       return;
     }
+    // The rearm UPDATE only matches a PROVIDER_PENDING row, so the transition is that state by
+    // construction; re-read only to keep the event honest if it has since moved.
+    RefundState state =
+        refunds.findById(refundId).map(Refund::state).orElse(RefundState.PROVIDER_PENDING);
     refunds.appendEvent(
         refundId,
         "VERIFICATION_REARMED",
-        RefundState.PROVIDER_PENDING.name(),
-        RefundState.PROVIDER_PENDING.name(),
+        state.name(),
+        state.name(),
         "reason=" + result.pendingReason(),
         now);
     meters.counter("refunds.verification.rearmed").increment();

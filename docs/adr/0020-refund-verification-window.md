@@ -52,13 +52,14 @@ window, with a safety margin, and treat exhaustion as a genuine exception rather
 end state.
 
 New defaults: `initial-delay=PT15M`, `max-delay=PT12H`, `max-attempts=24`, giving a **9.17-day**
-window (83% of the recorded 11 days). The tail is 12h per check for attempts 9–24, so a refund that
-has not settled near the end of the window still gets a final check.
+window (83% of the recorded 11 days). The wait doubles 15m→30m→1h→2h→4h→8h and then holds at the
+12h ceiling from attempt 7 onwards (17 capped waits), so a refund that has not settled near the end
+of the window still gets a final check.
 
 We will not raise the ceiling to cover the full 11 days without operator evidence. At `max-delay=PT12H`
-and 24 attempts the window is 9.17d; covering all 11 days needs 28 attempts. Instead the trade-off is
-explicit: the automatic window covers the observed settlement window, and a refund still unresolved at
-exhaustion is a real signal worth a human.
+and 24 attempts the window is 9.17d; covering all 11 days needs 28 attempts (11.17d). Instead the
+trade-off is explicit: the automatic window covers the observed settlement window, and a refund still
+unresolved at exhaustion is a real signal worth a human.
 
 We will also make the exhausted state recoverable: an operator verify that returns a pending result
 re-arms the backoff rather than leaving the refund permanently unverified.
@@ -72,7 +73,7 @@ re-arms the backoff rather than leaving the refund permanently unverified.
 - Reservations resolve automatically for refunds that settle inside the observed window, without an
   operator touching goal availability.
 - Fewer verification calls in the first hours (15m rather than 5m) and a much lower call rate
-  overall, because the tail is 12h rather than 5m doubling.
+  overall, because the tail is 12h rather than doubling from 5m.
 
 **Costs and risks**
 
