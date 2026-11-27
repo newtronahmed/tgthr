@@ -469,6 +469,43 @@ public final class FakePaystackServer implements AutoCloseable {
           respond(exchange, 408, Map.of("status", false, "message", "request timed out"));
       case "ALREADY_EXISTS" ->
           respond(exchange, 409, Map.of("status", false, "message", "Refund already exists"));
+      // Live Paystack answers a duplicate refund with 400 + code=transaction_reversed and the
+      // existing refunds in data.existing_refunds, not the 409 the adapter assumed. The captured
+      // entries carry only id, reference and status — no amount and no currency.
+      case "ALREADY_EXISTS_LIVE" ->
+          respond(
+              exchange,
+              400,
+              Map.of(
+                  "status",
+                  false,
+                  "message",
+                  "A refund already exist for this transaction",
+                  "type",
+                  "api_error",
+                  "code",
+                  "transaction_reversed",
+                  "data",
+                  Map.of("existing_refunds", List.of(duplicateRefundEntry(reference)))));
+      case "ALREADY_EXISTS_LIVE_AMBIGUOUS" ->
+          respond(
+              exchange,
+              400,
+              Map.of(
+                  "status",
+                  false,
+                  "message",
+                  "A refund already exist for this transaction",
+                  "type",
+                  "api_error",
+                  "code",
+                  "transaction_reversed",
+                  "data",
+                  Map.of(
+                      "existing_refunds",
+                      List.of(
+                          duplicateRefundEntry("refund-duplicate-one"),
+                          duplicateRefundEntry("refund-duplicate-two")))));
       case "RATE_LIMITED" ->
           respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
       case "SERVER_ERROR" ->
@@ -740,6 +777,11 @@ public final class FakePaystackServer implements AutoCloseable {
     String transaction = query.substring(query.indexOf("transaction=") + "transaction=".length());
     int amp = transaction.indexOf('&');
     return amp >= 0 ? transaction.substring(0, amp) : transaction;
+  }
+
+  /** The shape live Paystack uses inside {@code data.existing_refunds}: id, reference, status. */
+  private static Map<String, Object> duplicateRefundEntry(String id) {
+    return Map.of("id", id, "reference", UUID.randomUUID().toString(), "status", "processing");
   }
 
   private static Map<String, Object> refundEntry(

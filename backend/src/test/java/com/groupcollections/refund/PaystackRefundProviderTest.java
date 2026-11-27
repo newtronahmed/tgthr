@@ -78,6 +78,26 @@ class PaystackRefundProviderTest {
     assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.CONFLICT);
   }
 
+  /**
+   * Live Paystack answers a duplicate refund with {@code 400} and {@code
+   * code=transaction_reversed}, carrying the already-existing refund in {@code
+   * data.existing_refunds}. Treating that as a definitive rejection released the reservation and
+   * failed the refund while Paystack was in fact refunding the contributor, and threw away the
+   * reference needed to verify it. The captured entries carry only {@code id}, {@code reference}
+   * and {@code status}, so they cannot be matched by amount.
+   */
+  @Test
+  void duplicateRefundAnsweredWith400TransactionReversedIsPendingAndKeepsTheExistingReference() {
+    fake.refundScenario("ALREADY_EXISTS_LIVE");
+
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+    assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.CONFLICT);
+    assertThat(result.failureCode()).isNull();
+    assertThat(result.providerReference()).startsWith("refund-");
+  }
+
   @Test
   void rateLimitedRefundIsPending() {
     fake.refundScenario("RATE_LIMITED");
