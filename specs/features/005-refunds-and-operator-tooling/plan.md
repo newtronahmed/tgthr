@@ -184,6 +184,9 @@ parameters, timing-safe compare), `RefundStateMachineTest` (every legal/illegal 
   account symbol and migration number before implementation.
 - `V18__refund_verification_backoff.sql`: verification attempt count, next attempt time and
   exhaustion time plus a partial index for due refunds. No data rewrite.
+- `V19__refund_client_reference.sql`: the deterministic client reference sent to the provider before
+  the call, backfilled as `'tgthr-refund-' || id`, then `NOT NULL` with a unique constraint (T500).
+  Backward compatible; the backfill reproduces exactly what the adapter already sends.
 - Backward compatible: yes. No destructive change; existing organizer sessions and money tables are
   untouched.
 

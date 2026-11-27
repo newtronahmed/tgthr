@@ -184,9 +184,13 @@ inflating a goal, and every action is attributable, idempotent and safe against 
 ## Data and ledger impact
 
 - New `refunds` table: contribution, policy amounts, state (`PENDING`, `PROVIDER_PENDING`, `SUCCEEDED`,
-  `FAILED`), provider reference, idempotency key, operator, reason, timestamps; partial unique index
+  `FAILED`), provider reference, deterministic client reference sent to the provider before the call,
+  idempotency key, operator, reason, timestamps; partial unique index
   for one active refund per contribution. Bounded verification adds the attempt count, the next
   attempt time and the exhaustion time; no stored balance.
+- `refunds.client_reference` (V19) is the deterministic reference sent to the provider before the
+  call. Verification and reconciliation use it when no provider reference exists, because the
+  provider only resolves `GET /refund?reference=` for an outcome that is still unknown.
 - New append-only `refund_events` and `operator_actions` audit tables.
 - `contributions.state` uses the existing `REFUNDED`; no new contribution state is required while a
   refund is pending; availability subtracts active refunds.

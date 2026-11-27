@@ -7,7 +7,8 @@ Provider tests use the fake only; the sandbox is a manual spike.
 
 - [ ] T401 Spike Paystack refunds in the sandbox: request/response for a full `A + P + F` refund,
   whether the processing fee is returned, refund statuses and the reference format; record it in
-  `docs/runbooks/refund-operations.md`. Do not refund a real contributor.
+  `docs/runbooks/refund-operations.md`. Do not refund a real contributor. **Done 2026-11-26
+  (test-mode): the partner retains `F`; see runbook section 9. Tick on merge.**
 - [ ] T402 Add operator/refund config and `RefundConfigIT` (`enabled`, provider `none|fake|paystack`,
   timeouts, suspense income age, session TTL/idle, lockout).
 - [ ] T403 Add V12/V15 migrations and the operator/refund/reconciliation schemas and paths to
@@ -111,6 +112,7 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [x] T495 Write `docs/runbooks/refund-operations.md` and the operator identity/account-recovery
   runbook.
 - [ ] T496 Record the sandbox fee-return sign-off and complete the live provider enablement checklist.
+  **Fee-return sign-off recorded 2026-11-26 (runbook section 9); T494 still gates enablement.**
 
 ## Review follow-ups (2026-11-15)
 
@@ -123,9 +125,13 @@ Criteria: AC-REFUND-009, AC-REFUND-010, AC-OPS-007, AC-OPS-008
 - [ ] T499 Once T401 records whether Paystack returns the processing fee, gate the `LOSS_ALLOCATION`
   posting on `fully_deducted`/`deducted_amount` instead of the static
   `collections.refunds.partner-retains-processing-fee` flag; keep the flag as the default until
-  then.
-- [ ] T500 Send and persist a deterministic client refund reference before the provider call, and
+  then. **T401 answered (2026-11-26, runbook section 9): the partner retains `F`, so the flag is
+  correct — but `fully_deducted`/`deducted_amount` describe the payout deduction, not the fee, and
+  must not gate the loss set. Rewrite this task before implementing it.**
+- [x] T500 Send and persist a deterministic client refund reference before the provider call, and
   use it for verification and reconciliation instead of relying only on the provider-generated
-  reference and the 409 conflict signal.
+  reference and the 409 conflict signal. Adapter sends `tgthr-refund-<refund id>` and verifies via
+  `GET /refund?reference=`; V19 persists it as `refunds.client_reference` in the same insert.
+  Duplicate submit is `400 transaction_reversed`, not 409.
 - [x] T501 Gate new refund requests separately from read/verify/completion so disabling
   `REFUNDS_ENABLED` does not unregister the verification job or strand pending refunds.

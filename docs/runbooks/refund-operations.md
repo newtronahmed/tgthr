@@ -69,7 +69,7 @@ reserved.
 
 ```sql
 select id, contribution_id, goal_id, source_account, amount_minor_units, total_minor_units,
-       state, provider_reference, failure_code, verification_attempts,
+       state, provider_reference, client_reference, failure_code, verification_attempts,
        next_verification_at, verification_exhausted_at
 from refunds where id = '<refund-id>';
 select event, from_state, to_state, detail, created_at
@@ -144,7 +144,7 @@ Reclassification is the only action that clears it.
 
 ```sql
 select id, contribution_id, goal_id, state, source_account, amount_minor_units, total_minor_units,
-       provider_reference, verification_attempts, verification_exhausted_at
+       provider_reference, client_reference, verification_attempts, verification_exhausted_at
 from refunds where contribution_id = '<contribution-id>';
 
 select entry_type, account, direction, amount_minor_units, currency_code, posting_set_id
@@ -162,14 +162,16 @@ Never `update` or `delete` `ledger_entries`, `refund_events`, `operator_actions`
 
 ## 7. Paystack refund go-live checklist
 
-1. T401 records whether a sandbox refund returns the processing fee. Until then keep
-   `REFUND_PARTNER_RETAINS_PROCESSING_FEE=true`; T499 gates the loss set on the provider fields.
+1. T401 recorded in section 9: Paystack **retains** the processing fee `F`, so keep
+   `REFUND_PARTNER_RETAINS_PROCESSING_FEE=true`. The `fully_deducted` / `deducted_amount` provider
+   fields do **not** report the fee-return outcome; see T499 in section 9.
 2. Use a separate test key and test transaction; never refund a real contributor during the spike.
-3. Record the request body, response, refund reference format and final status in
-   `docs/runbooks/refund-operations.md`.
+3. Record the request body, response, refund reference format and final status in section 9.
 4. Set `REFUND_PROVIDER=paystack` and `REFUNDS_ENABLED=true` only after T401 and T494 are signed off.
-5. Confirm the verification path with both documented shapes: `GET /refund?transaction=` (array) and
-   `GET /refund/{reference}` (object).
+   T401 is done; **T494 (fresh CODEOWNER review of the refund posting) is still open.**
+5. Confirm the verification path: `GET /refund?reference=` resolves the refund the adapter created,
+   and `GET /refund/{id}` needs the **numeric** refund id. `GET /refund?transaction=` requires the
+   **numeric** transaction id, not the charge reference the application stores.
 6. Confirm the scheduled job is running: `refunds.verification.attempt` moves for a test-pending
    refund, and an unwatched item reaches `REFUND_VERIFICATION_EXHAUSTED` in a controlled test.
 
@@ -188,3 +190,102 @@ Safe order:
 4. Never switch `REFUND_PROVIDER` to `none` with pending refunds; `none` returns `PROVIDER_DISABLED`
    as a definitive failure.
 5. Resolve open suspense items before disabling if the reconciliation surface must be taken down.
+
+## 9. Paystack refund sandbox spike (T401)
+
+**Date:** 2026-11-26
+**Mode:** test (`sk_test_…`, `api.paystack.co`, `domain: "test"`). Two test-mode card
+transactions were refunded. No live call was made and no real contributor was refunded.
+**Purpose:** record whether a refund returns the processing fee, the refund statuses and the
+reference format before enabling the real provider.
+
+### Fee return: the partner retains `F`
+
+GHS balance moved `2,716,564 → 2,710,000` pesewas for gross refunds of `1,764 + 4,800 = 6,564`.
+Deducting the fees (`35 + 94 = 129`) would have left `2,710,082`. The partner therefore refunds the
+gross amount and keeps the processing fee, which matches Paystack's "transaction charges are
+non-refundable" policy. `REFUND_PARTNER_RETAINS_PROCESSING_FEE=true` is correct and the
+`LOSS_ALLOCATION` branch in ADR 0018 is the live path.
+
+`fully_deducted` and `deducted_amount` report how much of the refund is deducted from the pending
+payout, **not** whether the processing fee came back: both refunds reported
+`deducted_amount = amount` and `fully_deducted = 1` while the fee was retained. Gating the loss set on
+those fields (T499 as written) would gate nothing and must be rewritten.
+
+### Create
+
+`POST /refund` with `{"transaction": "<charge reference>", "amount": <gross>, "currency": "GHS"}`
+returns `200` and:
+
+```json
+{"status": true, "message": "Refund has been queued for processing",
+ "data": {"id": 19349642, "domain": "test", "currency": "GHS", "amount": 1764,
+          "status": "pending", "reason": "PENDING", "deducted_amount": 0,
+          "fully_deducted": false, "refund_type": "Full",
+          "refund_channel": "Original Payment", "retriable": false,
+          "reference": "01a21956-5c50-705f-8308-4c40a51f2d84",
+          "expected_at": "2026-12-07T19:30:19.856Z"}}
+```
+
+- `POST /refund` **is** available on the current starter-business tier. Refunds are not blocked the
+  way `POST /transfer` is (T301).
+- The refund reference is Paystack-generated (UUID v4) when the request omits one.
+- A caller-supplied `reference` is honoured **verbatim**: `tgthr-refund-t401-spike-001` persisted
+  unchanged. It must be 8–64 characters of letters, digits, `_` and `-`.
+- The transaction moves to `reversal-pending`, a status the adapter does not previously model.
+- `expected_at` was **11 days** out. Refunds are not near-instant, and both refunds were still
+  `pending` with no `refunded_at` 3 minutes after creation.
+
+### Verification lookups
+
+| Lookup | Result |
+| --- | --- |
+| `GET /refund?transaction=<numeric transaction id>` | the refund, as an array |
+| `GET /refund?transaction=<charge reference>` | **empty array** |
+| `GET /refund?reference=<client reference>` | the refund, as an array |
+| `GET /refund/<numeric refund id>` | the refund, as an object |
+| `GET /refund/<uuid reference>` | `401 "ID should be a valid integer"` |
+
+The application stores the **charge reference** string (`contributions.provider_reference`), never
+the numeric transaction id. The adapter's `?transaction=<string>` fallback therefore matched nothing,
+so a refund whose submit outcome was unknown could never be resolved. The adapter now sends a
+deterministic client reference (`tgthr-refund-<refund id>`) and verifies through
+`GET /refund?reference=`, which resolves the same refund (T500).
+
+The reference is written to `refunds.client_reference` in the same insert that creates the refund
+(V19), before the provider call, so an operator can reconcile a `PROVIDER_PENDING` row without
+recomputing it:
+
+```sql
+select id, state, provider_reference, client_reference
+from refunds where id = '<refund-id>';
+-- provider_reference may be null; then:
+-- GET /refund?reference=tgthr-refund-<refund-id>
+```
+
+`GET /refund/<id>` accepts only the **numeric** refund id. Never substitute the client reference
+there; it answers `401 "ID should be a valid integer"`.
+
+### Duplicate submit is `400 transaction_reversed`, not `409`
+
+```json
+{"status": false, "code": "transaction_reversed", "type": "api_error",
+ "message": "A refund already exist for this transaction",
+ "data": {"existing_refunds": [{"id": 19349642, "reference": "01a2…", "status": "processing"}]}}
+```
+
+The adapter treated this as `PROVIDER_REJECTED`, which released the reservation and marked the refund
+`FAILED` while Paystack was in fact refunding the contributor. It is now `PENDING`/`CONFLICT`, and the
+existing refund's id is carried forward so verification can use it directly.
+
+### Sign-off
+
+| Field | Value |
+| --- | --- |
+| Fee returned | **No** — partner retains `F` |
+| Provider available in test mode | Yes (`POST /refund` not tier-blocked) |
+| Refund statuses observed | `pending`, `processing`; `reversal-pending` on the transaction |
+| Reference format | Paystack UUID, or a caller-supplied 8–64 character reference |
+| Verification shapes | `?reference=` and `/{numeric id}`; `?transaction=` needs the numeric id |
+| Date | 2026-11-26 |
+| Spike performed by | Agent session, reviewed by the CODEOWNER under T494 |
