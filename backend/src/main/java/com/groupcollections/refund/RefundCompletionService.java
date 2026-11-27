@@ -42,7 +42,7 @@ public class RefundCompletionService {
       MeterRegistry meters,
       Clock clock,
       @Value("${collections.refunds.partner-retains-processing-fee:true}") boolean feeRetained,
-      @Value("${collections.refunds.verification.initial-delay:PT5M}")
+      @Value("${collections.refunds.verification.initial-delay:PT15M}")
           Duration verificationInitialDelay) {
     this.refunds = refunds;
     this.contributions = contributions;

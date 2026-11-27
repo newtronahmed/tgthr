@@ -109,8 +109,20 @@ class RefundVerificationIT extends ApiIntegrationTest {
     assertThat(attemptEvents(refundId)).isEqualTo(3);
     assertThat(exhaustedEvents(refundId)).isEqualTo(1);
 
-    job.run();
-    assertThat(attempts(refundId)).isEqualTo(3);
+    // An operator check that is still pending re-arms the job: exhaustion is an escalation, not a
+    // dead end, and the provider may answer days later (ADR 0020).
+    ResponseEntity<Map<String, Object>> stillPending =
+        verify(refundId, "provider verification", token);
+    assertThat(stillPending.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(refundState(refundId)).isEqualTo("PROVIDER_PENDING");
+    assertThat(exhaustedAt(refundId)).isNull();
+    assertThat(attempts(refundId)).isZero();
+    assertThat(nextVerification(refundId))
+        .isAfter(Instant.now().plusSeconds(3_000))
+        .isBefore(Instant.now().plusSeconds(3_700));
+    assertThat(payouts.reservedMinorUnits(contribution.goalId())).isEqualTo(contribution.amount());
+    assertThat(count("select count(*) from ledger_entries where refund_id = ?", refundId)).isZero();
+    assertThat(alertCount(Alert.AlertType.REFUND_PROVIDER_PENDING)).isEqualTo(1);
 
     PAYSTACK.refundScenario("SUCCESS");
     ResponseEntity<Map<String, Object>> verified = verify(refundId, "manual verification", token);
@@ -123,7 +135,9 @@ class RefundVerificationIT extends ApiIntegrationTest {
                 "select count(*) from ledger_entries where refund_id = ? and entry_type = 'REVERSAL'",
                 refundId))
         .isEqualTo(4);
-    assertThat(exhaustedAt(refundId)).isNotNull();
+    // Exhaustion was cleared by the re-arm, so it is history in the event log, not a live column.
+    assertThat(exhaustedAt(refundId)).isNull();
+    assertThat(exhaustedEvents(refundId)).isEqualTo(1);
   }
 
   private Contribution confirmedContribution() {

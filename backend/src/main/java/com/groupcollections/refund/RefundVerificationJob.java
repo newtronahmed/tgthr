@@ -42,9 +42,9 @@ public class RefundVerificationJob {
       MeterRegistry meters,
       Clock clock,
       @Value("${collections.refunds.provider:none}") String providerName,
-      @Value("${collections.refunds.verification.initial-delay:PT5M}") Duration initialDelay,
-      @Value("${collections.refunds.verification.max-delay:PT6H}") Duration maxDelay,
-      @Value("${collections.refunds.verification.max-attempts:8}") int maxAttempts,
+      @Value("${collections.refunds.verification.initial-delay:PT15M}") Duration initialDelay,
+      @Value("${collections.refunds.verification.max-delay:PT12H}") Duration maxDelay,
+      @Value("${collections.refunds.verification.max-attempts:24}") int maxAttempts,
       @Value("${collections.refunds.verification.batch-size:20}") int batchSize) {
     this.refunds = refunds;
     this.provider = provider;

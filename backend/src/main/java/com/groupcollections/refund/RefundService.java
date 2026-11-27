@@ -10,6 +10,7 @@ import com.groupcollections.operator.OperatorRole;
 import com.groupcollections.payout.PayoutRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +42,7 @@ public class RefundService {
   private final MeterRegistry meters;
   private final Clock clock;
   private final boolean enabled;
+  private final Duration verificationInitialDelay;
 
   public RefundService(
       RefundRepository refunds,
@@ -53,7 +55,9 @@ public class RefundService {
       AlertPublisher alerts,
       MeterRegistry meters,
       Clock clock,
-      @Value("${collections.refunds.enabled:false}") boolean enabled) {
+      @Value("${collections.refunds.enabled:false}") boolean enabled,
+      @Value("${collections.refunds.verification.initial-delay:PT15M}")
+          Duration verificationInitialDelay) {
     this.refunds = refunds;
     this.contributions = contributions;
     this.goals = goals;
@@ -65,6 +69,7 @@ public class RefundService {
     this.meters = meters;
     this.clock = clock;
     this.enabled = enabled;
+    this.verificationInitialDelay = verificationInitialDelay;
   }
 
   @Transactional
@@ -182,7 +187,9 @@ public class RefundService {
   public RefundView verify(OperatorPrincipal actor, UUID refundId, String reason) {
     actor.requireRole(OperatorRole.REFUND_OPERATOR);
     String cleanReason = requireReason(reason);
-    Refund refund = refunds.findById(refundId).orElseThrow(RefundException::notFound);
+    // The row lock serializes this operator check against the scheduled job claiming the same
+    // refund.
+    Refund refund = refunds.findByIdForUpdate(refundId).orElseThrow(RefundException::notFound);
     RefundProvider.RefundResult result;
     String action;
     if (refund.state() == RefundState.PROVIDER_PENDING) {
@@ -204,6 +211,7 @@ public class RefundService {
       throw RefundException.notPending();
     }
     completion.process(refundId, result);
+    rearmExhaustedVerification(refundId, result);
     operators.recordAction(
         actor.id(),
         action,
@@ -215,6 +223,30 @@ public class RefundService {
         Instant.now(clock));
     meters.counter("refunds.verified").increment();
     return refunds.findById(refundId).map(RefundView::from).orElseThrow(RefundException::notFound);
+  }
+
+  /**
+   * Re-arms the scheduled job when an operator check came back pending on an exhausted refund (ADR
+   * 0020). Exhaustion is an escalation, not a dead end: the provider may still answer, and without
+   * this the reservation could only ever be released by hand.
+   */
+  private void rearmExhaustedVerification(UUID refundId, RefundProvider.RefundResult result) {
+    if (result.status() != RefundProvider.RefundResult.Status.PENDING) {
+      return;
+    }
+    Instant now = Instant.now(clock);
+    if (refunds.rearmVerification(refundId, now.plus(verificationInitialDelay), now) == 0) {
+      return;
+    }
+    refunds.appendEvent(
+        refundId,
+        "VERIFICATION_REARMED",
+        RefundState.PROVIDER_PENDING.name(),
+        RefundState.PROVIDER_PENDING.name(),
+        "reason=" + result.pendingReason(),
+        now);
+    meters.counter("refunds.verification.rearmed").increment();
+    log.warn("event=refund_verification_rearmed refundId={}", refundId);
   }
 
   void callProvider(Refund refund) {

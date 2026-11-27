@@ -78,9 +78,9 @@ collections:
     partner-retains-processing-fee: ${REFUND_PARTNER_RETAINS_PROCESSING_FEE:true}
     suspense-income-after: ${REFUND_SUSPENSE_INCOME_AFTER:P30D}
     verification:
-      initial-delay: ${REFUND_VERIFICATION_INITIAL_DELAY:PT5M}
-      max-delay: ${REFUND_VERIFICATION_MAX_DELAY:PT6H}
-      max-attempts: ${REFUND_VERIFICATION_MAX_ATTEMPTS:8}
+      initial-delay: ${REFUND_VERIFICATION_INITIAL_DELAY:PT15M}
+      max-delay: ${REFUND_VERIFICATION_MAX_DELAY:PT12H}
+      max-attempts: ${REFUND_VERIFICATION_MAX_ATTEMPTS:24}
       batch-size: ${REFUND_VERIFICATION_BATCH_SIZE:20}
       scan-ms: ${REFUND_VERIFICATION_SCAN_MS:60000}
   rate-limit:
