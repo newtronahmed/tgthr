@@ -125,6 +125,15 @@ inflating a goal, and every action is attributable, idempotent and safe against 
     `collections.refunds.enabled=false` rejects new refund requests with `409 REFUNDS_DISABLED` but
     keeps read, verify, completion and the scheduled verification job available so pending refunds
     can drain.
+    The automatic verification window defaults to `initial-delay=PT15M`, `max-delay=PT12H` and
+    `max-attempts=24`, which spans 9.17 days. It must outlast the provider's refund settlement
+    window, because exhaustion is an escalation and not an expected end state: a refund that
+    exhausts while the provider is still legitimately processing raises a false alert, holds the
+    reservation and pushes operators into unnecessary manual checks. ADR 0020 derives the window from
+    the 11-day `expected_at` recorded in the T401 sandbox spike; re-derive it when that observation
+    changes rather than raising the ceiling speculatively. Exhaustion keeps the reservation and
+    alerts, and an operator verify that is still pending re-arms the backoff instead of leaving the
+    refund permanently unverified.
 11. **Post-payout requests.** P1 returns `REFUND_AFTER_PAYOUT`; support records the request out of
     band and follows ADR 0013's manual recovery. No ledger or provider refund automation runs until
     the P2 recovery slice.

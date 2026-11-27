@@ -15,9 +15,9 @@ code, recovery code or provider secret into a ticket, chat or log.
 | `REFUND_PROVIDER` | `none` | `paystack` for the real adapter; `none` disables provider calls |
 | `REFUND_PARTNER_RETAINS_PROCESSING_FEE` | `true` | Whether Paystack keeps `F`; sets the `LOSS_ALLOCATION` branch until T401 is signed off |
 | `REFUND_SUSPENSE_INCOME_AFTER` | `P30D` | Minimum age before a suspense item can become miscellaneous income |
-| `REFUND_VERIFICATION_INITIAL_DELAY` | `PT5M` | First automatic re-check delay |
-| `REFUND_VERIFICATION_MAX_DELAY` | `PT6H` | Backoff ceiling |
-| `REFUND_VERIFICATION_MAX_ATTEMPTS` | `8` | Automatic checks before escalation |
+| `REFUND_VERIFICATION_INITIAL_DELAY` | `PT15M` | First automatic re-check delay |
+| `REFUND_VERIFICATION_MAX_DELAY` | `PT12H` | Backoff ceiling |
+| `REFUND_VERIFICATION_MAX_ATTEMPTS` | `24` | Automatic checks before escalation; the window spans 9.17 days, sized to outlast Paystack's refund settlement window (ADR 0020) |
 | `REFUND_VERIFICATION_BATCH_SIZE` | `20` | Refunds per scheduled scan |
 | `REFUND_VERIFICATION_SCAN_MS` | `60000` | Scheduled scan interval |
 | `OPERATOR_ENABLED` | `false` | Operator identity; refund endpoints are unreachable without it |
