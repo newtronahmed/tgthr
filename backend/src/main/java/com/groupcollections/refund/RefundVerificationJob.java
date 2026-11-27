@@ -42,9 +42,9 @@ public class RefundVerificationJob {
       MeterRegistry meters,
       Clock clock,
       @Value("${collections.refunds.provider:none}") String providerName,
-      @Value("${collections.refunds.verification.initial-delay:PT5M}") Duration initialDelay,
-      @Value("${collections.refunds.verification.max-delay:PT6H}") Duration maxDelay,
-      @Value("${collections.refunds.verification.max-attempts:8}") int maxAttempts,
+      @Value("${collections.refunds.verification.initial-delay:PT15M}") Duration initialDelay,
+      @Value("${collections.refunds.verification.max-delay:PT12H}") Duration maxDelay,
+      @Value("${collections.refunds.verification.max-attempts:24}") int maxAttempts,
       @Value("${collections.refunds.verification.batch-size:20}") int batchSize) {
     this.refunds = refunds;
     this.provider = provider;
@@ -123,10 +123,25 @@ public class RefundVerificationJob {
     }
   }
 
-  private Duration backoff(int attempt) {
+  Duration backoff(int attempt) {
     int exponent = Math.min(Math.max(attempt - 1, 0), 20);
     Duration delay = initialDelay.multipliedBy(1L << exponent);
     return delay.compareTo(maxDelay) > 0 ? maxDelay : delay;
+  }
+
+  /**
+   * Visible for {@code RefundVerificationWindowTest}: the schedule this job was configured with.
+   */
+  Duration initialDelay() {
+    return initialDelay;
+  }
+
+  Duration maxDelay() {
+    return maxDelay;
+  }
+
+  int maxAttempts() {
+    return maxAttempts;
   }
 
   private static String outcome(RefundProvider.RefundResult result) {

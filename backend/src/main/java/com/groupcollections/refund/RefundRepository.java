@@ -257,6 +257,27 @@ public class RefundRepository {
         id);
   }
 
+  /**
+   * Re-arms automatic verification after an operator check came back pending (ADR 0020). Without
+   * this an exhausted refund can only ever be verified by hand, because the job skips rows whose
+   * {@code verification_exhausted_at} is set — a provider that answers late would strand the
+   * reservation permanently.
+   */
+  public int rearmVerification(UUID id, Instant nextVerificationAt, Instant now) {
+    return jdbc.update(
+        """
+        update refunds
+        set verification_attempts = 0,
+            verification_exhausted_at = null,
+            next_verification_at = ?,
+            updated_at = ?
+        where id = ? and state = 'PROVIDER_PENDING' and verification_exhausted_at is not null
+        """,
+        Timestamp.from(nextVerificationAt),
+        Timestamp.from(now),
+        id);
+  }
+
   public record RefundVerificationCandidate(UUID id, int attempts) {}
 
   public void appendEvent(
