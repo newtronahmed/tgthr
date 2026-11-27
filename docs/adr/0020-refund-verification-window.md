@@ -1,6 +1,6 @@
 # ADR 0020: Refund verification must outlast the provider's refund window
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-27
 - Deciders: repository owner (CODEOWNER `ledger/`, `payments/`)
 - Constitution articles touched: Article I.5 (money must not be silently dropped), Article II.4
