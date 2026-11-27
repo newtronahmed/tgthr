@@ -5,13 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.groupcollections.alerts.Alert;
 import com.groupcollections.support.ApiIntegrationTest;
 import com.groupcollections.support.Criterion;
+import com.groupcollections.support.MutableClock;
 import com.groupcollections.support.RecordingAlertPublisher;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -143,37 +142,5 @@ class ContributionTimeoutIT extends ApiIntegrationTest {
   private Integer ledgerCount(UUID id) {
     return jdbc.queryForObject(
         "select count(*) from ledger_entries where contribution_id = ?", Integer.class, id);
-  }
-
-  static final class MutableClock extends Clock {
-
-    private Instant now;
-
-    MutableClock(Instant now) {
-      this.now = now;
-    }
-
-    void set(Instant instant) {
-      this.now = instant;
-    }
-
-    void advance(Duration duration) {
-      this.now = now.plus(duration);
-    }
-
-    @Override
-    public ZoneId getZone() {
-      return ZoneOffset.UTC;
-    }
-
-    @Override
-    public Clock withZone(ZoneId zone) {
-      return this;
-    }
-
-    @Override
-    public Instant instant() {
-      return now;
-    }
   }
 }

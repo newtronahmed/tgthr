@@ -2,11 +2,10 @@ package com.groupcollections.contribution;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.groupcollections.support.MutableClock;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 class RateLimiterTest {
@@ -44,33 +43,5 @@ class RateLimiterTest {
 
     limiter.check("1.1.1.1", PHONE);
     limiter.check("1.1.1.1", PHONE);
-  }
-
-  static final class MutableClock extends Clock {
-
-    private Instant now;
-
-    MutableClock(Instant now) {
-      this.now = now;
-    }
-
-    void advance(Duration duration) {
-      now = now.plus(duration);
-    }
-
-    @Override
-    public ZoneId getZone() {
-      return ZoneOffset.UTC;
-    }
-
-    @Override
-    public Clock withZone(ZoneId zone) {
-      return this;
-    }
-
-    @Override
-    public Instant instant() {
-      return now;
-    }
   }
 }
