@@ -53,3 +53,4 @@ FEAT-001 is merged and implemented (backend + web; PWA and browser E2E done). Th
 FEAT-003 organizer identity, goal creation and the organizer dashboard are merged (PR #2) with invariants and hardening. Production SMS/Paystack adapters and live sandbox checks remain.
 
 FEAT-002 payouts are implemented: request, approval, hold, cancel, execution and completion postings, contributor visibility/reports/notifications, and stuck-EXECUTING verification. The cancellation/ownership/idempotency slice merged in PR #21, and all 91 spec criteria are active (91 defined / 91 active / 0 pending / 0 missing). Before live payouts: T301/T302 (Paystack transfer sandbox spike and real adapter), T361 (remaining abuse tests), T362 (payout runbook) and T365 (fresh CODEOWNER review of the posting path). `make check` passes with JDK 21 and the committed Gradle wrapper.
+https://paystack.shop/pay/sijisus-ty

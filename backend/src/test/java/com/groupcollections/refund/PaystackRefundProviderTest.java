@@ -2,6 +2,10 @@ package com.groupcollections.refund;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.groupcollections.refund.RefundProvider.RefundResult;
@@ -11,6 +15,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;
 
@@ -99,10 +104,53 @@ class PaystackRefundProviderTest {
   }
 
   /**
-   * Several existing refunds cannot be told apart without an amount or currency, and picking one
-   * could reconcile against someone else's refund. Carry nothing; the deterministic client
-   * reference still resolves the right one.
+   * A 400 whose body is not the duplicate envelope (a proxy HTML page, a truncated response) is not
+   * evidence that the refund exists. It must not be classified as a conflict: that would hold the
+   * reservation on an invented duplicate. But it must not be released either — if the body was a
+   * truncated duplicate, Paystack is refunding and releasing the reservation would pay the
+   * contributor twice. Stay pending and log a distinct event so operators can tell this apart from
+   * a real duplicate.
    */
+  @Test
+  void anUnparsableBadRequestStaysPendingAndIsLoggedDistinctly() {
+    Logger logger = (Logger) LoggerFactory.getLogger(PaystackRefundProvider.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    try {
+      fake.refundScenario("BAD_REQUEST_UNPARSABLE");
+
+      RefundResult result = provider.refund(refund("txn-123", null));
+
+      assertThat(result.status()).isEqualTo(RefundResult.Status.PENDING);
+      assertThat(result.pendingReason()).isEqualTo(RefundResult.PendingReason.CONFLICT);
+      assertThat(appender.list)
+          .anySatisfy(
+              event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage())
+                    .contains("refund_duplicate_unparsable")
+                    .contains("status=400");
+              });
+    } finally {
+      logger.detachAppender(appender);
+    }
+  }
+
+  /**
+   * A parseable 400 that does not carry the duplicate code is a real rejection, and stays
+   * definitive: there is no evidence Paystack refunded anything.
+   */
+  @Test
+  void aBadRequestWithoutTheDuplicateCodeIsStillRejected() {
+    fake.refundScenario("REQUEST_REJECTED");
+
+    RefundResult result = provider.refund(refund("txn-123", null));
+
+    assertThat(result.status()).isEqualTo(RefundResult.Status.FAILED);
+    assertThat(result.failureCode()).isEqualTo("PROVIDER_REJECTED");
+  }
+
   @Test
   void ambiguousDuplicateKeepsNoReferenceAndVerifiesThroughTheClientReference() {
     Refund submitted = refund("txn-123", null);

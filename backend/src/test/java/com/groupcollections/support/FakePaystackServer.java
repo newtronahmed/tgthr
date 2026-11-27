@@ -139,7 +139,7 @@ public final class FakePaystackServer implements AutoCloseable {
     return List.copyOf(refundBodies);
   }
 
-  /** SUCCESS, PENDING, FAILED, REQUEST_REJECTED or SERVER_ERROR. */
+  /** SUCCESS, PENDING, FAILED, REQUEST_REJECTED, SERVER_ERROR, or a duplicate scenario. */
   public void refundScenario(String scenario) {
     refundScenario = scenario;
   }
@@ -525,6 +525,10 @@ public final class FakePaystackServer implements AutoCloseable {
                       List.of(
                           duplicateRefundEntry("refund-duplicate-one"),
                           duplicateRefundEntry("refund-duplicate-two")))));
+      // A proxy or load balancer can answer 400 with HTML. That is not evidence of a duplicate, so
+      // the adapter must not classify it as one.
+      case "BAD_REQUEST_UNPARSABLE" ->
+          respondRaw(exchange, 400, "<html><body>Bad Request</body></html>");
       case "RATE_LIMITED" ->
           respond(exchange, 429, Map.of("status", false, "message", "rate limited"));
       case "SERVER_ERROR" ->
@@ -880,6 +884,15 @@ public final class FakePaystackServer implements AutoCloseable {
       throws IOException {
     byte[] bytes = mapper.writeValueAsBytes(payload);
     exchange.getResponseHeaders().set("Content-Type", "application/json");
+    exchange.sendResponseHeaders(statusCode, bytes.length);
+    try (OutputStream output = exchange.getResponseBody()) {
+      output.write(bytes);
+    }
+  }
+
+  private void respondRaw(HttpExchange exchange, int statusCode, String body) throws IOException {
+    byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().set("Content-Type", "text/html");
     exchange.sendResponseHeaders(statusCode, bytes.length);
     try (OutputStream output = exchange.getResponseBody()) {
       output.write(bytes);

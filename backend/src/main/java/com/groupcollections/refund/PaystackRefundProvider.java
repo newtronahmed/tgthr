@@ -3,6 +3,8 @@ package com.groupcollections.refund;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,7 @@ import org.springframework.web.client.RestClientResponseException;
 @ConditionalOnProperty(name = "collections.refunds.provider", havingValue = "paystack")
 public class PaystackRefundProvider implements RefundProvider {
 
+  private static final Logger log = LoggerFactory.getLogger(PaystackRefundProvider.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final RestClient restClient;
@@ -24,8 +27,9 @@ public class PaystackRefundProvider implements RefundProvider {
   }
 
   /**
-   * The persisted reference, with the identical derivation as a fallback. Rows written before V19
-   * were backfilled with the same value, so this never changes which refund is addressed.
+   * The persisted reference, falling back to the identical derivation. Returns a non-null value: a
+   * row written before V19 was backfilled with the same derivation, so callers never check for
+   * null.
    */
   private static String clientReference(Refund refund) {
     return refund.clientReference() == null || refund.clientReference().isBlank()
@@ -87,18 +91,29 @@ public class PaystackRefundProvider implements RefundProvider {
    * /refund/{id}} accepts, which is why it is carried as the provider reference.
    */
   private RefundResult existingRefund(RestClientResponseException failure, Refund refund) {
+    JsonNode body;
     try {
-      JsonNode body = MAPPER.readTree(failure.getResponseBodyAsString());
-      if (!"transaction_reversed".equals(body.path("code").asText(""))) {
-        return null;
-      }
-      return RefundResult.pending(
-          existingRefundReference(body.path("data").path("existing_refunds"), refund),
-          RefundResult.PendingReason.CONFLICT);
-    } catch (java.io.IOException | RuntimeException unreadable) {
-      // An unparsable duplicate body is still a duplicate: stay pending and let verify resolve it.
+      body = MAPPER.readTree(failure.getResponseBodyAsString());
+    } catch (java.io.IOException notJson) {
+      // A 400 without the duplicate envelope is not evidence that a refund exists, but it is not
+      // proof that none does either: a truncated duplicate body looks the same. Stay pending —
+      // never
+      // release on ambiguity — and log a distinct event so this is not mistaken for a real
+      // duplicate.
+      log.warn(
+          "event=refund_duplicate_unparsable status={} refundId={} contributionId={}",
+          failure.getStatusCode().value(),
+          refund.id(),
+          refund.contributionId(),
+          notJson);
       return RefundResult.pending(null, RefundResult.PendingReason.CONFLICT);
     }
+    if (!"transaction_reversed".equals(body.path("code").asText(""))) {
+      return null;
+    }
+    return RefundResult.pending(
+        existingRefundReference(body.path("data").path("existing_refunds"), refund),
+        RefundResult.PendingReason.CONFLICT);
   }
 
   /**
@@ -119,7 +134,7 @@ public class PaystackRefundProvider implements RefundProvider {
       }
       count++;
       String reference = entry.hasNonNull("id") ? entry.get("id").asText() : null;
-      if (wanted != null && wanted.equals(entry.path("reference").asText(""))) {
+      if (wanted.equals(entry.path("reference").asText(""))) {
         return reference;
       }
       soleReference = reference;
