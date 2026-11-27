@@ -412,6 +412,7 @@ class PaystackRefundProviderTest {
         "idem-" + UUID.randomUUID(),
         transactionReference,
         providerReference,
+        null,
         UUID.randomUUID(),
         "duplicate charge",
         null,

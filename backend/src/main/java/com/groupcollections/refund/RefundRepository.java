@@ -20,8 +20,8 @@ public class RefundRepository {
       select id, contribution_id, goal_id, source_account, amount_minor_units,
              platform_fee_minor_units, processing_fee_minor_units, total_minor_units,
              currency_code, state, idempotency_key, provider_transaction_reference,
-             provider_reference, operator_id, reason, failure_code, provider_requested_at,
-             succeeded_at, failed_at, created_at, updated_at
+             provider_reference, client_reference, operator_id, reason, failure_code,
+             provider_requested_at, succeeded_at, failed_at, created_at, updated_at
       from refunds
       """;
 
@@ -41,6 +41,7 @@ public class RefundRepository {
               resultSet.getString("idempotency_key"),
               resultSet.getString("provider_transaction_reference"),
               resultSet.getString("provider_reference"),
+              resultSet.getString("client_reference"),
               resultSet.getObject("operator_id", UUID.class),
               resultSet.getString("reason"),
               resultSet.getString("failure_code"),
@@ -77,9 +78,9 @@ public class RefundRepository {
         insert into refunds
             (id, contribution_id, goal_id, source_account, amount_minor_units,
              platform_fee_minor_units, processing_fee_minor_units, total_minor_units,
-             currency_code, state, idempotency_key, provider_transaction_reference, operator_id,
-             reason, created_at, updated_at)
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?)
+             currency_code, state, idempotency_key, provider_transaction_reference,
+             client_reference, operator_id, reason, created_at, updated_at)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?)
         """,
         id,
         contributionId,
@@ -92,6 +93,7 @@ public class RefundRepository {
         currencyCode,
         idempotencyKey,
         providerTransactionReference,
+        RefundReferences.clientReference(id),
         operatorId,
         reason,
         timestamp,

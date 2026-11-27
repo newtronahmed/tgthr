@@ -23,9 +23,14 @@ public class PaystackRefundProvider implements RefundProvider {
     this.restClient = restClient;
   }
 
-  /** Deterministic client reference (T500): derived from the persisted refund id. */
+  /**
+   * The persisted reference, with the identical derivation as a fallback. Rows written before V19
+   * were backfilled with the same value, so this never changes which refund is addressed.
+   */
   private static String clientReference(Refund refund) {
-    return "tgthr-refund-" + refund.id();
+    return refund.clientReference() == null || refund.clientReference().isBlank()
+        ? RefundReferences.clientReference(refund.id())
+        : refund.clientReference();
   }
 
   @Override
@@ -133,16 +138,16 @@ public class PaystackRefundProvider implements RefundProvider {
                 .uri("/refund/{reference}", refund.providerReference())
                 .retrieve()
                 .body(JsonNode.class);
-      } else if (refund.providerTransactionReference() != null
-          && !refund.providerTransactionReference().isBlank()) {
+      } else {
+        // A submitted refund with an unknown outcome has no provider reference yet. The client
+        // reference is deterministic, so it resolves the same refund; ?transaction= would need the
+        // numeric transaction id and silently match nothing.
         response =
             restClient
                 .get()
-                .uri("/refund?transaction={transaction}", refund.providerTransactionReference())
+                .uri("/refund?reference={reference}", clientReference(refund))
                 .retrieve()
                 .body(JsonNode.class);
-      } else {
-        return RefundResult.pending(null, RefundResult.PendingReason.UNKNOWN_STATUS);
       }
       return map(response, refund, true);
     } catch (RestClientResponseException failure) {
@@ -155,7 +160,8 @@ public class PaystackRefundProvider implements RefundProvider {
   /**
    * Paystack returns 408 for a request it may still have accepted and 409 when an earlier attempt
    * already exists, so both are treated like a timeout rather than a rejection. 429 and 5xx are
-   * retryable for the same reason: the refund may have landed.
+   * retryable for the same reason: the refund may have landed. A 409 from a proxy does not prove
+   * the refund exists, so verification still resolves through the client reference.
    */
   private static RefundResult.PendingReason retryReason(RestClientResponseException failure) {
     HttpStatusCode status = failure.getStatusCode();

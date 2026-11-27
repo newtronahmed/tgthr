@@ -17,6 +17,7 @@ public record Refund(
     String idempotencyKey,
     String providerTransactionReference,
     String providerReference,
+    String clientReference,
     UUID operatorId,
     String reason,
     String failureCode,

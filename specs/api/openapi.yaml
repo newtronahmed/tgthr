@@ -2004,7 +2004,7 @@ components:
           description: Must not contain a phone number.
     RefundView:
       type: object
-      required: [id, contributionId, goalId, sourceAccount, amountMinorUnits, platformFeeMinorUnits, processingFeeMinorUnits, totalMinorUnits, currencyCode, state, operatorId, reason, createdAt]
+      required: [id, contributionId, goalId, sourceAccount, amountMinorUnits, platformFeeMinorUnits, processingFeeMinorUnits, totalMinorUnits, currencyCode, state, clientReference, operatorId, reason, createdAt]
       properties:
         id:
           type: string
@@ -2039,6 +2039,9 @@ components:
         providerReference:
           type: string
           nullable: true
+        clientReference:
+          type: string
+          description: Deterministic client reference sent to the provider before the call; the only lookup that resolves a refund whose submit outcome is unknown.
         operatorId:
           type: string
           format: uuid
