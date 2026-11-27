@@ -106,10 +106,16 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 - [x] T192 Map malformed goal ids to 404
 - [ ] T193 Consider a `__Host-` session cookie name
 - [x] T194 Normalize the phone in the sign-in UI before sending
-- [ ] T195 Finish CSP tightening (HSTS added; nonce/hash CSP and header tests remain)
+- [x] T195 Finish CSP tightening (HSTS added; nonce/hash CSP and header tests remain). **Done:
+  `'unsafe-eval'` removed, `object-src`/`worker-src`/`manifest-src` pinned, and
+  `web/lib/security-headers.test.ts` asserts the shipped policy. Verified against a production
+  build: no `securitypolicyviolation` events on `/`, `/signin`, `/offline`, `/operator/signin`.**
 - [x] T196 Align OpenAPI goal defaults/nullability and update status/docs
 - [x] T197 Add the `(phone_hash, created_at DESC)` OTP index
-- [ ] T198 Complete the trusted-IP contract for all BFF routes and add forged-header/per-IP tests (auth routes now use x-real-ip only)
+- [x] T198 Complete the trusted-IP contract for all BFF routes and add forged-header/per-IP tests (auth routes now use x-real-ip only). **Done: `clientIp` reads only `x-real-ip` and returns
+  undefined rather than trusting a browser-supplied `x-forwarded-for`; `web/lib/client-ip.test.ts`
+  and `TrustedClientIpIT` cover it; contract and edge requirement in
+  `docs/runbooks/trusted-client-ip.md`.**
 
 ## Review follow-ups (FEAT-003 identity slice)
 
@@ -135,5 +141,5 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 | Slug-collision test | backend | T174 |
 | Unique fixture cleanup | test | T180 |
 | Deterministic clock tests | test | T169 |
-| CSP nonce/hash tests | web | T195 |
+| CSP nonce/hash (nonce-based CSP not adopted; header tests only) | web | T195 |
 | Retention for OTP challenges and sessions | backend | T165 |
