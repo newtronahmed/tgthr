@@ -80,7 +80,17 @@ Criteria: AC-ORG-001, AC-ORG-002, AC-ORG-005, AC-ORG-013 (web flows)
 - [x] T166 Block updates to `goals.destination_*` once the create path lands (trigger or constraint), proving destination immutability
 - [x] T167 Decide whether a display name is required at first verification; amend the spec and OpenAPI together, then enforce in the service
 - [x] T168 Forward `Origin`, `Cookie` and `X-Forwarded-For` in the BFF auth/organizer routes and cover the relay in the web E2E
-- [ ] T169 Add a deterministic `Clock` test seam for OTP/session expiry and assert the 60-second and 30-day production defaults
+- [ ] T505 Move `FakeSmsSender` into the shared `ApiIntegrationTest` configuration. Every integration
+  test that needs an SMS currently declares its own `@Primary` bean, so two such classes in one cached
+  Spring context are ambiguous (`NoUniqueBeanDefinitionException`) or hand a class the wrong instance.
+  This blocked adding OTP-expiry coverage to `IdentityClockSeamIT` (see T169) and is latent for any
+  two ITs that both declare it.
+- [x] T169 Add a deterministic `Clock` test seam for OTP/session expiry and assert the 60-second and
+  30-day production defaults. **Done: one shared `support/MutableClock` replaces three private copies;
+  `IdentityDefaultsTest` asserts the shipped `application.yml` values (OTP `PT5M`, 5 attempts,
+  60s resend, session `P30D`); `IdentityClockSeamIT` expires a real session by advancing the clock
+  rather than rewriting `expires_at`. Verified the seam test fails if the service ignores the
+  injected clock.**
 - [x] T170 Serialize OTP requests per phone (advisory lock or one-active-challenge index) and add a concurrency test
 - [x] T171 Add the production `AccountResolver` (Paystack `/bank/resolve` with the MoMo telco code) after T001 and test it against the fake partner (`PaystackAccountResolver` with success/not-found/transient/5xx/network tests)
 - [x] T172 Use only the stored legal name for ADMIN_MOMO, require the destination to be the organizer's own phone, and stop mutating identity at goal create
