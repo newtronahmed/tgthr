@@ -1,6 +1,7 @@
 package com.groupcollections.refund;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatusCode;
@@ -14,10 +15,17 @@ import org.springframework.web.client.RestClientResponseException;
 @ConditionalOnProperty(name = "collections.refunds.provider", havingValue = "paystack")
 public class PaystackRefundProvider implements RefundProvider {
 
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
   private final RestClient restClient;
 
   public PaystackRefundProvider(RestClient restClient) {
     this.restClient = restClient;
+  }
+
+  /** Deterministic client reference (T500): derived from the persisted refund id. */
+  private static String clientReference(Refund refund) {
+    return "tgthr-refund-" + refund.id();
   }
 
   @Override
@@ -39,12 +47,20 @@ public class PaystackRefundProvider implements RefundProvider {
                       refund.totalMinorUnits(),
                       "currency",
                       refund.currencyCode(),
+                      "reference",
+                      clientReference(refund),
                       "merchant_note",
                       "Refund " + refund.id()))
               .retrieve()
               .body(JsonNode.class);
       return map(response, refund, false);
     } catch (RestClientResponseException failure) {
+      if (failure.getStatusCode().value() == 400) {
+        RefundResult duplicate = existingRefund(failure, refund);
+        if (duplicate != null) {
+          return duplicate;
+        }
+      }
       RefundResult.PendingReason reason = retryReason(failure);
       return reason == null
           ? RefundResult.failed("PROVIDER_REJECTED")
@@ -52,6 +68,58 @@ public class PaystackRefundProvider implements RefundProvider {
     } catch (RestClientException failure) {
       return RefundResult.pending(null, RefundResult.PendingReason.TIMEOUT);
     }
+  }
+
+  /**
+   * Live Paystack rejects a second refund for the same transaction with {@code 400} and {@code
+   * code=transaction_reversed}, carrying the existing refund in {@code data.existing_refunds}. The
+   * refund already exists, so this is an unresolved outcome, not a rejection: releasing the
+   * reservation here would fail a refund Paystack is actually processing. The existing reference is
+   * returned so verification can use it directly.
+   *
+   * <p>Those entries carry only {@code id}, {@code reference} and {@code status} — no amount and no
+   * currency — so they cannot be matched by value. The numeric id is the only part {@code GET
+   * /refund/{id}} accepts, which is why it is carried as the provider reference.
+   */
+  private RefundResult existingRefund(RestClientResponseException failure, Refund refund) {
+    try {
+      JsonNode body = MAPPER.readTree(failure.getResponseBodyAsString());
+      if (!"transaction_reversed".equals(body.path("code").asText(""))) {
+        return null;
+      }
+      return RefundResult.pending(
+          existingRefundReference(body.path("data").path("existing_refunds"), refund),
+          RefundResult.PendingReason.CONFLICT);
+    } catch (java.io.IOException | RuntimeException unreadable) {
+      // An unparsable duplicate body is still a duplicate: stay pending and let verify resolve it.
+      return RefundResult.pending(null, RefundResult.PendingReason.CONFLICT);
+    }
+  }
+
+  /**
+   * Prefer the entry that echoes our client reference. Otherwise accept a sole entry; when several
+   * are ambiguous, carry nothing and let verification resolve this refund through {@code GET
+   * /refund?reference=}, which cannot pick someone else's refund.
+   */
+  private static String existingRefundReference(JsonNode entries, Refund refund) {
+    if (!entries.isArray()) {
+      return null;
+    }
+    String wanted = clientReference(refund);
+    String soleReference = null;
+    int count = 0;
+    for (JsonNode entry : entries) {
+      if (!entry.isObject()) {
+        continue;
+      }
+      count++;
+      String reference = entry.hasNonNull("id") ? entry.get("id").asText() : null;
+      if (wanted != null && wanted.equals(entry.path("reference").asText(""))) {
+        return reference;
+      }
+      soleReference = reference;
+    }
+    return count == 1 ? soleReference : null;
   }
 
   @Override
